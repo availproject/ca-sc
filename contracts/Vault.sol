@@ -1,0 +1,215 @@
+// SPDX-LICENSE-Identifier: MIT
+pragma solidity ^0.8.13;
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
+contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
+    using ECDSA for bytes32;
+    string private constant _REQUEST_TYPE =
+        "Request(SourcePair[] sources,uint256 destinationChainId,DestinationPair[] destinations,uint256 nonce,uint256 expiry)";
+    string private constant _SOURCE_PAIR_TYPE =
+        "SourcePair(uint256 chainId,address tokenAddress,uint256 value)";
+    string private constant _DESTINATION_PAIR_TYPE =
+        "DestinationPair(address tokenAddress,uint256 value)";
+
+    // Note: After the main struct defination the rest of the defination should be in alphabetical order
+    bytes32 private constant _REQUEST_TYPE_HASH =
+        keccak256(
+            abi.encodePacked(
+                _REQUEST_TYPE,
+                _DESTINATION_PAIR_TYPE,
+                _SOURCE_PAIR_TYPE
+            )
+        );
+    bytes32 private constant _SOURCE_PAIR_TYPE_HASH =
+        keccak256(abi.encodePacked(_SOURCE_PAIR_TYPE));
+    bytes32 private constant _DESTINATION_PAIR_TYPE_HASH =
+        keccak256(abi.encodePacked(_DESTINATION_PAIR_TYPE));
+
+    mapping(bytes32 => Request) public requests;
+    mapping(uint256 => bool) public depositNonce;
+    mapping(uint256 => bool) public fillNonce;
+
+    struct SourcePair {
+        uint256 chainId;
+        address tokenAddress;
+        uint256 value;
+    }
+
+    struct DestinationPair {
+        address tokenAddress;
+        uint256 value;
+    }
+
+    struct Request {
+        SourcePair[] sources;
+        uint256 destinationChainId;
+        DestinationPair[] destinations;
+        uint256 nonce;
+        uint256 expiry;
+    }
+
+    event Deposit(address indexed from, bytes32 indexed requestHash);
+
+    event Fill(address indexed from, bytes32 indexed requestHash);
+
+    event Rebalance(address token, uint256 amount);
+
+    // EIP-712 Domain Separator parameters
+    string private constant SIGNING_DOMAIN = "ArcanaCredit";
+    string private constant SIGNATURE_VERSION = "0.0.1";
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() public initializer {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        __EIP712_init(SIGNING_DOMAIN, SIGNATURE_VERSION);
+    }
+    function _hashSourcePairs(
+        SourcePair[] calldata sources
+    ) private pure returns (bytes32) {
+        bytes32[] memory encoded = new bytes32[](sources.length);
+        for (uint i = 0; i < sources.length; i++) {
+            encoded[i] = keccak256(
+                abi.encode(
+                    _SOURCE_PAIR_TYPE_HASH,
+                    sources[i].chainId,
+                    sources[i].tokenAddress,
+                    sources[i].value
+                )
+            );
+        }
+        return keccak256(abi.encodePacked(encoded));
+    }
+
+    function _hashDestinationPairs(
+        DestinationPair[] calldata destinations
+    ) private pure returns (bytes32) {
+        bytes32[] memory encoded = new bytes32[](destinations.length);
+        for (uint i = 0; i < destinations.length; i++) {
+            encoded[i] = keccak256(
+                abi.encode(
+                    _DESTINATION_PAIR_TYPE_HASH,
+                    destinations[i].tokenAddress,
+                    destinations[i].value
+                )
+            );
+        }
+        return keccak256(abi.encodePacked(encoded));
+    }
+    function getStructHash(
+        Request calldata request
+    ) private pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    _REQUEST_TYPE_HASH,
+                    _hashSourcePairs(request.sources),
+                    request.destinationChainId,
+                    _hashDestinationPairs(request.destinations),
+                    request.nonce,
+                    request.expiry
+                )
+            );
+    }
+
+    function _verify_request(
+        bytes calldata signature,
+        address from,
+        bytes32 structHash
+    ) private view returns (bool, bytes32) {
+        bytes32 request_hash = _hashTypedDataV4(structHash);
+        address signer = request_hash.recover(signature);
+        return (signer == from, request_hash);
+    }
+
+    function deposit(
+        Request calldata request,
+        bytes calldata signature,
+        address from,
+        uint256 chain_index
+    ) public {
+        bytes32 structHash = getStructHash(request);
+        (bool success, bytes32 hash) = _verify_request(
+            signature,
+            from,
+            structHash
+        );
+        require(success, "ArcanaCredit: Invalid signature or from");
+        require(
+            request.sources[chain_index].chainId == block.chainid,
+            "ArcanaCredit: Chain ID mismatch"
+        );
+        require(
+            depositNonce[request.nonce] == false,
+            "ArcanaCredit: Nonce already used"
+        );
+
+        IERC20 token = IERC20(request.sources[chain_index].tokenAddress);
+        requests[hash] = request;
+
+        token.transferFrom(
+            from,
+            address(this),
+            request.sources[chain_index].value
+        );
+        depositNonce[request.nonce] = true;
+        emit Deposit(from, structHash);
+    }
+
+    function fill(
+        Request calldata request,
+        bytes calldata signature,
+        address from
+    ) public payable {
+        bytes32 structHash = getStructHash(request);
+        (bool success, bytes32 hash) = _verify_request(
+            signature,
+            from,
+            structHash
+        );
+        require(success, "ArcanaCredit: Invalid signature or from");
+        require(
+            request.destinationChainId == block.chainid,
+            "ArcanaCredit: Chain ID mismatch"
+        );
+        require(
+            fillNonce[request.nonce] == false,
+            "ArcanaCredit: Nonce already used"
+        );
+
+        requests[hash] = request;
+        for (uint i = 0; i < request.destinations.length; i++) {
+            if (request.destinations[i].tokenAddress == address(0)) {
+                require(
+                    msg.value == request.destinations[i].value,
+                    "ArcanaCredit: Value mismatch"
+                );
+                payable(from).transfer(request.destinations[i].value);
+                continue;
+            } else {
+                IERC20 token = IERC20(request.destinations[i].tokenAddress);
+                token.transferFrom(
+                    msg.sender,
+                    from,
+                    request.destinations[i].value
+                );
+            }
+        }
+        fillNonce[request.nonce] = true;
+        emit Fill(from, structHash);
+    }
+
+    function rebalance(
+        address token,
+        uint256 amount
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).transfer(msg.sender, amount);
+        emit Rebalance(token, amount);
+    }
+}
