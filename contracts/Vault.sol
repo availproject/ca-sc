@@ -212,4 +212,12 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         IERC20(token).transfer(msg.sender, amount);
         emit Rebalance(token, amount);
     }
+
+    function verifyRequestSignature(
+        Request calldata request,
+        bytes calldata signature,
+        address from
+    ) public view returns (bool, bytes32) {
+        return _verify_request(signature, from, getStructHash(request));
+    }
 }
