@@ -11,7 +11,7 @@ describe("Vault Contract", function () {
   let owner: HardhatEthersSigner;
   let user: HardhatEthersSigner;
   let solver: HardhatEthersSigner;
-  let chainId: number;
+  let chainID: number;
   let EIP712Domain = {
     name: "ArcanaCredit",
     version: "0.0.1",
@@ -22,13 +22,13 @@ describe("Vault Contract", function () {
   const types = {
     Request: [
       { name: "sources", type: "SourcePair[]" },
-      { name: "destinationChainId", type: "uint256" },
+      { name: "destinationchainID", type: "uint256" },
       { name: "destinations", type: "DestinationPair[]" },
       { name: "nonce", type: "uint256" },
       { name: "expiry", type: "uint256" },
     ],
     SourcePair: [
-      { name: "chainId", type: "uint256" },
+      { name: "chainID", type: "uint256" },
       { name: "tokenAddress", type: "address" },
       { name: "value", type: "uint256" },
     ],
@@ -41,8 +41,8 @@ describe("Vault Contract", function () {
   beforeEach(async function () {
     [owner, user, solver] = await ethers.getSigners();
     const network = await ethers.provider.getNetwork();
-    chainId = Number(network.chainId);
-    EIP712Domain.chainId = chainId;
+    chainID = Number(network.chainId);
+    EIP712Domain.chainId = chainID;
 
     // Deploy mock USDC token
     const USDCMock = await ethers.getContractFactory("USDC");
@@ -71,25 +71,24 @@ describe("Vault Contract", function () {
     sourceToken: USDC,
     destinationToken: USDC,
     amount: number,
-    destinationChainId: number,
+    destinationchainID: number,
     nonce: number
   ) {
     const request = {
       sources: [
         {
-          chainId: chainId,
+          chainID: chainID,
           tokenAddress: await sourceToken.getAddress(),
           value: amount,
         },
       ],
-      destinationChainId: destinationChainId,
+      destinationchainID: destinationchainID,
       destinations: [
         { value: amount, tokenAddress: await destinationToken.getAddress() },
       ],
       nonce: nonce,
       expiry: Math.floor(Date.now() / 1000) + 3600, // Expiry 1 hour from now
     };
-
     const signature = await user.signTypedData(EIP712Domain, types, request);
 
     await sourceToken.mint(from.address, amount);
@@ -149,7 +148,7 @@ describe("Vault Contract", function () {
       usdc,
       usdc,
       amount,
-      chainId,
+      chainID,
       nonce
     );
 
@@ -173,14 +172,14 @@ describe("Vault Contract", function () {
       usdc,
       usdc,
       amount,
-      chainId,
+      chainID,
       nonce
     );
 
     await vault.deposit(request, signature, user.address, 0);
 
-    await usdc.mint(await solver.getAddress(), 2*amount);
-    await usdc.connect(solver).approve(await vault.getAddress(), 2*amount);
+    await usdc.mint(await solver.getAddress(), 2 * amount);
+    await usdc.connect(solver).approve(await vault.getAddress(), 2 * amount);
 
     await vault.connect(solver).fill(request, signature, user.address);
 

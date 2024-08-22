@@ -8,9 +8,9 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     using ECDSA for bytes32;
     string private constant _REQUEST_TYPE =
-        "Request(SourcePair[] sources,uint256 destinationChainId,DestinationPair[] destinations,uint256 nonce,uint256 expiry)";
+        "Request(SourcePair[] sources,uint256 destinationchainID,DestinationPair[] destinations,uint256 nonce,uint256 expiry)";
     string private constant _SOURCE_PAIR_TYPE =
-        "SourcePair(uint256 chainId,address tokenAddress,uint256 value)";
+        "SourcePair(uint256 chainID,address tokenAddress,uint256 value)";
     string private constant _DESTINATION_PAIR_TYPE =
         "DestinationPair(address tokenAddress,uint256 value)";
 
@@ -33,7 +33,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     mapping(uint256 => bool) public fillNonce;
 
     struct SourcePair {
-        uint256 chainId;
+        uint256 chainID;
         address tokenAddress;
         uint256 value;
     }
@@ -45,7 +45,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
 
     struct Request {
         SourcePair[] sources;
-        uint256 destinationChainId;
+        uint256 destinationchainID;
         DestinationPair[] destinations;
         uint256 nonce;
         uint256 expiry;
@@ -78,7 +78,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
             encoded[i] = keccak256(
                 abi.encode(
                     _SOURCE_PAIR_TYPE_HASH,
-                    sources[i].chainId,
+                    sources[i].chainID,
                     sources[i].tokenAddress,
                     sources[i].value
                 )
@@ -110,7 +110,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
                 abi.encode(
                     _REQUEST_TYPE_HASH,
                     _hashSourcePairs(request.sources),
-                    request.destinationChainId,
+                    request.destinationchainID,
                     _hashDestinationPairs(request.destinations),
                     request.nonce,
                     request.expiry
@@ -142,7 +142,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         );
         require(success, "ArcanaCredit: Invalid signature or from");
         require(
-            request.sources[chain_index].chainId == block.chainid,
+            request.sources[chain_index].chainID == block.chainid,
             "ArcanaCredit: Chain ID mismatch"
         );
         require(
@@ -175,7 +175,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         );
         require(success, "ArcanaCredit: Invalid signature or from");
         require(
-            request.destinationChainId == block.chainid,
+            request.destinationchainID == block.chainid,
             "ArcanaCredit: Chain ID mismatch"
         );
         require(
