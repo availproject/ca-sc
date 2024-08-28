@@ -2,10 +2,11 @@
 import { ethers, upgrades, version } from "hardhat";
 import { expect } from "chai";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { Contract } from "ethers";
+import { Contract, formatEther, parseEther } from "ethers";
 import { USDC, Vault } from "../typechain-types";
 
 describe("Vault Contract", function () {
+  const OVERHEAD = 33138;
   let vault: Vault;
   let usdc: USDC;
   let owner: HardhatEthersSigner;
@@ -55,6 +56,14 @@ describe("Vault Contract", function () {
       initializer: "initialize",
     })) as unknown as Vault;
     EIP712Domain.verifyingContract = await vault.getAddress();
+
+    // transfer eth to vault contract
+    await owner.sendTransaction({
+      to: await vault.getAddress(),
+      value: ethers.parseEther("1"),
+    });
+
+    await vault.setOverHead(OVERHEAD);
   });
 
   it("should assign admin role to deployer", async function () {
@@ -117,9 +126,24 @@ describe("Vault Contract", function () {
       fee
     );
 
+    // eth balance of the owner
+    const ethBalanceBefore = await owner.provider.getBalance(owner.address);
+    // estimate gas
+    const gas = await vault.deposit.estimateGas(
+      request,
+      signature,
+      user.address,
+      0
+    );
     await expect(vault.deposit(request, signature, user.address, 0)).to.emit(
       vault,
       "Deposit"
+    );
+    const ethBalanceAfter = await owner.provider.getBalance(owner.address);
+
+    expect(ethBalanceBefore - ethBalanceAfter).to.be.closeTo(
+      0,
+      ethers.parseEther("0.00001")
     );
 
     expect(await usdc.balanceOf(user.address)).to.equal(0);

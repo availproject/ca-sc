@@ -4,7 +4,6 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "hardhat/console.sol";
 
 contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     using ECDSA for bytes32;
@@ -165,8 +164,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         );
         depositNonce[request.nonce] = true;
         emit Deposit(from, structHash);
-        uint256 gasUsed = startGas - gasleft() + overhead;
-        console.log("Gas used: %d", gasUsed);
+        uint256 gasUsed = startGas - gasleft()+overhead;
         payable(msg.sender).transfer(gasUsed * tx.gasprice);
     }
 
@@ -228,4 +226,10 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     ) public view returns (bool, bytes32) {
         return _verify_request(signature, from, getStructHash(request));
     }
+
+    function setOverHead(uint256 _overhead) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        overhead = _overhead;
+    }
+
+    receive() external payable {}
 }
