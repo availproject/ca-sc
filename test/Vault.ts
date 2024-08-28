@@ -26,6 +26,7 @@ describe("Vault Contract", function () {
       { name: "destinations", type: "DestinationPair[]" },
       { name: "nonce", type: "uint256" },
       { name: "expiry", type: "uint256" },
+      { name: "fee", type: "uint256" },
     ],
     SourcePair: [
       { name: "chainID", type: "uint256" },
@@ -72,7 +73,8 @@ describe("Vault Contract", function () {
     destinationToken: USDC,
     amount: number,
     destinationchainID: number,
-    nonce: number
+    nonce: number,
+    fee: number
   ) {
     const request = {
       sources: [
@@ -87,12 +89,15 @@ describe("Vault Contract", function () {
         { value: amount, tokenAddress: await destinationToken.getAddress() },
       ],
       nonce: nonce,
-      expiry: Math.floor(Date.now() / 1000) + 3600, // Expiry 1 hour from now
+      expiry: Math.floor(Date.now() / 1000) + 3600, // Expiry 1 hour from now,
+      fee,
     };
     const signature = await user.signTypedData(EIP712Domain, types, request);
 
-    await sourceToken.mint(from.address, amount);
-    await sourceToken.connect(from).approve(await vault.getAddress(), amount);
+    await sourceToken.mint(from.address, amount + fee);
+    await sourceToken
+      .connect(from)
+      .approve(await vault.getAddress(), amount + fee);
 
     return { request, signature };
   }
@@ -100,6 +105,7 @@ describe("Vault Contract", function () {
   it("should deposit tokens", async function () {
     const amount = 100;
     const nonce = 1;
+    const fee = 1;
 
     const { request, signature } = await prepareDeposit(
       user,
@@ -107,7 +113,8 @@ describe("Vault Contract", function () {
       usdc,
       amount,
       2,
-      nonce
+      nonce,
+      fee
     );
 
     await expect(vault.deposit(request, signature, user.address, 0)).to.emit(
@@ -116,12 +123,15 @@ describe("Vault Contract", function () {
     );
 
     expect(await usdc.balanceOf(user.address)).to.equal(0);
-    expect(await usdc.balanceOf(await vault.getAddress())).to.equal(amount);
+    expect(await usdc.balanceOf(await vault.getAddress())).to.equal(
+      amount + fee
+    );
   });
 
   it("should fail to deposit with the same nonce", async function () {
     const amount = 100;
     const nonce = 1;
+    const fee = 1;
 
     const { request, signature } = await prepareDeposit(
       user,
@@ -129,7 +139,8 @@ describe("Vault Contract", function () {
       usdc,
       amount,
       2,
-      nonce
+      nonce,
+      fee
     );
 
     await vault.deposit(request, signature, user.address, 0);
@@ -142,6 +153,7 @@ describe("Vault Contract", function () {
   it("should fill a request correctly", async function () {
     const amount = 100;
     const nonce = 1;
+    const fee = 1;
 
     const { request, signature } = await prepareDeposit(
       user,
@@ -149,13 +161,14 @@ describe("Vault Contract", function () {
       usdc,
       amount,
       chainID,
-      nonce
+      nonce,
+      fee
     );
 
     await vault.deposit(request, signature, user.address, 0);
 
-    await usdc.mint(await solver.getAddress(), amount);
-    await usdc.connect(solver).approve(await vault.getAddress(), amount);
+    await usdc.mint(await solver.getAddress(), amount + fee);
+    await usdc.connect(solver).approve(await vault.getAddress(), amount + fee);
     await expect(
       vault.connect(solver).fill(request, signature, user.address)
     ).to.emit(vault, "Fill");
@@ -166,6 +179,7 @@ describe("Vault Contract", function () {
   it("should not allow filling a request with the same nonce again", async function () {
     const amount = 100;
     const nonce = 1;
+    const fee = 1;
 
     const { request, signature } = await prepareDeposit(
       user,
@@ -173,7 +187,8 @@ describe("Vault Contract", function () {
       usdc,
       amount,
       chainID,
-      nonce
+      nonce,
+      fee
     );
 
     await vault.deposit(request, signature, user.address, 0);

@@ -8,7 +8,7 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     using ECDSA for bytes32;
     string private constant _REQUEST_TYPE =
-        "Request(SourcePair[] sources,uint256 destinationchainID,DestinationPair[] destinations,uint256 nonce,uint256 expiry)";
+        "Request(SourcePair[] sources,uint256 destinationchainID,DestinationPair[] destinations,uint256 nonce,uint256 expiry,uint256 fee)";
     string private constant _SOURCE_PAIR_TYPE =
         "SourcePair(uint256 chainID,address tokenAddress,uint256 value)";
     string private constant _DESTINATION_PAIR_TYPE =
@@ -49,6 +49,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         DestinationPair[] destinations;
         uint256 nonce;
         uint256 expiry;
+        uint256 fee;
     }
 
     event Deposit(address indexed from, bytes32 indexed requestHash);
@@ -113,7 +114,8 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
                     request.destinationchainID,
                     _hashDestinationPairs(request.destinations),
                     request.nonce,
-                    request.expiry
+                    request.expiry,
+                    request.fee
                 )
             );
     }
@@ -156,7 +158,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         token.transferFrom(
             from,
             address(this),
-            request.sources[chain_index].value
+            request.sources[chain_index].value + request.fee
         );
         depositNonce[request.nonce] = true;
         emit Deposit(from, structHash);
