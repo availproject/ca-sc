@@ -4,6 +4,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "hardhat/console.sol";
 
 contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     using ECDSA for bytes32;
@@ -13,6 +14,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         "SourcePair(uint256 chainID,address tokenAddress,uint256 value)";
     string private constant _DESTINATION_PAIR_TYPE =
         "DestinationPair(address tokenAddress,uint256 value)";
+    uint256 overhead;
 
     // Note: After the main struct defination the rest of the defination should be in alphabetical order
     bytes32 private constant _REQUEST_TYPE_HASH =
@@ -136,6 +138,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         address from,
         uint256 chain_index
     ) public {
+        uint256 startGas = gasleft();
         bytes32 structHash = getStructHash(request);
         (bool success, bytes32 hash) = _verify_request(
             signature,
@@ -162,6 +165,9 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         );
         depositNonce[request.nonce] = true;
         emit Deposit(from, structHash);
+        uint256 gasUsed = startGas - gasleft() + overhead;
+        console.log("Gas used: %d", gasUsed);
+        payable(msg.sender).transfer(gasUsed * tx.gasprice);
     }
 
     function fill(
