@@ -1,4 +1,4 @@
-// SPDX-LICENSE-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -8,7 +8,7 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     using ECDSA for bytes32;
     string private constant _REQUEST_TYPE =
-        "Request(SourcePair[] sources,uint256 destinationchainID,DestinationPair[] destinations,uint256 nonce,uint256 expiry,uint256 fee)";
+        "Request(SourcePair[] sources,uint256 destinationchainID,DestinationPair[] destinations,uint256 nonce,uint256 expiry,uint16 fee)";
     string private constant _SOURCE_PAIR_TYPE =
         "SourcePair(uint256 chainID,address tokenAddress,uint256 value)";
     string private constant _DESTINATION_PAIR_TYPE =
@@ -50,7 +50,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         DestinationPair[] destinations;
         uint256 nonce;
         uint256 expiry;
-        uint256 fee;
+        uint16 fee; // In basis points (i.e 1/100 of a percent)
     }
 
     event Deposit(address indexed from, bytes32 indexed requestHash);
@@ -106,17 +106,19 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     }
     function getStructHash(
         Request calldata request
-    ) private pure returns (bytes32) {
+    ) private view returns (bytes32) {
         return
-            keccak256(
-                abi.encode(
-                    _REQUEST_TYPE_HASH,
-                    _hashSourcePairs(request.sources),
-                    request.destinationchainID,
-                    _hashDestinationPairs(request.destinations),
-                    request.nonce,
-                    request.expiry,
-                    request.fee
+            _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        _REQUEST_TYPE_HASH,
+                        _hashSourcePairs(request.sources),
+                        request.destinationchainID,
+                        _hashDestinationPairs(request.destinations),
+                        request.nonce,
+                        request.expiry,
+                        request.fee
+                    )
                 )
             );
     }
@@ -125,10 +127,9 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         bytes calldata signature,
         address from,
         bytes32 structHash
-    ) private view returns (bool, bytes32) {
-        bytes32 request_hash = _hashTypedDataV4(structHash);
-        address signer = request_hash.recover(signature);
-        return (signer == from, request_hash);
+    ) private pure returns (bool, bytes32) {
+        address signer = structHash.recover(signature);
+        return (signer == from, structHash);
     }
 
     function deposit(
@@ -160,11 +161,13 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         token.transferFrom(
             from,
             address(this),
-            request.sources[chain_index].value + request.fee
+            request.sources[chain_index].value +
+                ((request.sources[chain_index].value) * request.fee) /
+                10_000
         );
         depositNonce[request.nonce] = true;
         emit Deposit(from, structHash);
-        uint256 gasUsed = startGas - gasleft()+overhead;
+        uint256 gasUsed = startGas - gasleft() + overhead;
         payable(msg.sender).transfer(gasUsed * tx.gasprice);
     }
 
@@ -227,7 +230,9 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         return _verify_request(signature, from, getStructHash(request));
     }
 
-    function setOverHead(uint256 _overhead) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setOverHead(
+        uint256 _overhead
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         overhead = _overhead;
     }
 
