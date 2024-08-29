@@ -137,7 +137,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         bytes calldata signature,
         address from,
         uint256 chain_index
-    ) public {
+    ) public payable {
         uint256 startGas = gasleft();
         bytes32 structHash = getStructHash(request);
         (bool success, bytes32 hash) = _verify_request(
@@ -155,16 +155,23 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
             "ArcanaCredit: Nonce already used"
         );
 
-        IERC20 token = IERC20(request.sources[chain_index].tokenAddress);
-        requests[hash] = request;
-
-        token.transferFrom(
-            from,
-            address(this),
-            request.sources[chain_index].value +
+        if (request.sources[chain_index].tokenAddress == address(0)) {
+            uint256 totalValue = request.sources[chain_index].value +
                 ((request.sources[chain_index].value) * request.fee) /
-                10_000
-        );
+                10_000;
+            require(msg.value == totalValue, "ArcanaCredit: Value mismatch");
+        } else {
+            IERC20 token = IERC20(request.sources[chain_index].tokenAddress);
+            token.transferFrom(
+                from,
+                address(this),
+                request.sources[chain_index].value +
+                    ((request.sources[chain_index].value) * request.fee) /
+                    10_000
+            );
+        }
+
+        requests[hash] = request;
         depositNonce[request.nonce] = true;
         emit Deposit(from, structHash);
         uint256 gasUsed = startGas - gasleft() + overhead;

@@ -2,7 +2,6 @@
 import { ethers, upgrades, version } from "hardhat";
 import { expect } from "chai";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { Contract, formatEther, parseEther } from "ethers";
 import { USDC, Vault } from "../typechain-types";
 
 describe("Vault Contract", function () {
@@ -78,8 +77,8 @@ describe("Vault Contract", function () {
 
   async function prepareDeposit(
     from: HardhatEthersSigner,
-    sourceToken: USDC,
-    destinationToken: USDC,
+    sourceToken: USDC | string,
+    destinationToken: USDC | string,
     amount: number,
     destinationchainID: number,
     nonce: number,
@@ -89,28 +88,39 @@ describe("Vault Contract", function () {
       sources: [
         {
           chainID: chainID,
-          tokenAddress: await sourceToken.getAddress(),
+          tokenAddress:
+            typeof sourceToken === "string"
+              ? sourceToken
+              : await sourceToken.getAddress(),
           value: amount,
         },
       ],
       destinationchainID: destinationchainID,
       destinations: [
-        { value: amount, tokenAddress: await destinationToken.getAddress() },
+        {
+          value: amount,
+          tokenAddress:
+            typeof sourceToken === "string"
+              ? sourceToken
+              : await sourceToken.getAddress(),
+        },
       ],
       nonce: nonce,
       expiry: Math.floor(Date.now() / 1000) + 3600, // Expiry 1 hour from now,
       fee,
     };
-    const signature = await user.signTypedData(EIP712Domain, types, request);
-    await sourceToken.mint(from.address, amount + (amount * fee) / 10_000);
-    await sourceToken
-      .connect(from)
-      .approve(await vault.getAddress(), amount + (amount * fee) / 10_000);
 
+    if (typeof sourceToken !== "string") {
+      await sourceToken.mint(from.address, amount + (amount * fee) / 10_000);
+      await sourceToken
+        .connect(from)
+        .approve(await vault.getAddress(), amount + (amount * fee) / 10_000);
+    }
+    const signature = await user.signTypedData(EIP712Domain, types, request);
     return { request, signature };
   }
 
-  it("should deposit tokens", async function () {
+  it("should allow to deposit ERC20 tokens", async function () {
     const amount = 100;
     const nonce = 1;
     const fee = 100; // means 1% fee
@@ -149,6 +159,28 @@ describe("Vault Contract", function () {
     expect(await usdc.balanceOf(await vault.getAddress())).to.equal(
       amount + (amount * fee) / 10_000
     );
+  });
+
+  it("should allow to deposit native tokens", async function () {
+    const amount = 100000;
+    const nonce = 1;
+    const fee = 100; // means 1% fee
+
+    const { request, signature } = await prepareDeposit(
+      user,
+      ethers.ZeroAddress,
+      ethers.ZeroAddress,
+      amount,
+      2,
+      nonce,
+      fee
+    );
+
+    await expect(
+      vault.deposit(request, signature, user.address, 0, {
+        value: amount + (amount * fee) / 10_000,
+      })
+    ).to.emit(vault, "Deposit");
   });
 
   it("should fail to deposit with the same nonce", async function () {
