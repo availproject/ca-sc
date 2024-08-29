@@ -59,7 +59,7 @@ describe("Vault Contract", function () {
     // transfer eth to vault contract
     await owner.sendTransaction({
       to: await vault.getAddress(),
-      value: ethers.parseEther("1"),
+      value: ethers.parseEther("0.0005"), // enough to cover gas fees for 1 tx
     });
 
     await vault.setOverHead(OVERHEAD);
@@ -181,6 +181,46 @@ describe("Vault Contract", function () {
         value: amount + (amount * fee) / 10_000,
       })
     ).to.emit(vault, "Deposit");
+  });
+
+  it("should not refund money if vault balance is low", async function () {
+    const amount = 100000;
+    let nonce = 1;
+    const fee = 100; // means 1% fee
+
+    const { request, signature } = await prepareDeposit(
+      user,
+      ethers.ZeroAddress,
+      ethers.ZeroAddress,
+      amount,
+      2,
+      nonce,
+      fee
+    );
+
+    await expect(
+      vault.deposit(request, signature, user.address, 0, {
+        value: amount + (amount * fee) / 10_000,
+      })
+    ).to.emit(vault, "Deposit");
+
+    nonce++;
+    const { request: request2, signature: signature2 } = await prepareDeposit(
+      user,
+      ethers.ZeroAddress,
+      ethers.ZeroAddress,
+      amount,
+      2,
+      nonce,
+      fee
+    );
+    const vaultEthBalanceBefore = await vault.vaultBalance();
+    await expect(
+      vault.deposit(request2, signature2, user.address, 0, {
+        value: amount + (amount * fee) / 10_000,
+      })
+    );
+    expect(await vault.vaultBalance()).to.equal(vaultEthBalanceBefore);
   });
 
   it("should fail to deposit with the same nonce", async function () {

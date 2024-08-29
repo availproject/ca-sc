@@ -14,6 +14,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     string private constant _DESTINATION_PAIR_TYPE =
         "DestinationPair(address tokenAddress,uint256 value)";
     uint256 overhead;
+    uint256 public vaultBalance;
 
     // Note: After the main struct defination the rest of the defination should be in alphabetical order
     bytes32 private constant _REQUEST_TYPE_HASH =
@@ -175,7 +176,13 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         depositNonce[request.nonce] = true;
         emit Deposit(from, structHash);
         uint256 gasUsed = startGas - gasleft() + overhead;
-        payable(msg.sender).transfer(gasUsed * tx.gasprice);
+        uint256 refund = gasUsed * tx.gasprice;
+        if (refund < vaultBalance) {
+            vaultBalance -= refund;
+            payable(msg.sender).transfer(refund);
+        } else {
+            vaultBalance = 0;
+        }
     }
 
     function fill(
@@ -243,5 +250,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         overhead = _overhead;
     }
 
-    receive() external payable {}
+    receive() external payable {
+        vaultBalance += msg.value;
+    }
 }
