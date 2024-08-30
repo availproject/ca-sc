@@ -39,6 +39,14 @@ describe("Vault Contract", function () {
     ],
   };
 
+  const settleTypes = {
+    SettleData: [
+      { name: "solvers", type: "address[]" },
+      { name: "tokens", type: "address[]" },
+      { name: "amounts", type: "uint256[]" },
+    ],
+  };
+
   beforeEach(async function () {
     [owner, user, solver] = await ethers.getSigners();
     const network = await ethers.provider.getNetwork();
@@ -347,14 +355,26 @@ describe("Vault Contract", function () {
     });
 
     // settle all solvers
-    let solvers = [await solver.getAddress(), await solver.getAddress()];
-    let tokens = [await usdc.getAddress(), ethers.ZeroAddress];
-    let amounts = [100, 100000];
+    const solvers = [await solver.getAddress(), await solver.getAddress()];
+    const tokens = [await usdc.getAddress(), ethers.ZeroAddress];
+    const amounts = [100, 100000];
+
+    const settleData = {
+      solvers,
+      tokens,
+      amounts,
+    };
+
+    const settleSignature = await owner.signTypedData(
+      EIP712Domain,
+      settleTypes,
+      settleData
+    );
 
     // balance before of the solvers
     let balanceBefore = await usdc.balanceOf(await solver.getAddress());
     let ethBalanceBefore = await solver.provider.getBalance(solver.address);
-    await vault.settle(solvers, tokens, amounts);
+    await vault.settle(settleData, settleSignature);
     expect(await usdc.balanceOf(await solver.getAddress())).to.equal(
       balanceBefore + 100n
     );

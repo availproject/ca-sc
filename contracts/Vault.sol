@@ -14,6 +14,9 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         "SourcePair(uint256 chainID,address tokenAddress,uint256 value)";
     string private constant _DESTINATION_PAIR_TYPE =
         "DestinationPair(address tokenAddress,uint256 value)";
+
+    string private constant _SETTLE_TYPE =
+        "SettleData(address[] solvers,address[] tokens,uint256[] amounts)";
     uint256 overhead;
     uint256 public vaultBalance;
 
@@ -30,6 +33,8 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         keccak256(abi.encodePacked(_SOURCE_PAIR_TYPE));
     bytes32 private constant _DESTINATION_PAIR_TYPE_HASH =
         keccak256(abi.encodePacked(_DESTINATION_PAIR_TYPE));
+    bytes32 private constant _SETTLE_TYPE_HASH =
+        keccak256(abi.encodePacked(_SETTLE_TYPE));
 
     mapping(bytes32 => Request) public requests;
     mapping(uint256 => bool) public depositNonce;
@@ -53,6 +58,12 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         uint256 nonce;
         uint256 expiry;
         uint16 fee; // In basis points (i.e 1/100 of a percent)
+    }
+
+    struct SettleData {
+        address[] solvers;
+        address[] tokens;
+        uint256[] amounts;
     }
 
     event Deposit(address indexed from, bytes32 indexed requestHash);
@@ -252,20 +263,36 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     }
 
     function settle(
-        address[] calldata solvers,
-        address[] calldata tokens,
-        uint256[] calldata amounts
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        SettleData calldata settleData,
+        bytes calldata signature
+    ) public {
+        bytes32 structHash = _hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    _SETTLE_TYPE_HASH,
+                    keccak256(abi.encodePacked(settleData.solvers)),
+                    keccak256(abi.encodePacked(settleData.tokens)),
+                    keccak256(abi.encodePacked(settleData.amounts))
+                )
+            )
+        );
+        address signer = structHash.recover(signature);
         require(
-            solvers.length == tokens.length && solvers.length == amounts.length,
+            hasRole(DEFAULT_ADMIN_ROLE, signer),
+            "ArcanaCredit: Invalid signature"
+        );
+        require(
+            settleData.solvers.length == settleData.tokens.length &&
+                settleData.solvers.length == settleData.amounts.length,
             "ArcanaCredit: Array length mismatch"
         );
-        for (uint i = 0; i < solvers.length; i++) {
-            if (tokens[i] == address(0)) {
-                payable(solvers[i]).transfer(amounts[i]);
+
+        for (uint i = 0; i < settleData.solvers.length; i++) {
+            if (settleData.tokens[i] == address(0)) {
+                payable(settleData.solvers[i]).transfer(settleData.amounts[i]);
             } else {
-                IERC20 token = IERC20(tokens[i]);
-                token.transfer(solvers[i], amounts[i]);
+                IERC20 token = IERC20(settleData.tokens[i]);
+                token.transfer(settleData.solvers[i], settleData.amounts[i]);
             }
         }
     }
