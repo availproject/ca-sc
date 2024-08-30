@@ -22,7 +22,7 @@ describe("Vault Contract", function () {
   const types = {
     Request: [
       { name: "sources", type: "SourcePair[]" },
-      { name: "destinationchainID", type: "uint256" },
+      { name: "destinationChainID", type: "uint256" },
       { name: "destinations", type: "DestinationPair[]" },
       { name: "nonce", type: "uint256" },
       { name: "expiry", type: "uint256" },
@@ -80,7 +80,7 @@ describe("Vault Contract", function () {
     sourceToken: USDC | string,
     destinationToken: USDC | string,
     amount: number,
-    destinationchainID: number,
+    destinationChainID: number,
     nonce: number,
     fee: number
   ) {
@@ -95,7 +95,7 @@ describe("Vault Contract", function () {
           value: amount,
         },
       ],
-      destinationchainID: destinationchainID,
+      destinationChainID: destinationChainID,
       destinations: [
         {
           value: amount,

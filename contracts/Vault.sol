@@ -8,7 +8,7 @@ import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     using ECDSA for bytes32;
     string private constant _REQUEST_TYPE =
-        "Request(SourcePair[] sources,uint256 destinationchainID,DestinationPair[] destinations,uint256 nonce,uint256 expiry,uint16 fee)";
+        "Request(SourcePair[] sources,uint256 destinationChainID,DestinationPair[] destinations,uint256 nonce,uint256 expiry,uint16 fee)";
     string private constant _SOURCE_PAIR_TYPE =
         "SourcePair(uint256 chainID,address tokenAddress,uint256 value)";
     string private constant _DESTINATION_PAIR_TYPE =
@@ -47,7 +47,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
 
     struct Request {
         SourcePair[] sources;
-        uint256 destinationchainID;
+        uint256 destinationChainID;
         DestinationPair[] destinations;
         uint256 nonce;
         uint256 expiry;
@@ -114,7 +114,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
                     abi.encode(
                         _REQUEST_TYPE_HASH,
                         _hashSourcePairs(request.sources),
-                        request.destinationchainID,
+                        request.destinationChainID,
                         _hashDestinationPairs(request.destinations),
                         request.nonce,
                         request.expiry,
@@ -198,7 +198,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         );
         require(success, "ArcanaCredit: Invalid signature or from");
         require(
-            request.destinationchainID == block.chainid,
+            request.destinationChainID == block.chainid,
             "ArcanaCredit: Chain ID mismatch"
         );
         require(
