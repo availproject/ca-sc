@@ -306,4 +306,60 @@ describe("Vault Contract", function () {
     expect(await usdc.balanceOf(await vault.getAddress())).to.equal(0);
     expect(await usdc.balanceOf(owner.address)).to.equal(100);
   });
+
+  it("Admin should be able to settle all solver", async function () {
+    // do a deposit in ERC20 and eth first
+    let amount = 100;
+    let nonce = 1;
+    let fee = 100; // means 1% fee
+
+    let { request, signature } = await prepareDeposit(
+      user,
+      usdc,
+      usdc,
+      amount,
+      2,
+      nonce,
+      fee
+    );
+
+    await vault.deposit(request, signature, user.address, 0);
+
+    amount = 100000;
+    nonce = 2;
+    fee = 100; // means 1% fee
+
+    let dep = await prepareDeposit(
+      user,
+      ethers.ZeroAddress,
+      ethers.ZeroAddress,
+      amount,
+      2,
+      nonce,
+      fee
+    );
+
+    request = dep.request;
+    signature = dep.signature;
+
+    await vault.connect(user).deposit(request, signature, user.address, 0, {
+      value: amount + (amount * fee) / 10_000,
+    });
+
+    // settle all solvers
+    let solvers = [await solver.getAddress(), await solver.getAddress()];
+    let tokens = [await usdc.getAddress(), ethers.ZeroAddress];
+    let amounts = [100, 100000];
+
+    // balance before of the solvers
+    let balanceBefore = await usdc.balanceOf(await solver.getAddress());
+    let ethBalanceBefore = await solver.provider.getBalance(solver.address);
+    await vault.settle(solvers, tokens, amounts);
+    expect(await usdc.balanceOf(await solver.getAddress())).to.equal(
+      balanceBefore + 100n
+    );
+    expect(await solver.provider.getBalance(solver.address)).to.equal(
+      ethBalanceBefore + 100000n
+    );
+  });
 });

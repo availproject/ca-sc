@@ -4,6 +4,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "hardhat/console.sol";
 
 contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     using ECDSA for bytes32;
@@ -248,6 +249,25 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         uint256 _overhead
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         overhead = _overhead;
+    }
+
+    function settle(
+        address[] calldata solvers,
+        address[] calldata tokens,
+        uint256[] calldata amounts
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(
+            solvers.length == tokens.length && solvers.length == amounts.length,
+            "ArcanaCredit: Array length mismatch"
+        );
+        for (uint i = 0; i < solvers.length; i++) {
+            if (tokens[i] == address(0)) {
+                payable(solvers[i]).transfer(amounts[i]);
+            } else {
+                IERC20 token = IERC20(tokens[i]);
+                token.transfer(solvers[i], amounts[i]);
+            }
+        }
     }
 
     receive() external payable {
