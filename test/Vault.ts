@@ -26,7 +26,6 @@ describe("Vault Contract", function () {
       { name: "destinations", type: "DestinationPair[]" },
       { name: "nonce", type: "uint256" },
       { name: "expiry", type: "uint256" },
-      { name: "fee", type: "uint16" },
     ],
     SourcePair: [
       { name: "chainID", type: "uint256" },
@@ -90,7 +89,6 @@ describe("Vault Contract", function () {
     amount: number,
     destinationChainID: number,
     nonce: number,
-    fee: number
   ) {
     const request = {
       sources: [
@@ -115,14 +113,13 @@ describe("Vault Contract", function () {
       ],
       nonce: nonce,
       expiry: Math.floor(Date.now() / 1000) + 3600, // Expiry 1 hour from now,
-      fee,
     };
 
     if (typeof sourceToken !== "string") {
-      await sourceToken.mint(from.address, amount + (amount * fee) / 10_000);
+      await sourceToken.mint(from.address, amount);
       await sourceToken
         .connect(from)
-        .approve(await vault.getAddress(), amount + (amount * fee) / 10_000);
+        .approve(await vault.getAddress(), amount);
     }
     const signature = await user.signTypedData(EIP712Domain, types, request);
     return { request, signature };
@@ -131,7 +128,6 @@ describe("Vault Contract", function () {
   it("should allow to deposit ERC20 tokens", async function () {
     const amount = 100;
     const nonce = 1;
-    const fee = 100; // means 1% fee
 
     const { request, signature } = await prepareDeposit(
       user,
@@ -139,8 +135,7 @@ describe("Vault Contract", function () {
       usdc,
       amount,
       2,
-      nonce,
-      fee
+      nonce
     );
 
     // eth balance of the owner
@@ -165,14 +160,13 @@ describe("Vault Contract", function () {
 
     expect(await usdc.balanceOf(user.address)).to.equal(0);
     expect(await usdc.balanceOf(await vault.getAddress())).to.equal(
-      amount + (amount * fee) / 10_000
+      amount
     );
   });
 
   it("should allow to deposit native tokens", async function () {
     const amount = 100000;
     const nonce = 1;
-    const fee = 100; // means 1% fee
 
     const { request, signature } = await prepareDeposit(
       user,
@@ -181,12 +175,11 @@ describe("Vault Contract", function () {
       amount,
       2,
       nonce,
-      fee
     );
 
     await expect(
       vault.deposit(request, signature, user.address, 0, {
-        value: amount + (amount * fee) / 10_000,
+        value: amount,
       })
     ).to.emit(vault, "Deposit");
   });
@@ -194,7 +187,6 @@ describe("Vault Contract", function () {
   it("should not refund money if vault balance is low", async function () {
     const amount = 100000;
     let nonce = 1;
-    const fee = 100; // means 1% fee
 
     const { request, signature } = await prepareDeposit(
       user,
@@ -203,12 +195,11 @@ describe("Vault Contract", function () {
       amount,
       2,
       nonce,
-      fee
     );
 
     await expect(
       vault.deposit(request, signature, user.address, 0, {
-        value: amount + (amount * fee) / 10_000,
+        value: amount
       })
     ).to.emit(vault, "Deposit");
 
@@ -220,12 +211,11 @@ describe("Vault Contract", function () {
       amount,
       2,
       nonce,
-      fee
     );
     const vaultEthBalanceBefore = await vault.vaultBalance();
     await expect(
       vault.deposit(request2, signature2, user.address, 0, {
-        value: amount + (amount * fee) / 10_000,
+        value: amount,
       })
     );
     expect(await vault.vaultBalance()).to.equal(vaultEthBalanceBefore);
@@ -234,7 +224,6 @@ describe("Vault Contract", function () {
   it("should fail to deposit with the same nonce", async function () {
     const amount = 100;
     const nonce = 1;
-    const fee = 100;
 
     const { request, signature } = await prepareDeposit(
       user,
@@ -243,7 +232,6 @@ describe("Vault Contract", function () {
       amount,
       2,
       nonce,
-      fee
     );
 
     await vault.deposit(request, signature, user.address, 0);
@@ -256,7 +244,6 @@ describe("Vault Contract", function () {
   it("should fill a request correctly", async function () {
     const amount = 100;
     const nonce = 1;
-    const fee = 100;
 
     const { request, signature } = await prepareDeposit(
       user,
@@ -265,7 +252,6 @@ describe("Vault Contract", function () {
       amount,
       chainID,
       nonce,
-      fee
     );
 
     await vault.deposit(request, signature, user.address, 0);
@@ -280,7 +266,6 @@ describe("Vault Contract", function () {
   it("should not allow filling a request with the same nonce again", async function () {
     const amount = 100;
     const nonce = 1;
-    const fee = 100;
 
     const { request, signature } = await prepareDeposit(
       user,
@@ -289,7 +274,6 @@ describe("Vault Contract", function () {
       amount,
       chainID,
       nonce,
-      fee
     );
 
     await vault.deposit(request, signature, user.address, 0);
@@ -319,7 +303,6 @@ describe("Vault Contract", function () {
     // do a deposit in ERC20 and eth first
     let amount = 100;
     let nonce = 1;
-    let fee = 100; // means 1% fee
 
     let { request, signature } = await prepareDeposit(
       user,
@@ -328,14 +311,12 @@ describe("Vault Contract", function () {
       amount,
       2,
       nonce,
-      fee
     );
 
     await vault.deposit(request, signature, user.address, 0);
 
     amount = 100000;
     nonce = 2;
-    fee = 100; // means 1% fee
 
     let dep = await prepareDeposit(
       user,
@@ -344,14 +325,13 @@ describe("Vault Contract", function () {
       amount,
       2,
       nonce,
-      fee
     );
 
     request = dep.request;
     signature = dep.signature;
 
     await vault.connect(user).deposit(request, signature, user.address, 0, {
-      value: amount + (amount * fee) / 10_000,
+      value: amount, 
     });
 
     // settle all solvers

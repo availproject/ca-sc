@@ -9,7 +9,7 @@ import "hardhat/console.sol";
 contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     using ECDSA for bytes32;
     string private constant _REQUEST_TYPE =
-        "Request(SourcePair[] sources,uint256 destinationChainID,DestinationPair[] destinations,uint256 nonce,uint256 expiry,uint16 fee)";
+        "Request(SourcePair[] sources,uint256 destinationChainID,DestinationPair[] destinations,uint256 nonce,uint256 expiry)";
     string private constant _SOURCE_PAIR_TYPE =
         "SourcePair(uint256 chainID,address tokenAddress,uint256 value)";
     string private constant _DESTINATION_PAIR_TYPE =
@@ -57,7 +57,6 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         DestinationPair[] destinations;
         uint256 nonce;
         uint256 expiry;
-        uint16 fee; // In basis points (i.e 1/100 of a percent)
     }
 
     struct SettleData {
@@ -129,8 +128,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
                         request.destinationChainID,
                         _hashDestinationPairs(request.destinations),
                         request.nonce,
-                        request.expiry,
-                        request.fee
+                        request.expiry
                     )
                 )
             );
@@ -169,18 +167,14 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         );
 
         if (request.sources[chain_index].tokenAddress == address(0)) {
-            uint256 totalValue = request.sources[chain_index].value +
-                ((request.sources[chain_index].value) * request.fee) /
-                10_000;
+            uint256 totalValue = request.sources[chain_index].value;
             require(msg.value == totalValue, "ArcanaCredit: Value mismatch");
         } else {
             IERC20 token = IERC20(request.sources[chain_index].tokenAddress);
             token.transferFrom(
                 from,
                 address(this),
-                request.sources[chain_index].value +
-                    ((request.sources[chain_index].value) * request.fee) /
-                    10_000
+                request.sources[chain_index].value
             );
         }
 
