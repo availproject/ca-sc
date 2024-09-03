@@ -4,7 +4,6 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "hardhat/console.sol";
 
 contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     using ECDSA for bytes32;
@@ -17,7 +16,7 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
 
     string private constant _SETTLE_TYPE =
         "SettleData(address[] solvers,address[] tokens,uint256[] amounts)";
-    uint256 overhead;
+    uint256 public overhead;
     uint256 public vaultBalance;
 
     // Note: After the main struct defination the rest of the defination should be in alphabetical order
