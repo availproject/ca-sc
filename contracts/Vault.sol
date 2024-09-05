@@ -2,38 +2,14 @@
 pragma solidity ^0.8.13;
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "hardhat/console.sol";
 
-contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
+contract Vault is AccessControlUpgradeable {
     using ECDSA for bytes32;
-    string private constant _REQUEST_TYPE =
-        "Request(SourcePair[] sources,uint256 destinationChainID,DestinationPair[] destinations,uint256 nonce,uint256 expiry)";
-    string private constant _SOURCE_PAIR_TYPE =
-        "SourcePair(uint256 chainID,address tokenAddress,uint256 value)";
-    string private constant _DESTINATION_PAIR_TYPE =
-        "DestinationPair(address tokenAddress,uint256 value)";
 
-    string private constant _SETTLE_TYPE =
-        "SettleData(address[] solvers,address[] tokens,uint256[] amounts)";
     uint256 public overhead;
     uint256 public vaultBalance;
-
-    // Note: After the main struct defination the rest of the defination should be in alphabetical order
-    bytes32 private constant _REQUEST_TYPE_HASH =
-        keccak256(
-            abi.encodePacked(
-                _REQUEST_TYPE,
-                _DESTINATION_PAIR_TYPE,
-                _SOURCE_PAIR_TYPE
-            )
-        );
-    bytes32 private constant _SOURCE_PAIR_TYPE_HASH =
-        keccak256(abi.encodePacked(_SOURCE_PAIR_TYPE));
-    bytes32 private constant _DESTINATION_PAIR_TYPE_HASH =
-        keccak256(abi.encodePacked(_DESTINATION_PAIR_TYPE));
-    bytes32 private constant _SETTLE_TYPE_HASH =
-        keccak256(abi.encodePacked(_SETTLE_TYPE));
 
     mapping(bytes32 => Request) public requests;
     mapping(uint256 => bool) public depositNonce;
@@ -65,14 +41,8 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
     }
 
     event Deposit(address indexed from, bytes32 indexed requestHash);
-
     event Fill(address indexed from, bytes32 indexed requestHash);
-
     event Rebalance(address token, uint256 amount);
-
-    // EIP-712 Domain Separator parameters
-    string private constant SIGNING_DOMAIN = "ArcanaCredit";
-    string private constant SIGNATURE_VERSION = "0.0.1";
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -81,56 +51,18 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
 
     function initialize() public initializer {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        __EIP712_init(SIGNING_DOMAIN, SIGNATURE_VERSION);
-    }
-    function _hashSourcePairs(
-        SourcePair[] calldata sources
-    ) private pure returns (bytes32) {
-        bytes32[] memory encoded = new bytes32[](sources.length);
-        for (uint i = 0; i < sources.length; i++) {
-            encoded[i] = keccak256(
-                abi.encode(
-                    _SOURCE_PAIR_TYPE_HASH,
-                    sources[i].chainID,
-                    sources[i].tokenAddress,
-                    sources[i].value
-                )
-            );
-        }
-        return keccak256(abi.encodePacked(encoded));
     }
 
-    function _hashDestinationPairs(
-        DestinationPair[] calldata destinations
-    ) private pure returns (bytes32) {
-        bytes32[] memory encoded = new bytes32[](destinations.length);
-        for (uint i = 0; i < destinations.length; i++) {
-            encoded[i] = keccak256(
-                abi.encode(
-                    _DESTINATION_PAIR_TYPE_HASH,
-                    destinations[i].tokenAddress,
-                    destinations[i].value
-                )
-            );
-        }
-        return keccak256(abi.encodePacked(encoded));
-    }
-    function getStructHash(
-        Request calldata request
-    ) private view returns (bytes32) {
-        return
-            _hashTypedDataV4(
-                keccak256(
-                    abi.encode(
-                        _REQUEST_TYPE_HASH,
-                        _hashSourcePairs(request.sources),
-                        request.destinationChainID,
-                        _hashDestinationPairs(request.destinations),
-                        request.nonce,
-                        request.expiry
-                    )
-                )
-            );
+    function _hashRequest(Request calldata request) private pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                request.sources,
+                request.destinationChainID,
+                request.destinations,
+                request.nonce,
+                request.expiry
+            )
+        );
     }
 
     function _verify_request(
@@ -138,8 +70,14 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         address from,
         bytes32 structHash
     ) private pure returns (bool, bytes32) {
-        address signer = structHash.recover(signature);
-        return (signer == from, structHash);
+        // Prepend the Ethereum signed message prefix
+        bytes32 ethSignedMessageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash)
+        );
+
+        // Recover the signer from the signature
+        address signer = ethSignedMessageHash.recover(signature);
+        return (signer == from, ethSignedMessageHash);
     }
 
     function deposit(
@@ -149,25 +87,25 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         uint256 chain_index
     ) public payable {
         uint256 startGas = gasleft();
-        bytes32 structHash = getStructHash(request);
+        bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 hash) = _verify_request(
             signature,
             from,
             structHash
         );
-        require(success, "ArcanaCredit: Invalid signature or from");
+        require(success, "Vault: Invalid signature or from");
         require(
             request.sources[chain_index].chainID == block.chainid,
-            "ArcanaCredit: Chain ID mismatch"
+            "Vault: Chain ID mismatch"
         );
         require(
             depositNonce[request.nonce] == false,
-            "ArcanaCredit: Nonce already used"
+            "Vault: Nonce already used"
         );
 
         if (request.sources[chain_index].tokenAddress == address(0)) {
             uint256 totalValue = request.sources[chain_index].value;
-            require(msg.value == totalValue, "ArcanaCredit: Value mismatch");
+            require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
             IERC20 token = IERC20(request.sources[chain_index].tokenAddress);
             token.transferFrom(
@@ -195,20 +133,20 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         bytes calldata signature,
         address from
     ) public payable {
-        bytes32 structHash = getStructHash(request);
+        bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 hash) = _verify_request(
             signature,
             from,
             structHash
         );
-        require(success, "ArcanaCredit: Invalid signature or from");
+        require(success, "Vault: Invalid signature or from");
         require(
             request.destinationChainID == block.chainid,
-            "ArcanaCredit: Chain ID mismatch"
+            "Vault: Chain ID mismatch"
         );
         require(
             fillNonce[request.nonce] == false,
-            "ArcanaCredit: Nonce already used"
+            "Vault: Nonce already used"
         );
 
         requests[hash] = request;
@@ -216,10 +154,9 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
             if (request.destinations[i].tokenAddress == address(0)) {
                 require(
                     msg.value == request.destinations[i].value,
-                    "ArcanaCredit: Value mismatch"
+                    "Vault: Value mismatch"
                 );
                 payable(from).transfer(request.destinations[i].value);
-                continue;
             } else {
                 IERC20 token = IERC20(request.destinations[i].tokenAddress);
                 token.transferFrom(
@@ -245,8 +182,8 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         Request calldata request,
         bytes calldata signature,
         address from
-    ) public view returns (bool, bytes32) {
-        return _verify_request(signature, from, getStructHash(request));
+    ) external pure returns (bool, bytes32) {
+        return _verify_request(signature, from, _hashRequest(request));
     }
 
     function setOverHead(
@@ -259,25 +196,25 @@ contract Vault is AccessControlUpgradeable, EIP712Upgradeable {
         SettleData calldata settleData,
         bytes calldata signature
     ) public {
-        bytes32 structHash = _hashTypedDataV4(
-            keccak256(
-                abi.encode(
-                    _SETTLE_TYPE_HASH,
-                    keccak256(abi.encodePacked(settleData.solvers)),
-                    keccak256(abi.encodePacked(settleData.tokens)),
-                    keccak256(abi.encodePacked(settleData.amounts))
-                )
+        bytes32 structHash = keccak256(
+            abi.encode(
+                settleData.solvers,
+                settleData.tokens,
+                settleData.amounts
             )
         );
-        address signer = structHash.recover(signature);
+        bytes32 signatureHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash)
+        );
+        address signer = signatureHash.recover(signature);
         require(
             hasRole(DEFAULT_ADMIN_ROLE, signer),
-            "ArcanaCredit: Invalid signature"
+            "Vault: Invalid signature"
         );
         require(
             settleData.solvers.length == settleData.tokens.length &&
                 settleData.solvers.length == settleData.amounts.length,
-            "ArcanaCredit: Array length mismatch"
+            "Vault: Array length mismatch"
         );
 
         for (uint i = 0; i < settleData.solvers.length; i++) {

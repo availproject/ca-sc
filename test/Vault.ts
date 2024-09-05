@@ -1,56 +1,21 @@
 // test/VaultTest.ts
-import { ethers, upgrades, version } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 import { expect } from "chai";
-import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { USDC, Vault } from "../typechain-types";
+import { keccak256, getBytes } from "ethers";
 
 describe("Vault Contract", function () {
   const OVERHEAD = 33138;
-  let vault: Vault;
-  let usdc: USDC;
-  let owner: HardhatEthersSigner;
-  let user: HardhatEthersSigner;
-  let solver: HardhatEthersSigner;
+  let vault: any;
+  let usdc: any;
+  let owner: any;
+  let user: any;
+  let solver: any;
   let chainID: number;
-  let EIP712Domain = {
-    name: "ArcanaCredit",
-    version: "0.0.1",
-    chainId: 1337,
-    verifyingContract: "",
-  };
-
-  const types = {
-    Request: [
-      { name: "sources", type: "SourcePair[]" },
-      { name: "destinationChainID", type: "uint256" },
-      { name: "destinations", type: "DestinationPair[]" },
-      { name: "nonce", type: "uint256" },
-      { name: "expiry", type: "uint256" },
-    ],
-    SourcePair: [
-      { name: "chainID", type: "uint256" },
-      { name: "tokenAddress", type: "address" },
-      { name: "value", type: "uint256" },
-    ],
-    DestinationPair: [
-      { name: "tokenAddress", type: "address" },
-      { name: "value", type: "uint256" },
-    ],
-  };
-
-  const settleTypes = {
-    SettleData: [
-      { name: "solvers", type: "address[]" },
-      { name: "tokens", type: "address[]" },
-      { name: "amounts", type: "uint256[]" },
-    ],
-  };
 
   beforeEach(async function () {
     [owner, user, solver] = await ethers.getSigners();
     const network = await ethers.provider.getNetwork();
     chainID = Number(network.chainId);
-    EIP712Domain.chainId = chainID;
 
     // Deploy mock USDC token
     const USDCMock = await ethers.getContractFactory("USDC");
@@ -60,10 +25,9 @@ describe("Vault Contract", function () {
     const VaultContract = await ethers.getContractFactory("Vault");
     vault = (await upgrades.deployProxy(VaultContract, [], {
       initializer: "initialize",
-    })) as unknown as Vault;
-    EIP712Domain.verifyingContract = await vault.getAddress();
+    })) as unknown as any;
 
-    // transfer eth to vault contract
+    // Transfer ETH to the Vault contract
     await owner.sendTransaction({
       to: await vault.getAddress(),
       value: ethers.parseEther("0.0005"), // enough to cover gas fees for 1 tx
@@ -83,12 +47,12 @@ describe("Vault Contract", function () {
   });
 
   async function prepareDeposit(
-    from: HardhatEthersSigner,
-    sourceToken: USDC | string,
-    destinationToken: USDC | string,
+    from: any,
+    sourceToken: any | string,
+    destinationToken: any | string,
     amount: number,
     destinationChainID: number,
-    nonce: number,
+    nonce: number
   ) {
     const request = {
       sources: [
@@ -106,22 +70,42 @@ describe("Vault Contract", function () {
         {
           value: amount,
           tokenAddress:
-            typeof sourceToken === "string"
-              ? sourceToken
-              : await sourceToken.getAddress(),
+            typeof destinationToken === "string"
+              ? destinationToken
+              : await destinationToken.getAddress(),
         },
       ],
       nonce: nonce,
-      expiry: Math.floor(Date.now() / 1000) + 3600, // Expiry 1 hour from now,
+      expiry: Math.floor(Date.now() / 1000) + 3600, // Expiry 1 hour from now
     };
 
     if (typeof sourceToken !== "string") {
       await sourceToken.mint(from.address, amount);
-      await sourceToken
-        .connect(from)
-        .approve(await vault.getAddress(), amount);
+      await sourceToken.connect(from).approve(await vault.getAddress(), amount);
     }
-    const signature = await user.signTypedData(EIP712Domain, types, request);
+
+    const abiCoder = ethers.AbiCoder.defaultAbiCoder();
+    // Create the message hash for personal signature
+    const requestHash = keccak256(
+      abiCoder.encode(
+        [
+          "tuple(uint256,address,uint256)[]",
+          "uint256",
+          "tuple(address,uint256)[]",
+          "uint256",
+          "uint256",
+        ],
+        [
+          request.sources.map((s) => [s.chainID, s.tokenAddress, s.value]),
+          request.destinationChainID,
+          request.destinations.map((d) => [d.tokenAddress, d.value]),
+          request.nonce,
+          request.expiry,
+        ]
+      )
+    );
+
+    const signature = await from.signMessage(getBytes(requestHash));
     return { request, signature };
   }
 
@@ -138,19 +122,14 @@ describe("Vault Contract", function () {
       nonce
     );
 
-    // eth balance of the owner
+    // Eth balance of the owner before deposit
     const ethBalanceBefore = await owner.provider.getBalance(owner.address);
-    // estimate gas
-    const gas = await vault.deposit.estimateGas(
-      request,
-      signature,
-      user.address,
-      0
-    );
+
     await expect(vault.deposit(request, signature, user.address, 0)).to.emit(
       vault,
       "Deposit"
     );
+
     const ethBalanceAfter = await owner.provider.getBalance(owner.address);
 
     expect(ethBalanceBefore - ethBalanceAfter).to.be.closeTo(
@@ -159,9 +138,7 @@ describe("Vault Contract", function () {
     );
 
     expect(await usdc.balanceOf(user.address)).to.equal(0);
-    expect(await usdc.balanceOf(await vault.getAddress())).to.equal(
-      amount
-    );
+    expect(await usdc.balanceOf(await vault.getAddress())).to.equal(amount);
   });
 
   it("should allow to deposit native tokens", async function () {
@@ -174,7 +151,7 @@ describe("Vault Contract", function () {
       ethers.ZeroAddress,
       amount,
       2,
-      nonce,
+      nonce
     );
 
     await expect(
@@ -194,12 +171,12 @@ describe("Vault Contract", function () {
       ethers.ZeroAddress,
       amount,
       2,
-      nonce,
+      nonce
     );
 
     await expect(
       vault.deposit(request, signature, user.address, 0, {
-        value: amount
+        value: amount,
       })
     ).to.emit(vault, "Deposit");
 
@@ -210,7 +187,7 @@ describe("Vault Contract", function () {
       ethers.ZeroAddress,
       amount,
       2,
-      nonce,
+      nonce
     );
     const vaultEthBalanceBefore = await vault.vaultBalance();
     await expect(
@@ -231,14 +208,14 @@ describe("Vault Contract", function () {
       usdc,
       amount,
       2,
-      nonce,
+      nonce
     );
 
     await vault.deposit(request, signature, user.address, 0);
 
     await expect(
       vault.deposit(request, signature, user.address, 0)
-    ).to.be.revertedWith("ArcanaCredit: Nonce already used");
+    ).to.be.revertedWith("Vault: Nonce already used");
   });
 
   it("should fill a request correctly", async function () {
@@ -251,7 +228,7 @@ describe("Vault Contract", function () {
       usdc,
       amount,
       chainID,
-      nonce,
+      nonce
     );
 
     await vault.deposit(request, signature, user.address, 0);
@@ -273,7 +250,7 @@ describe("Vault Contract", function () {
       usdc,
       amount,
       chainID,
-      nonce,
+      nonce
     );
 
     await vault.deposit(request, signature, user.address, 0);
@@ -285,7 +262,7 @@ describe("Vault Contract", function () {
 
     await expect(
       vault.connect(solver).fill(request, signature, user.address)
-    ).to.be.revertedWith("ArcanaCredit: Nonce already used");
+    ).to.be.revertedWith("Vault: Nonce already used");
   });
 
   it("should allow admin to rebalance tokens", async function () {
@@ -310,7 +287,7 @@ describe("Vault Contract", function () {
       usdc,
       amount,
       2,
-      nonce,
+      nonce
     );
 
     await vault.deposit(request, signature, user.address, 0);
@@ -324,37 +301,33 @@ describe("Vault Contract", function () {
       ethers.ZeroAddress,
       amount,
       2,
-      nonce,
+      nonce
     );
 
     request = dep.request;
     signature = dep.signature;
 
     await vault.connect(user).deposit(request, signature, user.address, 0, {
-      value: amount, 
+      value: amount,
     });
 
     // settle all solvers
     const solvers = [await solver.getAddress(), await solver.getAddress()];
     const tokens = [await usdc.getAddress(), ethers.ZeroAddress];
     const amounts = [100, 100000];
-
-    const settleData = {
-      solvers,
-      tokens,
-      amounts,
-    };
-
-    const settleSignature = await owner.signTypedData(
-      EIP712Domain,
-      settleTypes,
-      settleData
+    const abiCoder = ethers.AbiCoder.defaultAbiCoder();
+    const settleHash = keccak256(
+      abiCoder.encode(
+        ["address[]", "address[]", "uint256[]"],
+        [solvers, tokens, amounts]
+      )
     );
+    const settleSignature = await owner.signMessage(getBytes(settleHash));
 
     // balance before of the solvers
     let balanceBefore = await usdc.balanceOf(await solver.getAddress());
     let ethBalanceBefore = await solver.provider.getBalance(solver.address);
-    await vault.settle(settleData, settleSignature);
+    await vault.settle({ solvers, tokens, amounts }, settleSignature);
     expect(await usdc.balanceOf(await solver.getAddress())).to.equal(
       balanceBefore + 100n
     );
