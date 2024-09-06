@@ -87,7 +87,7 @@ contract Vault is AccessControlUpgradeable {
     ) public payable {
         uint256 startGas = gasleft();
         bytes32 structHash = _hashRequest(request);
-        (bool success, bytes32 hash) = _verify_request(
+        (bool success, bytes32 ethSignedMessageHash) = _verify_request(
             signature,
             from,
             structHash
@@ -114,7 +114,7 @@ contract Vault is AccessControlUpgradeable {
             );
         }
 
-        requests[hash] = request;
+        requests[ethSignedMessageHash] = request;
         depositNonce[request.nonce] = true;
         emit Deposit(from, structHash);
         uint256 gasUsed = startGas - gasleft() + overhead;
@@ -133,7 +133,7 @@ contract Vault is AccessControlUpgradeable {
         address from
     ) public payable {
         bytes32 structHash = _hashRequest(request);
-        (bool success, bytes32 hash) = _verify_request(
+        (bool success, bytes32 ethSignedMessageHash) = _verify_request(
             signature,
             from,
             structHash
@@ -148,7 +148,7 @@ contract Vault is AccessControlUpgradeable {
             "Vault: Nonce already used"
         );
 
-        requests[hash] = request;
+        requests[ethSignedMessageHash] = request;
         for (uint i = 0; i < request.destinations.length; i++) {
             if (request.destinations[i].tokenAddress == address(0)) {
                 require(
@@ -166,7 +166,7 @@ contract Vault is AccessControlUpgradeable {
             }
         }
         fillNonce[request.nonce] = true;
-        emit Fill(from, structHash, msg.sender);
+        emit Fill(from, ethSignedMessageHash, msg.sender);
     }
 
     function rebalance(
