@@ -116,7 +116,7 @@ contract Vault is AccessControlUpgradeable {
 
         requests[ethSignedMessageHash] = request;
         depositNonce[request.nonce] = true;
-        emit Deposit(from, structHash);
+        emit Deposit(from, ethSignedMessageHash);
         uint256 gasUsed = startGas - gasleft() + overhead;
         uint256 refund = gasUsed * tx.gasprice;
         if (refund < vaultBalance) {
