@@ -3,7 +3,6 @@ pragma solidity ^0.8.13;
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "hardhat/console.sol";
 
 contract Vault is AccessControlUpgradeable {
     using ECDSA for bytes32;
@@ -41,7 +40,7 @@ contract Vault is AccessControlUpgradeable {
     }
 
     event Deposit(address indexed from, bytes32 indexed requestHash);
-    event Fill(address indexed from, bytes32 indexed requestHash);
+    event Fill(address indexed from, bytes32 indexed requestHash, address solver);
     event Rebalance(address token, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -167,7 +166,7 @@ contract Vault is AccessControlUpgradeable {
             }
         }
         fillNonce[request.nonce] = true;
-        emit Fill(from, structHash);
+        emit Fill(from, structHash, msg.sender);
     }
 
     function rebalance(
