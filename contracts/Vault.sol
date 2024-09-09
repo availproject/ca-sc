@@ -42,6 +42,7 @@ contract Vault is AccessControlUpgradeable {
     event Deposit(address indexed from, bytes32 indexed requestHash);
     event Fill(address indexed from, bytes32 indexed requestHash, address solver);
     event Rebalance(address token, uint256 amount);
+    event Settle(address indexed solver, address token, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -223,6 +224,7 @@ contract Vault is AccessControlUpgradeable {
                 IERC20 token = IERC20(settleData.tokens[i]);
                 token.transfer(settleData.solvers[i], settleData.amounts[i]);
             }
+            emit Settle(settleData.solvers[i], settleData.tokens[i], settleData.amounts[i]);
         }
     }
 
