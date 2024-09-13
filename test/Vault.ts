@@ -317,10 +317,12 @@ describe("Vault Contract", function () {
     const tokens = [await usdc.getAddress(), ethers.ZeroAddress];
     const amounts = [100, 100000];
     const abiCoder = ethers.AbiCoder.defaultAbiCoder();
+    const nonceSettle = 1;
+    const chainID = (await ethers.provider.getNetwork()).chainId;
     const settleHash = keccak256(
       abiCoder.encode(
-        ["address[]", "address[]", "uint256[]"],
-        [solvers, tokens, amounts]
+        ["address[]", "address[]", "uint256[]", "uint256", "uint256"],
+        [solvers, tokens, amounts, nonceSettle, chainID]
       )
     );
     const settleSignature = await owner.signMessage(getBytes(settleHash));
@@ -328,7 +330,7 @@ describe("Vault Contract", function () {
     // balance before of the solvers
     let balanceBefore = await usdc.balanceOf(await solver.getAddress());
     let ethBalanceBefore = await solver.provider.getBalance(solver.address);
-    await vault.settle({ solvers, tokens, amounts }, settleSignature);
+    await vault.settle({ solvers, tokens, amounts, nonce: nonceSettle }, settleSignature);
     expect(await usdc.balanceOf(await solver.getAddress())).to.equal(
       balanceBefore + 100n
     );

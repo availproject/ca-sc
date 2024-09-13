@@ -14,6 +14,7 @@ contract Vault is AccessControlUpgradeable {
     mapping(bytes32 => Request) public requests;
     mapping(uint256 => bool) public depositNonce;
     mapping(uint256 => bool) public fillNonce;
+    mapping(uint256 => bool) public settleNonce;
 
     struct SourcePair {
         uint256 chainID;
@@ -38,6 +39,7 @@ contract Vault is AccessControlUpgradeable {
         address[] solvers;
         address[] tokens;
         uint256[] amounts;
+        uint256 nonce;
     }
 
     event Deposit(address indexed from, bytes32 indexed requestHash);
@@ -209,7 +211,9 @@ contract Vault is AccessControlUpgradeable {
             abi.encode(
                 settleData.solvers,
                 settleData.tokens,
-                settleData.amounts
+                settleData.amounts,
+                settleData.nonce,
+                block.chainid
             )
         );
         bytes32 signatureHash = keccak256(
@@ -225,6 +229,10 @@ contract Vault is AccessControlUpgradeable {
                 settleData.solvers.length == settleData.amounts.length,
             "Vault: Array length mismatch"
         );
+        require(
+            settleNonce[settleData.nonce] == false,
+            "Vault: Nonce already used"
+        );
 
         for (uint i = 0; i < settleData.solvers.length; i++) {
             if (settleData.tokens[i] == address(0)) {
@@ -235,6 +243,7 @@ contract Vault is AccessControlUpgradeable {
             }
             emit Settle(settleData.solvers[i], settleData.tokens[i], settleData.amounts[i]);
         }
+        settleNonce[settleData.nonce] = true;
     }
 
     receive() external payable {
