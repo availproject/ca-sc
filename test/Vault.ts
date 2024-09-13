@@ -2,6 +2,7 @@
 import { ethers, upgrades } from "hardhat";
 import { expect } from "chai";
 import { keccak256, getBytes } from "ethers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 describe("Vault Contract", function () {
   const OVERHEAD = 33138;
@@ -76,7 +77,7 @@ describe("Vault Contract", function () {
         },
       ],
       nonce: nonce,
-      expiry: Math.floor(Date.now() / 1000) + 3600, // Expiry 1 hour from now
+      expiry: await time.latest() + 3600, // Expiry 1 hour from now
     };
 
     if (typeof sourceToken !== "string") {

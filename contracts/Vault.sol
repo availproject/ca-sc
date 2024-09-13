@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "hardhat/console.sol";
 
 contract Vault is AccessControlUpgradeable {
     using ECDSA for bytes32;
@@ -102,6 +103,10 @@ contract Vault is AccessControlUpgradeable {
             depositNonce[request.nonce] == false,
             "Vault: Nonce already used"
         );
+        require(
+            request.expiry > block.timestamp,
+            "Vault: Request expired"
+        );
 
         if (request.sources[chain_index].tokenAddress == address(0)) {
             uint256 totalValue = request.sources[chain_index].value;
@@ -147,6 +152,10 @@ contract Vault is AccessControlUpgradeable {
         require(
             fillNonce[request.nonce] == false,
             "Vault: Nonce already used"
+        );
+        require(
+            request.expiry > block.timestamp,
+            "Vault: Request expired"
         );
 
         requests[ethSignedMessageHash] = request;
