@@ -159,7 +159,7 @@ contract Vault is AccessControlUpgradeable {
             request.expiry > block.timestamp,
             "Vault: Request expired"
         );
-
+        bool gasTokenUsed = false;
         requests[ethSignedMessageHash] = request;
         for (uint i = 0; i < request.destinations.length; i++) {
             if (request.destinations[i].tokenAddress == address(0)) {
@@ -167,7 +167,9 @@ contract Vault is AccessControlUpgradeable {
                     msg.value == request.destinations[i].value,
                     "Vault: Value mismatch"
                 );
+                require(!gasTokenUsed, "Vault: Gas token already used");
                 payable(from).transfer(request.destinations[i].value);
+                gasTokenUsed = true;
             } else {
                 IERC20 token = IERC20(request.destinations[i].tokenAddress);
                 token.transferFrom(
