@@ -2,11 +2,13 @@
 pragma solidity ^0.8.13;
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "hardhat/console.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract Vault is AccessControlUpgradeable {
+contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using ECDSA for bytes32;
+    using SafeERC20 for IERC20;
 
     uint256 public overhead;
     uint256 public vaultBalance;
@@ -43,7 +45,11 @@ contract Vault is AccessControlUpgradeable {
     }
 
     event Deposit(address indexed from, bytes32 indexed requestHash);
-    event Fill(address indexed from, bytes32 indexed requestHash, address solver);
+    event Fill(
+        address indexed from,
+        bytes32 indexed requestHash,
+        address solver
+    );
     event Rebalance(address token, uint256 amount);
     event Settle(address indexed solver, address token, uint256 amount);
 
@@ -53,19 +59,23 @@ contract Vault is AccessControlUpgradeable {
     }
 
     function initialize() public initializer {
+        __ReentrancyGuard_init();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function _hashRequest(Request calldata request) private pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                request.sources,
-                request.destinationChainID,
-                request.destinations,
-                request.nonce,
-                request.expiry
-            )
-        );
+    function _hashRequest(
+        Request calldata request
+    ) private pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    request.sources,
+                    request.destinationChainID,
+                    request.destinations,
+                    request.nonce,
+                    request.expiry
+                )
+            );
     }
 
     function _verify_request(
@@ -105,17 +115,14 @@ contract Vault is AccessControlUpgradeable {
             depositNonce[request.nonce] == false,
             "Vault: Nonce already used"
         );
-        require(
-            request.expiry > block.timestamp,
-            "Vault: Request expired"
-        );
-
+        require(request.expiry > block.timestamp, "Vault: Request expired");
+        depositNonce[request.nonce] = true;
         if (request.sources[chain_index].tokenAddress == address(0)) {
             uint256 totalValue = request.sources[chain_index].value;
             require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
             IERC20 token = IERC20(request.sources[chain_index].tokenAddress);
-            token.transferFrom(
+            token.safeTransferFrom(
                 from,
                 address(this),
                 request.sources[chain_index].value
@@ -123,7 +130,6 @@ contract Vault is AccessControlUpgradeable {
         }
 
         requests[ethSignedMessageHash] = request;
-        depositNonce[request.nonce] = true;
         emit Deposit(from, ethSignedMessageHash);
         uint256 gasUsed = startGas - gasleft() + overhead;
         uint256 refund = gasUsed * tx.gasprice;
@@ -139,7 +145,7 @@ contract Vault is AccessControlUpgradeable {
         Request calldata request,
         bytes calldata signature,
         address from
-    ) public payable {
+    ) public payable nonReentrant {
         bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 ethSignedMessageHash) = _verify_request(
             signature,
@@ -151,35 +157,29 @@ contract Vault is AccessControlUpgradeable {
             request.destinationChainID == block.chainid,
             "Vault: Chain ID mismatch"
         );
-        require(
-            fillNonce[request.nonce] == false,
-            "Vault: Nonce already used"
-        );
-        require(
-            request.expiry > block.timestamp,
-            "Vault: Request expired"
-        );
-        bool gasTokenUsed = false;
+        require(fillNonce[request.nonce] == false, "Vault: Nonce already used");
+        require(request.expiry > block.timestamp, "Vault: Request expired");
+        fillNonce[request.nonce] = true;
         requests[ethSignedMessageHash] = request;
+        uint256 gasToken = msg.value;
         for (uint i = 0; i < request.destinations.length; i++) {
             if (request.destinations[i].tokenAddress == address(0)) {
+                gasToken -= request.destinations[i].value;
                 require(
-                    msg.value == request.destinations[i].value,
+                    gasToken >= request.destinations[i].value,
                     "Vault: Value mismatch"
                 );
-                require(!gasTokenUsed, "Vault: Gas token already used");
+                require(request.destinations[i].value > 0, "Vault: Value mismatch");
                 payable(from).transfer(request.destinations[i].value);
-                gasTokenUsed = true;
             } else {
                 IERC20 token = IERC20(request.destinations[i].tokenAddress);
-                token.transferFrom(
+                token.safeTransferFrom(
                     msg.sender,
                     from,
                     request.destinations[i].value
                 );
             }
         }
-        fillNonce[request.nonce] = true;
         emit Fill(from, ethSignedMessageHash, msg.sender);
     }
 
@@ -187,7 +187,7 @@ contract Vault is AccessControlUpgradeable {
         address token,
         uint256 amount
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        IERC20(token).transfer(msg.sender, amount);
+        IERC20(token).safeTransfer(msg.sender, amount);
         emit Rebalance(token, amount);
     }
 
@@ -208,7 +208,7 @@ contract Vault is AccessControlUpgradeable {
     function settle(
         SettleData calldata settleData,
         bytes calldata signature
-    ) public {
+    ) public nonReentrant {
         bytes32 structHash = keccak256(
             abi.encode(
                 settleData.solvers,
@@ -235,17 +235,23 @@ contract Vault is AccessControlUpgradeable {
             settleNonce[settleData.nonce] == false,
             "Vault: Nonce already used"
         );
-
+        settleNonce[settleData.nonce] = true;
         for (uint i = 0; i < settleData.solvers.length; i++) {
             if (settleData.tokens[i] == address(0)) {
                 payable(settleData.solvers[i]).transfer(settleData.amounts[i]);
             } else {
                 IERC20 token = IERC20(settleData.tokens[i]);
-                token.transfer(settleData.solvers[i], settleData.amounts[i]);
+                token.safeTransfer(
+                    settleData.solvers[i],
+                    settleData.amounts[i]
+                );
             }
-            emit Settle(settleData.solvers[i], settleData.tokens[i], settleData.amounts[i]);
+            emit Settle(
+                settleData.solvers[i],
+                settleData.tokens[i],
+                settleData.amounts[i]
+            );
         }
-        settleNonce[settleData.nonce] = true;
     }
 
     receive() external payable {
