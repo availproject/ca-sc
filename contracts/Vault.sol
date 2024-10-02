@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.20;
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -97,8 +97,8 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         Request calldata request,
         bytes calldata signature,
         address from,
-        uint256 chain_index
-    ) public payable {
+        uint256 chainIndex
+    ) public payable nonReentrant {
         uint256 startGas = gasleft();
         bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 ethSignedMessageHash) = _verify_request(
@@ -108,28 +108,26 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         );
         require(success, "Vault: Invalid signature or from");
         require(
-            request.sources[chain_index].chainID == block.chainid,
+            request.sources[chainIndex].chainID == block.chainid,
             "Vault: Chain ID mismatch"
         );
-        require(
-            depositNonce[request.nonce] == false,
-            "Vault: Nonce already used"
-        );
+        require(!depositNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
         depositNonce[request.nonce] = true;
-        if (request.sources[chain_index].tokenAddress == address(0)) {
-            uint256 totalValue = request.sources[chain_index].value;
+        requests[ethSignedMessageHash] = request;
+
+        if (request.sources[chainIndex].tokenAddress == address(0)) {
+            uint256 totalValue = request.sources[chainIndex].value;
             require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
-            IERC20 token = IERC20(request.sources[chain_index].tokenAddress);
+            IERC20 token = IERC20(request.sources[chainIndex].tokenAddress);
             token.safeTransferFrom(
                 from,
                 address(this),
-                request.sources[chain_index].value
+                request.sources[chainIndex].value
             );
         }
 
-        requests[ethSignedMessageHash] = request;
         emit Deposit(from, ethSignedMessageHash);
         uint256 gasUsed = startGas - gasleft() + overhead;
         uint256 refund = gasUsed * tx.gasprice;
@@ -157,11 +155,12 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
             request.destinationChainID == block.chainid,
             "Vault: Chain ID mismatch"
         );
-        require(fillNonce[request.nonce] == false, "Vault: Nonce already used");
+        require(!fillNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
         fillNonce[request.nonce] = true;
         requests[ethSignedMessageHash] = request;
         uint256 gasToken = msg.value;
+        emit Fill(from, ethSignedMessageHash, msg.sender);
         for (uint i = 0; i < request.destinations.length; i++) {
             if (request.destinations[i].tokenAddress == address(0)) {
                 gasToken -= request.destinations[i].value;
@@ -169,7 +168,10 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
                     gasToken >= request.destinations[i].value,
                     "Vault: Value mismatch"
                 );
-                require(request.destinations[i].value > 0, "Vault: Value mismatch");
+                require(
+                    request.destinations[i].value > 0,
+                    "Vault: Value mismatch"
+                );
                 payable(from).transfer(request.destinations[i].value);
             } else {
                 IERC20 token = IERC20(request.destinations[i].tokenAddress);
@@ -180,13 +182,12 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
                 );
             }
         }
-        emit Fill(from, ethSignedMessageHash, msg.sender);
     }
 
     function rebalance(
         address token,
         uint256 amount
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         IERC20(token).safeTransfer(msg.sender, amount);
         emit Rebalance(token, amount);
     }
@@ -237,6 +238,11 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         );
         settleNonce[settleData.nonce] = true;
         for (uint i = 0; i < settleData.solvers.length; i++) {
+            emit Settle(
+                settleData.solvers[i],
+                settleData.tokens[i],
+                settleData.amounts[i]
+            );
             if (settleData.tokens[i] == address(0)) {
                 payable(settleData.solvers[i]).transfer(settleData.amounts[i]);
             } else {
@@ -246,11 +252,6 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
                     settleData.amounts[i]
                 );
             }
-            emit Settle(
-                settleData.solvers[i],
-                settleData.tokens[i],
-                settleData.amounts[i]
-            );
         }
     }
 
