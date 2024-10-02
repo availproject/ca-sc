@@ -10,7 +10,12 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
-    uint256 public overhead;
+    enum Function {
+        Deposit,
+        Settle
+    }
+
+    mapping(Function => uint256) public overhead;
     uint256 public vaultBalance;
 
     mapping(bytes32 => Request) public requests;
@@ -129,13 +134,11 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         }
 
         emit Deposit(from, ethSignedMessageHash);
-        uint256 gasUsed = startGas - gasleft() + overhead;
+        uint256 gasUsed = startGas - gasleft() + overhead[Function.Deposit];
         uint256 refund = gasUsed * tx.gasprice;
         if (refund < vaultBalance) {
             vaultBalance -= refund;
             payable(msg.sender).transfer(refund);
-        } else {
-            vaultBalance = 0;
         }
     }
 
@@ -201,15 +204,17 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     }
 
     function setOverHead(
+        Function _function,
         uint256 _overhead
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        overhead = _overhead;
+        overhead[_function] = _overhead;
     }
 
     function settle(
         SettleData calldata settleData,
         bytes calldata signature
     ) public nonReentrant {
+        uint256 startGas = gasleft();
         bytes32 structHash = keccak256(
             abi.encode(
                 settleData.solvers,
@@ -252,6 +257,12 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
                     settleData.amounts[i]
                 );
             }
+        }
+        uint256 gasUsed = startGas - gasleft() + overhead[Function.Settle];
+        uint256 refund = gasUsed * tx.gasprice;
+        if (refund < vaultBalance) {
+            vaultBalance -= refund;
+            payable(msg.sender).transfer(refund);
         }
     }
 

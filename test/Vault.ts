@@ -4,6 +4,11 @@ import { expect } from "chai";
 import { keccak256, getBytes } from "ethers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
+enum Function {
+  DEPOSIT = 0,
+  SETTLE = 1,
+}
+
 describe("Vault Contract", function () {
   const OVERHEAD = 33138;
   let vault: any;
@@ -34,7 +39,7 @@ describe("Vault Contract", function () {
       value: ethers.parseEther("0.0005"), // enough to cover gas fees for 1 tx
     });
 
-    await vault.setOverHead(OVERHEAD);
+    await vault.setOverHead(Function.DEPOSIT, OVERHEAD);
   });
 
   it("should assign admin role to deployer", async function () {
@@ -77,7 +82,7 @@ describe("Vault Contract", function () {
         },
       ],
       nonce: nonce,
-      expiry: await time.latest() + 3600, // Expiry 1 hour from now
+      expiry: (await time.latest()) + 3600, // Expiry 1 hour from now
     };
 
     if (typeof sourceToken !== "string") {
@@ -330,7 +335,10 @@ describe("Vault Contract", function () {
     // balance before of the solvers
     let balanceBefore = await usdc.balanceOf(await solver.getAddress());
     let ethBalanceBefore = await solver.provider.getBalance(solver.address);
-    await vault.settle({ solvers, tokens, amounts, nonce: nonceSettle }, settleSignature);
+    await vault.settle(
+      { solvers, tokens, amounts, nonce: nonceSettle },
+      settleSignature
+    );
     expect(await usdc.balanceOf(await solver.getAddress())).to.equal(
       balanceBefore + 100n
     );
