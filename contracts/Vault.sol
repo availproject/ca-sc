@@ -23,6 +23,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     mapping(uint256 => bool) public depositNonce;
     mapping(uint256 => bool) public fillNonce;
     mapping(uint256 => bool) public settleNonce;
+    bytes32 private constant REFUND_ACCESS = keccak256("REFUND_ACCESS");
 
     // Storage gap to reserve slots for future use
     uint256[50] private __gap;
@@ -73,6 +74,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     function initialize() public initializer {
         __ReentrancyGuard_init();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(REFUND_ACCESS, msg.sender);
         maxGasPrice = 20 gwei;
     }
 
@@ -106,13 +108,12 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         return (signer == from, ethSignedMessageHash);
     }
 
-    function deposit(
+    function _deposit(
         Request calldata request,
         bytes calldata signature,
         address from,
         uint256 chainIndex
-    ) public payable nonReentrant {
-        uint256 startGas = gasleft();
+    ) private {
         bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 ethSignedMessageHash) = _verify_request(
             signature,
@@ -142,6 +143,25 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         }
 
         emit Deposit(from, ethSignedMessageHash);
+    }
+
+    function deposit(
+        Request calldata request,
+        bytes calldata signature,
+        address from,
+        uint256 chainIndex
+    ) public payable nonReentrant {
+        _deposit(request, signature, from, chainIndex);
+    }
+
+    function depositWithRefund(
+        Request calldata request,
+        bytes calldata signature,
+        address from,
+        uint256 chainIndex
+    ) public payable onlyRole(REFUND_ACCESS) nonReentrant {
+        uint256 startGas = gasleft();
+        _deposit(request, signature, from, chainIndex);
         uint256 gasUsed = startGas - gasleft() + overhead[Function.Deposit];
         uint256 gasPrice = tx.gasprice < maxGasPrice
             ? tx.gasprice

@@ -10,7 +10,7 @@ enum Function {
 }
 
 describe("Vault Contract", function () {
-  const OVERHEAD = 33138;
+  const OVERHEAD = 35138;
   let vault: any;
   let usdc: any;
   let owner: any;
@@ -131,7 +131,7 @@ describe("Vault Contract", function () {
     // Eth balance of the owner before deposit
     const ethBalanceBefore = await owner.provider.getBalance(owner.address);
 
-    await expect(vault.deposit(request, signature, user.address, 0)).to.emit(
+    await expect(vault.depositWithRefund(request, signature, user.address, 0)).to.emit(
       vault,
       "Deposit"
     );
@@ -161,7 +161,7 @@ describe("Vault Contract", function () {
     );
 
     await expect(
-      vault.deposit(request, signature, user.address, 0, {
+      vault.depositWithRefund(request, signature, user.address, 0, {
         value: amount,
       })
     ).to.emit(vault, "Deposit");
@@ -181,7 +181,7 @@ describe("Vault Contract", function () {
     );
 
     await expect(
-      vault.deposit(request, signature, user.address, 0, {
+      vault.depositWithRefund(request, signature, user.address, 0, {
         value: amount,
       })
     ).to.emit(vault, "Deposit");
@@ -197,7 +197,7 @@ describe("Vault Contract", function () {
     );
     const vaultEthBalanceBefore = await vault.vaultBalance();
     await expect(
-      vault.deposit(request2, signature2, user.address, 0, {
+      vault.depositWithRefund(request2, signature2, user.address, 0, {
         value: amount,
       })
     );
@@ -217,10 +217,10 @@ describe("Vault Contract", function () {
       nonce
     );
 
-    await vault.deposit(request, signature, user.address, 0);
+    await vault.depositWithRefund(request, signature, user.address, 0);
 
     await expect(
-      vault.deposit(request, signature, user.address, 0)
+      vault.depositWithRefund(request, signature, user.address, 0)
     ).to.be.revertedWith("Vault: Nonce already used");
   });
 
@@ -237,7 +237,7 @@ describe("Vault Contract", function () {
       nonce
     );
 
-    await vault.deposit(request, signature, user.address, 0);
+    await vault.depositWithRefund(request, signature, user.address, 0);
     await usdc.mint(await solver.getAddress(), amount);
     await usdc.connect(solver).approve(await vault.getAddress(), amount);
     await expect(
@@ -259,7 +259,7 @@ describe("Vault Contract", function () {
       nonce
     );
 
-    await vault.deposit(request, signature, user.address, 0);
+    await vault.depositWithRefund(request, signature, user.address, 0);
 
     await usdc.mint(await solver.getAddress(), 2 * amount);
     await usdc.connect(solver).approve(await vault.getAddress(), 2 * amount);
@@ -296,7 +296,7 @@ describe("Vault Contract", function () {
       nonce
     );
 
-    await vault.deposit(request, signature, user.address, 0);
+    await vault.depositWithRefund(request, signature, user.address, 0);
 
     amount = 100000;
     nonce = 2;
