@@ -75,7 +75,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         __ReentrancyGuard_init();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(REFUND_ACCESS, msg.sender);
-        maxGasPrice = 20 gwei;
+        maxGasPrice = 50 gwei;
     }
 
     function _hashRequest(
@@ -262,7 +262,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     function settle(
         SettleData calldata settleData,
         bytes calldata signature
-    ) public nonReentrant {
+    ) public nonReentrant onlyRole(REFUND_ACCESS) {
         uint256 startGas = gasleft();
         bytes32 structHash = keccak256(
             abi.encode(
