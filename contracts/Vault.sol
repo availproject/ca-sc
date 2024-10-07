@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.20;
+pragma solidity 0.8.25;
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -17,11 +17,15 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
 
     mapping(Function => uint256) public overhead;
     uint256 public vaultBalance;
+    uint256 public maxGasPrice;
 
     mapping(bytes32 => Request) public requests;
     mapping(uint256 => bool) public depositNonce;
     mapping(uint256 => bool) public fillNonce;
     mapping(uint256 => bool) public settleNonce;
+
+    // Storage gap to reserve slots for future use
+    uint256[50] private __gap;
 
     struct SourcePair {
         uint256 chainID;
@@ -55,8 +59,11 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         bytes32 indexed requestHash,
         address solver
     );
-    event Rebalance(address token, uint256 amount);
+    event Withdraw(address indexed to, address token, uint256 amount);
     event Settle(address indexed solver, address token, uint256 amount);
+    event GasPriceUpdate(uint256 gasPrice);
+    event GasOverheadUpdate(Function indexed _function, uint256 overhead);
+    event ReceiveETH(address indexed from, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -66,6 +73,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     function initialize() public initializer {
         __ReentrancyGuard_init();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        maxGasPrice = 20 gwei;
     }
 
     function _hashRequest(
@@ -135,10 +143,14 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
 
         emit Deposit(from, ethSignedMessageHash);
         uint256 gasUsed = startGas - gasleft() + overhead[Function.Deposit];
-        uint256 refund = gasUsed * tx.gasprice;
-        if (refund < vaultBalance) {
+        uint256 gasPrice = tx.gasprice < maxGasPrice
+            ? tx.gasprice
+            : maxGasPrice;
+        uint256 refund = gasUsed * gasPrice;
+        if (refund <= vaultBalance) {
             vaultBalance -= refund;
-            payable(msg.sender).transfer(refund);
+            (bool sent, ) = msg.sender.call{value: refund}("");
+            require(sent, "Vault: Refund failed");
         }
     }
 
@@ -164,7 +176,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         requests[ethSignedMessageHash] = request;
         uint256 gasToken = msg.value;
         emit Fill(from, ethSignedMessageHash, msg.sender);
-        for (uint i = 0; i < request.destinations.length; i++) {
+        for (uint i = 0; i < request.destinations.length; ++i) {
             if (request.destinations[i].tokenAddress == address(0)) {
                 gasToken -= request.destinations[i].value;
                 require(
@@ -175,7 +187,10 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
                     request.destinations[i].value > 0,
                     "Vault: Value mismatch"
                 );
-                payable(from).transfer(request.destinations[i].value);
+                (bool sent, ) = payable(from).call{
+                    value: request.destinations[i].value
+                }("");
+                require(sent, "Vault: Transfer failed");
             } else {
                 IERC20 token = IERC20(request.destinations[i].tokenAddress);
                 token.safeTransferFrom(
@@ -187,12 +202,25 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         }
     }
 
-    function rebalance(
+    function setMaxGasPrice(
+        uint256 _maxGasPrice
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        maxGasPrice = _maxGasPrice;
+        emit GasPriceUpdate(_maxGasPrice);
+    }
+
+    function withdraw(
+        address to,
         address token,
         uint256 amount
     ) public onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
-        IERC20(token).safeTransfer(msg.sender, amount);
-        emit Rebalance(token, amount);
+        if (token == address(0)) {
+            (bool sent, ) = payable(to).call{value: amount}("");
+            require(sent, "Vault: Transfer failed");
+        } else {
+            IERC20(token).safeTransfer(to, amount);
+        }
+        emit Withdraw(to, token, amount);
     }
 
     function verifyRequestSignature(
@@ -208,6 +236,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         uint256 _overhead
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         overhead[_function] = _overhead;
+        emit GasOverheadUpdate(_function, _overhead);
     }
 
     function settle(
@@ -233,23 +262,27 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
             "Vault: Invalid signature"
         );
         require(
-            settleData.solvers.length == settleData.tokens.length &&
-                settleData.solvers.length == settleData.amounts.length,
-            "Vault: Array length mismatch"
+            settleData.solvers.length == settleData.tokens.length,
+            "Vault: Solvers and tokens array length mismatch"
         );
+
         require(
-            settleNonce[settleData.nonce] == false,
-            "Vault: Nonce already used"
+            settleData.solvers.length == settleData.amounts.length,
+            "Vault: Solvers and amounts array length mismatch"
         );
+        require(!settleNonce[settleData.nonce], "Vault: Nonce already used");
         settleNonce[settleData.nonce] = true;
-        for (uint i = 0; i < settleData.solvers.length; i++) {
+        for (uint i = 0; i < settleData.solvers.length; ++i) {
             emit Settle(
                 settleData.solvers[i],
                 settleData.tokens[i],
                 settleData.amounts[i]
             );
             if (settleData.tokens[i] == address(0)) {
-                payable(settleData.solvers[i]).transfer(settleData.amounts[i]);
+                (bool sent, ) = settleData.solvers[i].call{
+                    value: settleData.amounts[i]
+                }("");
+                require(sent, "Vault: Transfer failed");
             } else {
                 IERC20 token = IERC20(settleData.tokens[i]);
                 token.safeTransfer(
@@ -259,14 +292,19 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
             }
         }
         uint256 gasUsed = startGas - gasleft() + overhead[Function.Settle];
-        uint256 refund = gasUsed * tx.gasprice;
+        uint256 gasPrice = tx.gasprice < maxGasPrice
+            ? tx.gasprice
+            : maxGasPrice;
+        uint256 refund = gasUsed * gasPrice;
         if (refund < vaultBalance) {
             vaultBalance -= refund;
-            payable(msg.sender).transfer(refund);
+            (bool sent, ) = msg.sender.call{value: refund}("");
+            require(sent, "Vault: Refund failed");
         }
     }
 
     receive() external payable {
-        vaultBalance += msg.value;
+        vaultBalance = vaultBalance + msg.value;
+        emit ReceiveETH(msg.sender, msg.value);
     }
 }

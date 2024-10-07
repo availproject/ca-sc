@@ -274,9 +274,9 @@ describe("Vault Contract", function () {
   it("should allow admin to rebalance tokens", async function () {
     await usdc.mint(await vault.getAddress(), 100);
 
-    await expect(vault.rebalance(await usdc.getAddress(), 100))
-      .to.emit(vault, "Rebalance")
-      .withArgs(await usdc.getAddress(), 100);
+    await expect(vault.withdraw(owner, await usdc.getAddress(), 100))
+      .to.emit(vault, "Withdraw")
+      .withArgs(owner, await usdc.getAddress(), 100);
 
     expect(await usdc.balanceOf(await vault.getAddress())).to.equal(0);
     expect(await usdc.balanceOf(owner.address)).to.equal(100);
@@ -345,5 +345,10 @@ describe("Vault Contract", function () {
     expect(await solver.provider.getBalance(solver.address)).to.equal(
       ethBalanceBefore + 100000n
     );
+  });
+
+  it("Admin should be able to set max gas price", async function () {
+    await vault.setMaxGasPrice(100);
+    expect(await vault.maxGasPrice()).to.equal(100);
   });
 });
