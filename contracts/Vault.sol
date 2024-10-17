@@ -61,7 +61,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         address solver
     );
     event Withdraw(address indexed to, address token, uint256 amount);
-    event Settle(address indexed solver, address token, uint256 amount);
+    event Settle(address indexed solver, address token, uint256 amount, uint256 nonce);
     event GasPriceUpdate(uint256 gasPrice);
     event GasOverheadUpdate(Function indexed _function, uint256 overhead);
     event ReceiveETH(address indexed from, uint256 amount);
@@ -308,7 +308,8 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
             emit Settle(
                 settleData.solvers[i],
                 settleData.tokens[i],
-                settleData.amounts[i]
+                settleData.amounts[i],
+                settleData.nonce
             );
             if (settleData.tokens[i] == address(0)) {
                 (bool sent, ) = settleData.solvers[i].call{
