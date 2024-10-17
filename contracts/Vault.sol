@@ -219,14 +219,14 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
                 require(sent, "Vault: Transfer failed");
             } else {
                 IERC20 token = IERC20(request.destinations[i].tokenAddress);
-                uint256 balanceBefore = token.balanceOf(address(this));
+                uint256 balanceBefore = token.balanceOf(from);
                 token.safeTransferFrom(
                     msg.sender,
                     from,
                     request.destinations[i].value
                 );
                 require(
-                    token.balanceOf(address(this)) - balanceBefore ==
+                    token.balanceOf(from) - balanceBefore ==
                         request.destinations[i].value,
                     "Vault: Transfer failed"
                 );
