@@ -61,7 +61,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         address solver
     );
     event Withdraw(address indexed to, address token, uint256 amount);
-    event Settle(address indexed solver, address token, uint256 amount, uint256 nonce);
+    event Settle(address indexed solver, address token, uint256 amount, uint256 indexed nonce);
     event GasPriceUpdate(uint256 gasPrice);
     event GasOverheadUpdate(Function indexed _function, uint256 overhead);
     event ReceiveETH(address indexed from, uint256 amount);
