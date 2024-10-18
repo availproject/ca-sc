@@ -204,7 +204,6 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         emit Fill(from, ethSignedMessageHash, msg.sender);
         for (uint i = 0; i < request.destinations.length; ++i) {
             if (request.destinations[i].tokenAddress == address(0)) {
-                gasToken -= request.destinations[i].value;
                 require(
                     gasToken >= request.destinations[i].value,
                     "Vault: Value mismatch"
@@ -213,6 +212,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
                     request.destinations[i].value > 0,
                     "Vault: Value mismatch"
                 );
+                gasToken -= request.destinations[i].value;
                 (bool sent, ) = payable(from).call{
                     value: request.destinations[i].value
                 }("");
