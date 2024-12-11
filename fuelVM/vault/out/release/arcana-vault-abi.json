@@ -136,19 +136,11 @@
       "metadataTypeId": 1,
       "components": [
         {
-          "name": "RequestUnverified",
+          "name": "AssetMismatch",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
           "name": "ChainIdMismatch",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "NonceAlreadyUsed",
-          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
-        },
-        {
-          "name": "AssetMismatch",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
@@ -160,7 +152,15 @@
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
-          "name": "SolversAndAssetsLengthMismatch",
+          "name": "NonceAlreadyUsed",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "RequestExpired",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "RequestUnverified",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
@@ -168,7 +168,7 @@
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
-          "name": "RequestExpired",
+          "name": "SolversAndAssetsLengthMismatch",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
@@ -560,6 +560,60 @@
       "output": "192bc7098e2fe60635a9918afb563e4e5419d386da2bdbf0d716b4bc8549802c",
       "attributes": [
         {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns the owner."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Return Values"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * [State] - Represents the state of ownership for this contract."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
           "name": "storage",
           "arguments": [
             "read"
@@ -590,6 +644,150 @@
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
+          "name": "doc-comment",
+          "arguments": [
+            " Takes a deposit for the given request."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Arguments"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `request`: [Request] - The user's request."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `signature`: [B512] - The signature over the `request`."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `from`: [Address] - The signer of the `request`."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `chain_index`: [u64] - The index of the source data."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " This method verifies the given request against the given signature."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Reverts"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the `request` chain ID doesn't match `FUEL_IGNITION_CHAIN_ID`."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the `request` has expired."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the asset deposited doesn't match the asset in the `request`."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the amount of asset deposited doesn't match the amount of asset in the `request`."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the nonce of the `request` is already used."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the `request` could not be verified."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Writes: `2`"
+          ]
+        },
+        {
           "name": "payable",
           "arguments": []
         },
@@ -612,6 +810,84 @@
       "name": "deposit_nonce",
       "output": "160e7964babcf172e41aa29b138f9c2ccfc416ad2368dabdbdf877ec5de5503f",
       "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Gets a bool describing whether a given nonce has been used in a deposit"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Arguments"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `nonce`: [u64] - The nonce of a deposit."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Returns"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * [Option<bool>] - Whether a given nonce has been used in a deposit."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
         {
           "name": "storage",
           "arguments": [
@@ -639,6 +915,144 @@
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
+          "name": "doc-comment",
+          "arguments": [
+            " Verifies that a request has been filled."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Additional Information"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " The solver calling this method must have included outputs in the transaction that satisfy the `request` destination data."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `request`: [Request] - The user's request."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `signature`: [B512] - The signature over the `request`."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `from`: [Address] - The signer of the `request`."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Reverts"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the `request` chain ID doesn't match `FUEL_IGNITION_CHAIN_ID`."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the `request` has expired."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the there aren't enough transaction outputs to satisfy the `request`."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When a transaction output doesn't match the corresponding destination pair or receiver."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the nonce of the `request` is already used."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the `request` could not be verified."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Writes: `2`"
+          ]
+        },
+        {
           "name": "storage",
           "arguments": [
             "read",
@@ -658,6 +1072,84 @@
       "output": "160e7964babcf172e41aa29b138f9c2ccfc416ad2368dabdbdf877ec5de5503f",
       "attributes": [
         {
+          "name": "doc-comment",
+          "arguments": [
+            " Gets a bool describing whether a given nonce has been used in a fill"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Arguments"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `nonce`: [u64] - The nonce of a fill."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Returns"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * [Option<bool>] - Whether a given nonce has been used in a fill."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
           "name": "storage",
           "arguments": [
             "read"
@@ -670,6 +1162,90 @@
       "name": "initialize_vault",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Initializes the vault, setting privileged roles."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Additional Information"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " This method can only be called once."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Reverts"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When ownership has been set before."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Writes: `1`"
+          ]
+        },
         {
           "name": "storage",
           "arguments": [
@@ -689,6 +1265,84 @@
       "name": "requests",
       "output": "0c2beb9013490c4f753f2757dfe2d8340b22ce3827d596d81d249b7038033cb6",
       "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Gets a request hash from it's associated `signed_message_hash`"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Arguments"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `signed_message_hash`: [b256] - The hash of the EIP-191 signature of a hashed request."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Returns"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * [Option<b256>] - The hash of a request."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
         {
           "name": "storage",
           "arguments": [
@@ -712,6 +1366,150 @@
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
         {
+          "name": "doc-comment",
+          "arguments": [
+            " Pay solvers for verified work."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Additional Information"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Anyone can call this method as it checks if the `settle_data` was signed by the contract owner, "
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " if so the `settle_data` is considered valid."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Arguments"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `settle_data`: [SettleData] - The data of each transfer to a solver."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `signature`: [B512] - The signature used to verify that the contract owner signed the given `settle_data`."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Reverts"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When reentrency occurs."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the number of solvers and assets in the `settle_data` don't match."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the number of solvers and amounts in the `settle_data` don't match."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the recovered address doesn't match the contract owner's address."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the nonce of the `settle_data` is already used."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Writes: `1`"
+          ]
+        },
+        {
           "name": "storage",
           "arguments": [
             "read",
@@ -730,6 +1528,84 @@
       "name": "settle_nonce",
       "output": "160e7964babcf172e41aa29b138f9c2ccfc416ad2368dabdbdf877ec5de5503f",
       "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Gets a bool describing whether a given nonce has been used in a settlement"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Arguments"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `nonce`: [u64] - The nonce of a settlement."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Returns"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * [Option<bool>] - Whether a given nonce has been used in a settlement."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
         {
           "name": "storage",
           "arguments": [
@@ -756,6 +1632,126 @@
       "name": "withdraw",
       "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
       "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Withdraw assets from the contract."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Additional Information"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Only callable by the contract owner."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Arguments"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `to`: [Identity] - The recipient of the withdrawal."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `asset_id`: [AssetId] - The asset to withdraw."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `amount`: [u64] - The amount withdraw."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Reverts"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When not called by the owner."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When reentrency occurs."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
         {
           "name": "storage",
           "arguments": [

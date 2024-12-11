@@ -20,8 +20,11 @@ where
 
 
 pub struct SourcePair {
+    /// The chain ID of the source pair.
     pub chain_id: u256,
+    /// The asset ID of the source pair.
     pub asset_id: AssetId,
+    /// The value of the source pair.
     pub value: u64,
 }
 
@@ -34,7 +37,9 @@ impl Hash for SourcePair {
 }
 
 pub struct DestinationPair {
+    /// The asset ID of the destination pair.
     pub asset_id: AssetId,
+    /// The value of the destination pair.
     pub value: u64,
 }
 
@@ -46,11 +51,18 @@ impl Hash for DestinationPair {
 }
 
 pub struct Request {
+    /// The vector of source chain pairs for the request.
     pub sources: Vec<SourcePair>,
+    /// The chain ID of the destination chain.
     pub destination_chain_id: u256,
+    /// The vector of destination chain pairs.
     pub destinations: Vec<DestinationPair>,
+    /// The nonce of the request.
     pub nonce: u64,
-    // FuelVM uses TAI64 timestamps
+    /// The expiry timestamp for the request.
+    ///
+    /// # Additional Information
+    /// FuelVM uses TAI64 timestamps
     pub expiry: u64,
 }
 
@@ -65,9 +77,13 @@ impl Hash for Request {
 }
 
 pub struct SettleData {
+    /// The vector of solvers to be paid.
     pub solvers: Vec<Address>,
+    /// The vector of assets ID for the assets to be paid.
     pub assets: Vec<AssetId>,
+    /// The vector of amounts for the assets to be paid.
     pub amounts: Vec<u64>,
+    /// The nonce of the settlement.
     pub nonce: u64,
 }
 

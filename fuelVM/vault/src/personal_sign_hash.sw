@@ -20,6 +20,15 @@ struct SignedData {
     empty: b256,
 }
 
+/// Applies EIP-191 personal sign hashing of the given `message`.
+///
+/// # Arguments
+///
+/// * `message`: [b256] - The data to be hashed.
+///
+/// # Returns
+///
+/// * [b256] - The personal sign hash of the `message`.
 pub fn personal_sign_hash(message: b256) -> b256 {
     // Hack, allocate memory to reduce manual `asm` code.
     let data = SignedData {
