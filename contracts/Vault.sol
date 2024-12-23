@@ -54,7 +54,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         uint256 nonce;
     }
 
-    event Deposit(address indexed from, bytes32 indexed requestHash);
+    event Deposit(address indexed from, bytes32 indexed requestHash, bool gasRefunded);
     event Fill(
         address indexed from,
         bytes32 indexed requestHash,
@@ -112,7 +112,8 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         Request calldata request,
         bytes calldata signature,
         address from,
-        uint256 chainIndex
+        uint256 chainIndex,
+        bool gasRefunded
     ) private {
         bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 ethSignedMessageHash) = _verify_request(
@@ -148,7 +149,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
             );
         }
 
-        emit Deposit(from, ethSignedMessageHash);
+        emit Deposit(from, ethSignedMessageHash, gasRefunded);
     }
 
     function deposit(
@@ -157,7 +158,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         address from,
         uint256 chainIndex
     ) public payable nonReentrant {
-        _deposit(request, signature, from, chainIndex);
+        _deposit(request, signature, from, chainIndex, false);
     }
 
     function depositWithRefund(
@@ -167,7 +168,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         uint256 chainIndex
     ) public payable onlyRole(REFUND_ACCESS) nonReentrant {
         uint256 startGas = gasleft();
-        _deposit(request, signature, from, chainIndex);
+        _deposit(request, signature, from, chainIndex, true);
         uint256 gasUsed = startGas - gasleft() + overhead[Function.Deposit];
         uint256 gasPrice = tx.gasprice < maxGasPrice
             ? tx.gasprice
