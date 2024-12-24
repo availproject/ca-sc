@@ -15,6 +15,12 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         Settle
     }
 
+    enum Universe {
+        EVM,
+        FUEL,
+        SOLANA
+    }
+
     mapping(Function => uint256) public overhead;
     uint256 public vaultBalance;
     uint256 public maxGasPrice;
@@ -29,19 +35,19 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     uint256[50] private __gap;
 
     struct SourcePair {
-        uint256 chainID;
-        address tokenAddress;
+        bytes32 chainID;
+        bytes32 tokenAddress;
         uint256 value;
     }
 
     struct DestinationPair {
-        address tokenAddress;
+        bytes32 tokenAddress;
         uint256 value;
     }
 
     struct Request {
         SourcePair[] sources;
-        uint256 destinationChainID;
+        bytes32 destinationChainID;
         DestinationPair[] destinations;
         uint256 nonce;
         uint256 expiry;
