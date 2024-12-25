@@ -98,6 +98,10 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
                 )
             );
     }
+     function bytes32ToAddress(bytes32 a) internal pure returns (address) {
+        // Cast the last 20 bytes of bytes32 into an address
+        return address(uint160(uint256(a)));
+    }
 
     function _verify_request(
         bytes calldata signature,
@@ -129,7 +133,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         );
         require(success, "Vault: Invalid signature or from");
         require(
-            request.sources[chainIndex].chainID == block.chainid,
+            uint256(request.sources[chainIndex].chainID) == block.chainid,
             "Vault: Chain ID mismatch"
         );
         require(!depositNonce[request.nonce], "Vault: Nonce already used");
@@ -137,11 +141,11 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         depositNonce[request.nonce] = true;
         requests[ethSignedMessageHash] = request;
 
-        if (request.sources[chainIndex].tokenAddress == address(0)) {
+        if ( request.sources[chainIndex].tokenAddress == bytes32(0) ) {
             uint256 totalValue = request.sources[chainIndex].value;
             require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
-            IERC20 token = IERC20(request.sources[chainIndex].tokenAddress);
+            IERC20 token = IERC20( bytes32ToAddress (request.sources[chainIndex].tokenAddress ) );
             uint256 balanceBefore = token.balanceOf(address(this));
             token.safeTransferFrom(
                 from,
@@ -200,7 +204,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         );
         require(success, "Vault: Invalid signature or from");
         require(
-            request.destinationChainID == block.chainid,
+            uint256(request.destinationChainID) == block.chainid,
             "Vault: Chain ID mismatch"
         );
         require(!fillNonce[request.nonce], "Vault: Nonce already used");
@@ -210,7 +214,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         uint256 gasToken = msg.value;
         emit Fill(from, ethSignedMessageHash, msg.sender);
         for (uint i = 0; i < request.destinations.length; ++i) {
-            if (request.destinations[i].tokenAddress == address(0)) {
+            if (request.destinations[i].tokenAddress == bytes32(0)) {
                 require(
                     gasToken >= request.destinations[i].value,
                     "Vault: Value mismatch"
@@ -225,7 +229,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
                 }("");
                 require(sent, "Vault: Transfer failed");
             } else {
-                IERC20 token = IERC20(request.destinations[i].tokenAddress);
+                IERC20 token = IERC20( bytes32ToAddress(request.destinations[i].tokenAddress));
                 uint256 balanceBefore = token.balanceOf(from);
                 token.safeTransferFrom(
                     msg.sender,
