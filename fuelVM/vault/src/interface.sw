@@ -130,7 +130,7 @@ abi ArcanaVault {
     #[storage(read, write)]
     fn settle(settle_data: SettleData, signature: B512);
 
-    /// Gets a request hash from it's associated `signed_message_hash`
+    /// Gets a [Request] hash from it's associated `signed_message_hash`
     ///
     /// # Arguments
     ///
@@ -138,13 +138,13 @@ abi ArcanaVault {
     ///
     /// # Returns
     ///
-    /// * [Option<b256>] - The hash of a request.
+    /// * [Option<Request>] - The request.
     ///
     /// # Number of Storage Accesses
     ///
-    /// * Reads: `1`
+    /// * Reads: `3`
     #[storage(read)]
-    fn requests(signed_message_hash: b256) -> Option<b256>;
+    fn requests(signed_message_hash: b256) -> Option<Request>;
 
     /// Gets a bool describing whether a given nonce has been used in a deposit
     ///

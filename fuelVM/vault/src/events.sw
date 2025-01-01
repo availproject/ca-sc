@@ -1,6 +1,6 @@
 library;
 
-use ::data_structures::{Method, Request};
+use ::data_structures::Request;
 
 /// Logged when a deposit is made.
 pub struct Deposit {
@@ -8,10 +8,6 @@ pub struct Deposit {
     pub from: Address,
     /// The EIP-191 signed hash of the [Request].
     pub signed_message_hash: b256,
-    /// The hash of the [Request].
-    pub request_hash: b256,
-    /// The [Request] associated with the deposit.
-    pub request: Request,
 }
 
 /// Logged when a request is filled.
@@ -22,10 +18,6 @@ pub struct Fill {
     pub signed_message_hash: b256,
     /// The address that filled the [Request]
     pub solver: Address,
-    /// The hash of the [Request].
-    pub request_hash: b256,
-    /// The [Request] associated with the deposit.
-    pub request: Request,
 }
 
 /// Logged when a withdraw is made.

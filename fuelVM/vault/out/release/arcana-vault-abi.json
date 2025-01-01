@@ -36,19 +36,19 @@
       "metadataTypeId": 4
     },
     {
-      "type": "enum std::option::Option<b256>",
-      "concreteTypeId": "0c2beb9013490c4f753f2757dfe2d8340b22ce3827d596d81d249b7038033cb6",
-      "metadataTypeId": 5,
-      "typeArguments": [
-        "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-      ]
-    },
-    {
       "type": "enum std::option::Option<bool>",
       "concreteTypeId": "160e7964babcf172e41aa29b138f9c2ccfc416ad2368dabdbdf877ec5de5503f",
       "metadataTypeId": 5,
       "typeArguments": [
         "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903"
+      ]
+    },
+    {
+      "type": "enum std::option::Option<struct data_structures::Request>",
+      "concreteTypeId": "2644cb541197d16874ed15ff9b4e74d0cb01be34849c3fb2d8356f064f7b097a",
+      "metadataTypeId": 5,
+      "typeArguments": [
+        "8f17cef827b9269639659b2f90120c93255dfedb8f58f7f69e7f2f2a9040077d"
       ]
     },
     {
@@ -385,14 +385,6 @@
         {
           "name": "signed_message_hash",
           "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-        },
-        {
-          "name": "request_hash",
-          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-        },
-        {
-          "name": "request",
-          "typeId": 11
         }
       ]
     },
@@ -411,14 +403,6 @@
         {
           "name": "solver",
           "typeId": 18
-        },
-        {
-          "name": "request_hash",
-          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-        },
-        {
-          "name": "request",
-          "typeId": 11
         }
       ]
     },
@@ -778,13 +762,13 @@
         {
           "name": "doc-comment",
           "arguments": [
-            " * Reads: `1`"
+            " * Reads: `3`"
           ]
         },
         {
           "name": "doc-comment",
           "arguments": [
-            " * Writes: `2`"
+            " * Writes: `4`"
           ]
         },
         {
@@ -1043,13 +1027,13 @@
         {
           "name": "doc-comment",
           "arguments": [
-            " * Reads: `1`"
+            " * Reads: `3`"
           ]
         },
         {
           "name": "doc-comment",
           "arguments": [
-            " * Writes: `2`"
+            " * Writes: `4`"
           ]
         },
         {
@@ -1263,12 +1247,12 @@
         }
       ],
       "name": "requests",
-      "output": "0c2beb9013490c4f753f2757dfe2d8340b22ce3827d596d81d249b7038033cb6",
+      "output": "2644cb541197d16874ed15ff9b4e74d0cb01be34849c3fb2d8356f064f7b097a",
       "attributes": [
         {
           "name": "doc-comment",
           "arguments": [
-            " Gets a request hash from it's associated `signed_message_hash`"
+            " Gets a [Request] hash from it's associated `signed_message_hash`"
           ]
         },
         {
@@ -1316,7 +1300,7 @@
         {
           "name": "doc-comment",
           "arguments": [
-            " * [Option<b256>] - The hash of a request."
+            " * [Option<Request>] - The request."
           ]
         },
         {
@@ -1340,7 +1324,7 @@
         {
           "name": "doc-comment",
           "arguments": [
-            " * Reads: `1`"
+            " * Reads: `3`"
           ]
         },
         {
@@ -1804,12 +1788,12 @@
     {
       "name": "INITIAL_OWNER",
       "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "offset": 41056
+      "offset": 46936
     },
     {
       "name": "FUEL_IGNITION_CHAIN_ID",
       "concreteTypeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e",
-      "offset": 41024
+      "offset": 46904
     }
   ]
 }

@@ -2,11 +2,6 @@ library;
 
 use std::hash::{Hash, Hasher};
 
-pub enum Method {
-    Deposit: (),
-    Settle: (),
-}
-
 impl<T> Hash for Vec<T> 
 where
     T: Hash,
@@ -73,6 +68,40 @@ impl Hash for Request {
         self.destinations.hash(state);
         self.nonce.hash(state);
         self.expiry.hash(state);
+    }
+}
+
+pub struct StorableRequest {
+    /// The chain ID of the destination chain.
+    pub destination_chain_id: u256,
+    /// The nonce of the request.
+    pub nonce: u64,
+    /// The expiry timestamp for the request.
+    ///
+    /// # Additional Information
+    /// FuelVM uses TAI64 timestamps
+    pub expiry: u64,
+}
+
+impl From<Request> for StorableRequest {
+    fn from(request: Request) -> Self {
+        Self {
+            destination_chain_id: request.destination_chain_id,
+            nonce: request.nonce,
+            expiry: request.expiry,
+        }
+    }
+}
+
+impl From<StorableRequest> for Request {
+    fn from(storable_request: StorableRequest) -> Self {
+        Self {
+            sources: Vec::new(),
+            destination_chain_id: storable_request.destination_chain_id,
+            destinations: Vec::new(),
+            nonce: storable_request.nonce,
+            expiry: storable_request.expiry,
+        }
     }
 }
 

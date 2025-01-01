@@ -7,7 +7,7 @@ mod personal_sign_hash;
 mod errors;
 
 use interface::ArcanaVault;
-use data_structures::{Method, Request, SettleData};
+use data_structures::{Request, SettleData, StorableRequest, SourcePair, DestinationPair};
 use personal_sign_hash::personal_sign_hash;
 use errors::VaultError;
 use events::{Deposit, Fill, Settle, Withdraw};
@@ -32,6 +32,7 @@ use std::{
         output_asset_to,
         output_count,
     },
+    storage::storage_vec::*
 };
 
 configurable {
@@ -43,8 +44,12 @@ configurable {
 
 storage {
     V1 {
-        /// A mapping of `signed_message_hash` to `request_hash`.
-        requests: StorageMap<b256, b256> = StorageMap {},
+        /// A mapping of `signed_message_hash` to `partial_request`.
+        requests_partial: StorageMap<b256, StorableRequest> = StorageMap {},
+        /// A mapping of `signed_message_hash` to `request_sources`.
+        requests_sources: StorageMap<b256, StorageVec<SourcePair>> = StorageMap {},
+        /// A mapping of `signed_message_hash` to `request_destinations`.
+        requests_destinations: StorageMap<b256, StorageVec<DestinationPair>> = StorageMap {},
         /// A mapping of `deposit_nonce` to `bool`.
         deposit_nonce: StorageMap<u64, bool> = StorageMap {},
         /// A mapping of `fill_nonce` to `bool`.
@@ -112,8 +117,8 @@ impl ArcanaVault for Contract {
     ///
     /// # Number of Storage Accesses
     ///
-    /// * Reads: `1`
-    /// * Writes: `2`
+    /// * Reads: `3`
+    /// * Writes: `4`
     #[payable]
     #[storage(read, write)]
     fn deposit(
@@ -167,16 +172,14 @@ impl ArcanaVault for Contract {
         let signed_message_hash = verify_request(signature, from, request_hash);
 
         storage::V1.deposit_nonce.insert(request.nonce, true);
-        storage::V1
-            .requests
-            .insert(signed_message_hash, request_hash);
 
-        // Can't store a `Request` directly, instead store hash of `Request` and log the `Request` itself along with it's hash.
+        storage::V1.requests_partial.insert(signed_message_hash, request.into());
+        storage::V1.requests_sources.get(signed_message_hash).store_vec(request.sources);
+        storage::V1.requests_destinations.get(signed_message_hash).store_vec(request.destinations);
+
         log(Deposit {
             from,
             signed_message_hash,
-            request_hash,
-            request,
         });
     }
 
@@ -201,8 +204,8 @@ impl ArcanaVault for Contract {
     ///
     /// # Number of Storage Accesses
     ///
-    /// * Reads: `1`
-    /// * Writes: `2`
+    /// * Reads: `3`
+    /// * Writes: `4`
     #[storage(read, write)]
     fn fill(request: Request, signature: B512, from: Address) {
         require(
@@ -272,19 +275,17 @@ impl ArcanaVault for Contract {
         let signed_message_hash = verify_request(signature, from, request_hash);
 
         storage::V1.fill_nonce.insert(request.nonce, true);
-        storage::V1
-            .requests
-            .insert(signed_message_hash, request_hash);
 
-        // Can't store a `Request` directly, instead store hash of `Request` and log the `Request` itself along with it's hash.
+        storage::V1.requests_partial.insert(signed_message_hash, request.into());
+        storage::V1.requests_sources.get(signed_message_hash).store_vec(request.sources);
+        storage::V1.requests_destinations.get(signed_message_hash).store_vec(request.destinations);
+
         log(Fill {
-            from,
-            signed_message_hash,
-            solver: msg_sender().unwrap().as_address().unwrap(),
-            request_hash,
-            request,
-        });
-    }
+                from,
+                signed_message_hash,
+                solver: msg_sender().unwrap().as_address().unwrap(),
+            });
+        }
 
     /// Withdraw assets from the contract.
     ///
@@ -407,7 +408,7 @@ impl ArcanaVault for Contract {
         }
     }
 
-    /// Gets a request hash from it's associated `signed_message_hash`
+    /// Gets a [Request] hash from it's associated `signed_message_hash`
     ///
     /// # Arguments
     ///
@@ -415,14 +416,22 @@ impl ArcanaVault for Contract {
     ///
     /// # Returns
     ///
-    /// * [Option<b256>] - The hash of a request.
+    /// * [Option<Request>] - The request.
     ///
     /// # Number of Storage Accesses
     ///
-    /// * Reads: `1`
+    /// * Reads: `3`
     #[storage(read)]
-    fn requests(signed_message_hash: b256) -> Option<b256> {
-        storage::V1.requests.get(signed_message_hash).try_read()
+    fn requests(signed_message_hash: b256) -> Option<Request> {
+        match storage::V1.requests_partial.get(signed_message_hash).try_read() {
+            Option::Some(partial_request) => {
+                let mut request: Request = partial_request.into();
+                request.sources = storage::V1.requests_sources.get(signed_message_hash).load_vec();
+                request.destinations = storage::V1.requests_destinations.get(signed_message_hash).load_vec();
+                Some(request)
+            },
+            Option::None => None,
+        }
     }
 
     /// Gets a bool describing whether a given nonce has been used in a deposit
