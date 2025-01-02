@@ -144,6 +144,16 @@
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
         {
+          "name": "DestinationPairsNotFilled",
+          "typeId": 23,
+          "typeArguments": [
+            {
+              "name": "",
+              "typeId": 10
+            }
+          ]
+        },
+        {
           "name": "InvalidFillOutputs",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         },
@@ -925,7 +935,7 @@
         {
           "name": "doc-comment",
           "arguments": [
-            " The solver calling this method must have included outputs in the transaction that satisfy the `request` destination data."
+            " The solver's transaction, that includes calling thing method, must contain outputs that fill the `request` destination pairs."
           ]
         },
         {
@@ -1376,7 +1386,7 @@
         {
           "name": "doc-comment",
           "arguments": [
-            " Anyone can call this method as it checks if the `settle_data` was signed by the contract owner, "
+            " Anyone can call this method as it checks if the `settle_data` was signed by the contract owner,"
           ]
         },
         {
@@ -1788,12 +1798,12 @@
     {
       "name": "INITIAL_OWNER",
       "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "offset": 46936
+      "offset": 47488
     },
     {
       "name": "FUEL_IGNITION_CHAIN_ID",
       "concreteTypeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e",
-      "offset": 46904
+      "offset": 47456
     }
   ]
 }

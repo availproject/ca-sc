@@ -7,7 +7,7 @@ mod personal_sign_hash;
 mod errors;
 
 use interface::ArcanaVault;
-use data_structures::{Request, SettleData, StorableRequest, SourcePair, DestinationPair};
+use data_structures::{DestinationPair, Request, SettleData, SourcePair, StorableRequest};
 use personal_sign_hash::personal_sign_hash;
 use errors::VaultError;
 use events::{Deposit, Fill, Settle, Withdraw};
@@ -27,12 +27,14 @@ use std::{
         keccak256,
     },
     outputs::{
+        Output,
         output_amount,
         output_asset_id,
         output_asset_to,
         output_count,
+        output_type,
     },
-    storage::storage_vec::*
+    storage::storage_vec::*,
 };
 
 configurable {
@@ -173,9 +175,17 @@ impl ArcanaVault for Contract {
 
         storage::V1.deposit_nonce.insert(request.nonce, true);
 
-        storage::V1.requests_partial.insert(signed_message_hash, request.into());
-        storage::V1.requests_sources.get(signed_message_hash).store_vec(request.sources);
-        storage::V1.requests_destinations.get(signed_message_hash).store_vec(request.destinations);
+        storage::V1
+            .requests_partial
+            .insert(signed_message_hash, request.into());
+        storage::V1
+            .requests_sources
+            .get(signed_message_hash)
+            .store_vec(request.sources);
+        storage::V1
+            .requests_destinations
+            .get(signed_message_hash)
+            .store_vec(request.destinations);
 
         log(Deposit {
             from,
@@ -187,7 +197,7 @@ impl ArcanaVault for Contract {
     ///
     /// # Additional Information
     ///
-    /// The solver calling this method must have included outputs in the transaction that satisfy the `request` destination data.
+    /// The solver's transaction, that includes calling thing method, must contain outputs that fill the `request` destination pairs.
     ///
     /// * `request`: [Request] - The user's request.
     /// * `signature`: [B512] - The signature over the `request`.
@@ -216,50 +226,48 @@ impl ArcanaVault for Contract {
 
         require(request.expiry > timestamp(), VaultError::RequestExpired);
 
-        require(
-            output_count()
-                .as_u64() == request
-                .destinations
-                .len(),
-            VaultError::InvalidFillOutputs,
-        );
-        
+        // Iterate through outputs to match unique outputs to destination pairs from the `request`.
+        let mut destination_pairs = request.destinations;
+
         let mut output_index = 0;
-        for destination_pair in request.destinations.iter() {
-            // Solver MUST include coin outputs that satisfy the destinations. 
-            // Methods for variable outputs are unavailable atm so solver must take care to setup the ensure this method doesn't revert 
-            // as they may still send the UTXOs.
-            // Coin outputs MUST be ordered the same as the destination pairs.
-            if destination_pair.value > 0 {
-                let output_recipient = output_asset_to(output_index);
-                require(
-                    (output_recipient
-                            .is_some()) && (output_recipient
-                            .unwrap() == from),
-                    VaultError::InvalidFillOutputs,
-                );
+        while output_index < output_count().as_u64() {
+            match output_type(output_index).unwrap() {
+                Output::Coin | Output::Variable => {
+                    let output_recipient = output_asset_to(output_index).unwrap();
+                    let output_asset_id = output_asset_id(output_index).unwrap();
+                    let output_amount = output_amount(output_index).unwrap();
 
-                let output_asset_id = output_asset_id(output_index);
-                require(
-                    (output_asset_id
-                            .is_some()) && (output_asset_id
-                            .unwrap() == destination_pair
-                            .asset_id),
-                    VaultError::InvalidFillOutputs,
-                );
+                    let mut destination_pairs_index = 0;
+                    while destination_pairs_index < destination_pairs.len() {
+                        let destination_pair = destination_pairs.get(destination_pairs_index).unwrap();
 
-                let output_amount = output_amount(output_index);
-                require(
-                    (output_amount
-                            .is_some()) && (output_amount
-                            .unwrap() == destination_pair
-                            .value),
-                    VaultError::InvalidFillOutputs,
-                );
-            }
+                        if (output_recipient == from) && (output_asset_id == destination_pair.asset_id) && (output_amount == destination_pair.value) {
+                            // Match; this `destination_pair` is filled by this output.
+                            let _ = destination_pairs.remove(destination_pairs_index);
+                            break;
+                        };
 
-            output_index = output_index + 1;
-        }
+                        destination_pairs_index += 1;
+                    };
+
+                    if destination_pairs.is_empty() {
+                        // All destination pairs filled.
+                        break;
+                    };
+
+                    output_index += 1;
+                },
+                _ => {
+                    output_index += 1;
+                }
+            };
+        };
+
+        require(
+            destination_pairs
+                .is_empty(),
+            VaultError::DestinationPairsNotFilled(destination_pairs),
+        );
 
         require(
             !storage::V1
@@ -276,16 +284,24 @@ impl ArcanaVault for Contract {
 
         storage::V1.fill_nonce.insert(request.nonce, true);
 
-        storage::V1.requests_partial.insert(signed_message_hash, request.into());
-        storage::V1.requests_sources.get(signed_message_hash).store_vec(request.sources);
-        storage::V1.requests_destinations.get(signed_message_hash).store_vec(request.destinations);
+        storage::V1
+            .requests_partial
+            .insert(signed_message_hash, request.into());
+        storage::V1
+            .requests_sources
+            .get(signed_message_hash)
+            .store_vec(request.sources);
+        storage::V1
+            .requests_destinations
+            .get(signed_message_hash)
+            .store_vec(request.destinations);
 
         log(Fill {
-                from,
-                signed_message_hash,
-                solver: msg_sender().unwrap().as_address().unwrap(),
-            });
-        }
+            from,
+            signed_message_hash,
+            solver: msg_sender().unwrap().as_address().unwrap(),
+        });
+    }
 
     /// Withdraw assets from the contract.
     ///
@@ -325,7 +341,7 @@ impl ArcanaVault for Contract {
     ///
     /// # Additional Information
     ///
-    /// Anyone can call this method as it checks if the `settle_data` was signed by the contract owner, 
+    /// Anyone can call this method as it checks if the `settle_data` was signed by the contract owner,
     /// if so the `settle_data` is considered valid.
     ///
     /// # Arguments

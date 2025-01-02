@@ -1,10 +1,14 @@
 library;
 
+use ::data_structures::DestinationPair;
+
 pub enum VaultError {
     /// Emitted when the deposited asset doesn't match the request.
     AssetMismatch: (),
     /// Emitted when the request's chain ID doesn't match that of Fuel Ignition.
     ChainIdMismatch: (),
+    /// Emitted when the solver's transaction doesn't fill all of the request's destination pairs.
+    DestinationPairsNotFilled: Vec<DestinationPair>,
     /// Emitted when the transaction performing a fill doesn't include an output that matches
     /// the requested destination pair.
     InvalidFillOutputs: (),
