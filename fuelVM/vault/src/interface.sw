@@ -194,6 +194,5 @@ abi ArcanaVault {
     #[storage(read)]
     fn settle_nonce(nonce: u64) -> Option<bool>;
 
-    #[storage()]
     fn verify_request_signature(request: Request, signature: B512, from: Address) -> b256;
 }

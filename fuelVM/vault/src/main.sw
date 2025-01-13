@@ -504,7 +504,6 @@ impl ArcanaVault for Contract {
         storage::V1.settle_nonce.get(nonce).try_read()
     }
 
-    #[storage()]
     fn verify_request_signature(request: Request, signature: B512, from: Address) -> b256 {
         let request_hash = hash_request(request);
         let signed_message_hash = verify_request(signature, from, request_hash);
