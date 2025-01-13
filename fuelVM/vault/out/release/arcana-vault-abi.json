@@ -1611,6 +1611,30 @@
     {
       "inputs": [
         {
+          "name": "request",
+          "concreteTypeId": "8f17cef827b9269639659b2f90120c93255dfedb8f58f7f69e7f2f2a9040077d"
+        },
+        {
+          "name": "signature",
+          "concreteTypeId": "745e252e80bec590efc3999ae943f07ccea4d5b45b00bb6575499b64abdd3322"
+        },
+        {
+          "name": "from",
+          "concreteTypeId": "f597b637c3b0f588fb8d7086c6f4735caa3122b85f0423b82e489f9bb58e2308"
+        }
+      ],
+      "name": "verify_request_signature",
+      "output": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b",
+      "attributes": [
+        {
+          "name": "storage",
+          "arguments": []
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
           "name": "to",
           "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
         },
@@ -1798,12 +1822,12 @@
     {
       "name": "INITIAL_OWNER",
       "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "offset": 47488
+      "offset": 49056
     },
     {
       "name": "FUEL_IGNITION_CHAIN_ID",
       "concreteTypeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e",
-      "offset": 47456
+      "offset": 49024
     }
   ]
 }
