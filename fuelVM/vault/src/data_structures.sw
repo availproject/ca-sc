@@ -2,7 +2,7 @@ library;
 
 use std::hash::{Hash, Hasher};
 
-impl<T> Hash for Vec<T> 
+impl<T> Hash for Vec<T>
 where
     T: Hash,
 {
@@ -53,7 +53,7 @@ pub struct Request {
     /// The vector of destination chain pairs.
     pub destinations: Vec<DestinationPair>,
     /// The nonce of the request.
-    pub nonce: u64,
+    pub nonce: u256,
     /// The expiry timestamp for the request.
     ///
     /// # Additional Information
@@ -75,7 +75,7 @@ pub struct StorableRequest {
     /// The chain ID of the destination chain.
     pub destination_chain_id: u256,
     /// The nonce of the request.
-    pub nonce: u64,
+    pub nonce: u256,
     /// The expiry timestamp for the request.
     ///
     /// # Additional Information
@@ -113,7 +113,7 @@ pub struct SettleData {
     /// The vector of amounts for the assets to be paid.
     pub amounts: Vec<u64>,
     /// The nonce of the settlement.
-    pub nonce: u64,
+    pub nonce: u256,
 }
 
 impl Hash for SettleData {

@@ -39,5 +39,5 @@ pub struct Settle {
     /// The amount of the asset to send the `solver`.
     pub amount: u64,
     /// The nonce of the settlement.
-    pub nonce: u64,
+    pub nonce: u256,
 }

@@ -318,7 +318,7 @@
         },
         {
           "name": "nonce",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+          "typeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e"
         },
         {
           "name": "expiry",
@@ -362,7 +362,7 @@
         },
         {
           "name": "nonce",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+          "typeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e"
         }
       ]
     },
@@ -434,7 +434,7 @@
         },
         {
           "name": "nonce",
-          "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+          "typeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e"
         }
       ]
     },
@@ -798,7 +798,7 @@
       "inputs": [
         {
           "name": "nonce",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+          "concreteTypeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e"
         }
       ],
       "name": "deposit_nonce",
@@ -1059,7 +1059,7 @@
       "inputs": [
         {
           "name": "nonce",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+          "concreteTypeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e"
         }
       ],
       "name": "fill_nonce",
@@ -1516,7 +1516,7 @@
       "inputs": [
         {
           "name": "nonce",
-          "concreteTypeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+          "concreteTypeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e"
         }
       ],
       "name": "settle_nonce",
@@ -1625,12 +1625,7 @@
       ],
       "name": "verify_request_signature",
       "output": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b",
-      "attributes": [
-        {
-          "name": "storage",
-          "arguments": []
-        }
-      ]
+      "attributes": null
     },
     {
       "inputs": [
@@ -1822,12 +1817,12 @@
     {
       "name": "INITIAL_OWNER",
       "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "offset": 49056
+      "offset": 49888
     },
     {
       "name": "FUEL_IGNITION_CHAIN_ID",
       "concreteTypeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e",
-      "offset": 49024
+      "offset": 49856
     }
   ]
 }

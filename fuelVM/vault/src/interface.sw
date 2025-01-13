@@ -160,7 +160,7 @@ abi ArcanaVault {
     ///
     /// * Reads: `1`
     #[storage(read)]
-    fn deposit_nonce(nonce: u64) -> Option<bool>;
+    fn deposit_nonce(nonce: u256) -> Option<bool>;
 
     /// Gets a bool describing whether a given nonce has been used in a fill
     ///
@@ -176,7 +176,7 @@ abi ArcanaVault {
     ///
     /// * Reads: `1`
     #[storage(read)]
-    fn fill_nonce(nonce: u64) -> Option<bool>;
+    fn fill_nonce(nonce: u256) -> Option<bool>;
 
     /// Gets a bool describing whether a given nonce has been used in a settlement
     ///
@@ -192,7 +192,7 @@ abi ArcanaVault {
     ///
     /// * Reads: `1`
     #[storage(read)]
-    fn settle_nonce(nonce: u64) -> Option<bool>;
+    fn settle_nonce(nonce: u256) -> Option<bool>;
 
     fn verify_request_signature(request: Request, signature: B512, from: Address) -> b256;
 }

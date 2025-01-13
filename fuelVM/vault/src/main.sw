@@ -39,9 +39,9 @@ use std::{
 
 configurable {
     /// The Identity set as the `owner` during initialization.
-    INITIAL_OWNER: Identity = Identity::Address(Address::zero()),
+    INITIAL_OWNER: Identity = Identity::Address(Address::from(0x28C32F7D5e8AAC2c7EC8daCD81d0D97e06B5F1f479F1518CE7006B35e7a84438)),
     /// The chain ID for Fuel Ignition.
-    FUEL_IGNITION_CHAIN_ID: u256 = 9889,
+    FUEL_IGNITION_CHAIN_ID: u256 = 0,
 }
 
 storage {
@@ -53,11 +53,11 @@ storage {
         /// A mapping of `signed_message_hash` to `request_destinations`.
         requests_destinations: StorageMap<b256, StorageVec<DestinationPair>> = StorageMap {},
         /// A mapping of `deposit_nonce` to `bool`.
-        deposit_nonce: StorageMap<u64, bool> = StorageMap {},
+        deposit_nonce: StorageMap<u256, bool> = StorageMap {},
         /// A mapping of `fill_nonce` to `bool`.
-        fill_nonce: StorageMap<u64, bool> = StorageMap {},
+        fill_nonce: StorageMap<u256, bool> = StorageMap {},
         /// A mapping of `settle_nonce` to `bool`.
-        settle_nonce: StorageMap<u64, bool> = StorageMap {},
+        settle_nonce: StorageMap<u256, bool> = StorageMap {},
     },
 }
 
@@ -464,7 +464,7 @@ impl ArcanaVault for Contract {
     ///
     /// * Reads: `1`
     #[storage(read)]
-    fn deposit_nonce(nonce: u64) -> Option<bool> {
+    fn deposit_nonce(nonce: u256) -> Option<bool> {
         storage::V1.deposit_nonce.get(nonce).try_read()
     }
 
@@ -482,7 +482,7 @@ impl ArcanaVault for Contract {
     ///
     /// * Reads: `1`
     #[storage(read)]
-    fn fill_nonce(nonce: u64) -> Option<bool> {
+    fn fill_nonce(nonce: u256) -> Option<bool> {
         storage::V1.fill_nonce.get(nonce).try_read()
     }
 
@@ -500,7 +500,7 @@ impl ArcanaVault for Contract {
     ///
     /// * Reads: `1`
     #[storage(read)]
-    fn settle_nonce(nonce: u64) -> Option<bool> {
+    fn settle_nonce(nonce: u256) -> Option<bool> {
         storage::V1.settle_nonce.get(nonce).try_read()
     }
 
