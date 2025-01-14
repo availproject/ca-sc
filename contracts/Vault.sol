@@ -180,8 +180,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     function extractAddress(Party[] memory parties) internal pure returns (address from) {
           for(uint i = 0; i < parties.length; i++) {
             if (parties[i].universe == Universe.EVM) {
-                 bytes20 addressBytes = bytes20(parties[i].address_); 
-                 from = address(addressBytes); 
+                 from = bytes32ToAddress(parties[i].address_); 
                  break;
             }
         }
