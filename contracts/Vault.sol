@@ -45,12 +45,18 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         uint256 value;
     }
 
+    struct Party {
+        Universe universe;
+        bytes32 address_; // address is a reserved keyword
+    }
+
     struct Request {
         SourcePair[] sources;
         bytes32 destinationChainID;
         DestinationPair[] destinations;
         uint256 nonce;
         uint256 expiry;
+        Party[] parties;
     }
 
     struct SettleData {
@@ -165,18 +171,28 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     function deposit(
         Request calldata request,
         bytes calldata signature,
-        address from,
         uint256 chainIndex
     ) public payable nonReentrant {
+        address from = extractAddress(request.parties);
         _deposit(request, signature, from, chainIndex, false);
+    }
+
+    function extractAddress(Party[] memory parties) public pure returns (address from) {
+          for(uint i = 0; i < parties.length; i++) {
+            if (parties[i].universe == Universe.EVM) {
+                 bytes20 addressBytes = bytes20(parties[i].address_); 
+                 from = address(addressBytes); 
+                 break;
+            }
+        }
     }
 
     function depositWithRefund(
         Request calldata request,
         bytes calldata signature,
-        address from,
         uint256 chainIndex
     ) public payable onlyRole(REFUND_ACCESS) nonReentrant {
+        address from = extractAddress(request.parties);
         uint256 startGas = gasleft();
         _deposit(request, signature, from, chainIndex, true);
         uint256 gasUsed = startGas - gasleft() + overhead[Function.Deposit];
@@ -193,9 +209,9 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
 
     function fill(
         Request calldata request,
-        bytes calldata signature,
-        address from
+        bytes calldata signature
     ) public payable nonReentrant {
+        address from = extractAddress(request.parties);
         bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 ethSignedMessageHash) = _verify_request(
             signature,
@@ -268,9 +284,9 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
 
     function verifyRequestSignature(
         Request calldata request,
-        bytes calldata signature,
-        address from
+        bytes calldata signature
     ) external pure returns (bool, bytes32) {
+        address from = extractAddress(request.parties);
         return _verify_request(signature, from, _hashRequest(request));
     }
 
