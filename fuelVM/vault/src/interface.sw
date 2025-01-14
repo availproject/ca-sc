@@ -77,6 +77,7 @@ abi ArcanaVault {
     ///
     /// * Reads: `1`
     /// * Writes: `2`
+    #[payable]
     #[storage(read, write)]
     fn fill(request: Request, signature: B512, from: Address);
 
@@ -195,4 +196,5 @@ abi ArcanaVault {
     fn settle_nonce(nonce: u256) -> Option<bool>;
 
     fn verify_request_signature(request: Request, signature: B512, from: Address) -> b256;
+    fn hash_request(request: Request) -> b256;
 }

@@ -39,9 +39,9 @@ use std::{
 
 configurable {
     /// The Identity set as the `owner` during initialization.
-    INITIAL_OWNER: Identity = Identity::Address(Address::from(0x28C32F7D5e8AAC2c7EC8daCD81d0D97e06B5F1f479F1518CE7006B35e7a84438)),
+    INITIAL_OWNER: Identity = Identity::Address(Address::from(0xD301ee4fe4D919Eda2A6fAEEe172245E6D6a8c2d07C53Ba06Ae715eCD4C62A13)),
     /// The chain ID for Fuel Ignition.
-    FUEL_IGNITION_CHAIN_ID: u256 = 0,
+    FUEL_IGNITION_CHAIN_ID: u256 = 9889,
 }
 
 storage {
@@ -141,7 +141,7 @@ impl ArcanaVault for Contract {
             VaultError::ChainIdMismatch,
         );
 
-        require(request.expiry > timestamp(), VaultError::RequestExpired);
+        require(request.expiry > (timestamp() - 0x4000000000000000 - 10), VaultError::RequestExpired);
 
         require(
             msg_asset_id() == request
@@ -216,6 +216,7 @@ impl ArcanaVault for Contract {
     ///
     /// * Reads: `3`
     /// * Writes: `4`
+    #[payable]
     #[storage(read, write)]
     fn fill(request: Request, signature: B512, from: Address) {
         require(
@@ -224,7 +225,7 @@ impl ArcanaVault for Contract {
             VaultError::ChainIdMismatch,
         );
 
-        require(request.expiry > timestamp(), VaultError::RequestExpired);
+        require(request.expiry > (timestamp() - 0x4000000000000000 - 10), VaultError::RequestExpired);
 
         // Iterate through outputs to match unique outputs to destination pairs from the `request`.
         let mut destination_pairs = request.destinations;
@@ -508,6 +509,10 @@ impl ArcanaVault for Contract {
         let request_hash = hash_request(request);
         let signed_message_hash = verify_request(signature, from, request_hash);
         signed_message_hash
+    }
+
+    fn hash_request(request: Request) -> b256 {
+        return hash_request(request)
     }
 }
 
