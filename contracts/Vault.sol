@@ -11,7 +11,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract MyContract is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
@@ -96,6 +96,7 @@ contract MyContract is Initializable, UUPSUpgradeable, AccessControlUpgradeable,
     function initialize(address admin) initializer public {
         __AccessControl_init();
         __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(REFUND_ACCESS, admin);
@@ -354,6 +355,8 @@ contract MyContract is Initializable, UUPSUpgradeable, AccessControlUpgradeable,
         );
         require(!settleNonce[settleData.nonce], "Vault: Nonce already used");
         require(settleData.chainID == block.chainid, "Vault: Chain ID mismatch");
+        require(settleData.universe == Universe.ETHEREUM, "Vault: Universe mismatch");
+
         settleNonce[settleData.nonce] = true;
         for (uint i = 0; i < settleData.solvers.length; ++i) {
             emit Settle(
