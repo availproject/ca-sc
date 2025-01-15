@@ -126,6 +126,7 @@ impl Hash for Request {
         self.destinations.hash(state);
         self.nonce.hash(state);
         self.expiry.hash(state);
+        self.parties.hash(state);
     }
 }
 
