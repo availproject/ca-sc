@@ -1,18 +1,29 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+pragma solidity 0.8.28;
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
+contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
     enum Function {
         Deposit,
         Settle
+    }
+
+    enum Universe {
+        ETHEREUM,
+        FUEL,
+        SOLANA
     }
 
     mapping(Function => uint256) public overhead;
@@ -24,30 +35,41 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     mapping(uint256 => bool) public fillNonce;
     mapping(uint256 => bool) public settleNonce;
     bytes32 private constant REFUND_ACCESS = keccak256("REFUND_ACCESS");
+    bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     // Storage gap to reserve slots for future use
     uint256[50] private __gap;
 
     struct SourcePair {
+        Universe universe;
         uint256 chainID;
-        address tokenAddress;
+        bytes32 tokenAddress;
         uint256 value;
     }
 
     struct DestinationPair {
-        address tokenAddress;
+        bytes32 tokenAddress;
         uint256 value;
+    }
+
+    struct Party {
+        Universe universe;
+        bytes32 address_; // address is a reserved keyword
     }
 
     struct Request {
         SourcePair[] sources;
+        Universe destinationUniverse;
         uint256 destinationChainID;
         DestinationPair[] destinations;
         uint256 nonce;
         uint256 expiry;
+        Party[] parties;
     }
 
     struct SettleData {
+        Universe universe;
+        uint256 chainID;
         address[] solvers;
         address[] tokens;
         uint256[] amounts;
@@ -71,12 +93,23 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         _disableInitializers();
     }
 
-    function initialize() public initializer {
+    function initialize(address admin) initializer public {
+        __AccessControl_init();
+        __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(REFUND_ACCESS, msg.sender);
+
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(REFUND_ACCESS, admin);
+        _grantRole(UPGRADER_ROLE, admin);
+
         maxGasPrice = 50 gwei;
     }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyRole(UPGRADER_ROLE)
+        override
+    {}
 
     function _hashRequest(
         Request calldata request
@@ -85,12 +118,18 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
             keccak256(
                 abi.encode(
                     request.sources,
+                    request.destinationUniverse,
                     request.destinationChainID,
                     request.destinations,
                     request.nonce,
-                    request.expiry
+                    request.expiry,
+                    request.parties
                 )
             );
+    }
+     function bytes32ToAddress(bytes32 a) internal pure returns (address) {
+        // Cast the last 20 bytes of bytes32 into an address
+        return address(uint160(uint256(a)));
     }
 
     function _verify_request(
@@ -111,10 +150,10 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     function _deposit(
         Request calldata request,
         bytes calldata signature,
-        address from,
         uint256 chainIndex,
-        bool gasRefunded
+        bool willGasBeRefunded
     ) private {
+        address from = extractAddress(request.parties);
         bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 ethSignedMessageHash) = _verify_request(
             signature,
@@ -131,11 +170,12 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         depositNonce[request.nonce] = true;
         requests[ethSignedMessageHash] = request;
 
-        if (request.sources[chainIndex].tokenAddress == address(0)) {
+        if (request.sources[chainIndex].tokenAddress == bytes32(0)) {
             uint256 totalValue = request.sources[chainIndex].value;
             require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
-            IERC20 token = IERC20(request.sources[chainIndex].tokenAddress);
+            require(request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch");
+            IERC20 token = IERC20(bytes32ToAddress (request.sources[chainIndex].tokenAddress));
             uint256 balanceBefore = token.balanceOf(address(this));
             token.safeTransferFrom(
                 from,
@@ -149,26 +189,33 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
             );
         }
 
-        emit Deposit(from, ethSignedMessageHash, gasRefunded);
+        emit Deposit(from, ethSignedMessageHash, willGasBeRefunded);
     }
 
     function deposit(
         Request calldata request,
         bytes calldata signature,
-        address from,
         uint256 chainIndex
-    ) public payable nonReentrant {
-        _deposit(request, signature, from, chainIndex, false);
+    ) external payable nonReentrant {
+        _deposit(request, signature, chainIndex, false);
+    }
+
+    function extractAddress(Party[] memory parties) internal pure returns (address from) {
+          for(uint i = 0; i < parties.length; i++) {
+            if (parties[i].universe == Universe.ETHEREUM) {
+                 from = bytes32ToAddress(parties[i].address_); 
+                 break;
+            }
+        }
     }
 
     function depositWithRefund(
         Request calldata request,
         bytes calldata signature,
-        address from,
         uint256 chainIndex
-    ) public payable onlyRole(REFUND_ACCESS) nonReentrant {
+    ) external payable onlyRole(REFUND_ACCESS) nonReentrant {
         uint256 startGas = gasleft();
-        _deposit(request, signature, from, chainIndex, true);
+        _deposit(request, signature, chainIndex, true);
         uint256 gasUsed = startGas - gasleft() + overhead[Function.Deposit];
         uint256 gasPrice = tx.gasprice < maxGasPrice
             ? tx.gasprice
@@ -183,9 +230,9 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
 
     function fill(
         Request calldata request,
-        bytes calldata signature,
-        address from
-    ) public payable nonReentrant {
+        bytes calldata signature
+    ) external payable nonReentrant {
+        address from = extractAddress(request.parties);
         bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 ethSignedMessageHash) = _verify_request(
             signature,
@@ -194,17 +241,19 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         );
         require(success, "Vault: Invalid signature or from");
         require(
-            request.destinationChainID == block.chainid,
+            uint256(request.destinationChainID) == block.chainid,
             "Vault: Chain ID mismatch"
         );
         require(!fillNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
+        require(request.destinationUniverse == Universe.ETHEREUM, "Vault: Universe mismatch");
+
         fillNonce[request.nonce] = true;
         requests[ethSignedMessageHash] = request;
         uint256 gasToken = msg.value;
         emit Fill(from, ethSignedMessageHash, msg.sender);
         for (uint i = 0; i < request.destinations.length; ++i) {
-            if (request.destinations[i].tokenAddress == address(0)) {
+            if (request.destinations[i].tokenAddress == bytes32(0)) {
                 require(
                     gasToken >= request.destinations[i].value,
                     "Vault: Value mismatch"
@@ -219,7 +268,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
                 }("");
                 require(sent, "Vault: Transfer failed");
             } else {
-                IERC20 token = IERC20(request.destinations[i].tokenAddress);
+                IERC20 token = IERC20( bytes32ToAddress(request.destinations[i].tokenAddress));
                 uint256 balanceBefore = token.balanceOf(from);
                 token.safeTransferFrom(
                     msg.sender,
@@ -237,7 +286,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
 
     function setMaxGasPrice(
         uint256 _maxGasPrice
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         maxGasPrice = _maxGasPrice;
         emit GasPriceUpdate(_maxGasPrice);
     }
@@ -246,7 +295,7 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
         address to,
         address token,
         uint256 amount
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         if (token == address(0)) {
             (bool sent, ) = payable(to).call{value: amount}("");
             require(sent, "Vault: Transfer failed");
@@ -258,16 +307,16 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
 
     function verifyRequestSignature(
         Request calldata request,
-        bytes calldata signature,
-        address from
+        bytes calldata signature
     ) external pure returns (bool, bytes32) {
+        address from = extractAddress(request.parties);
         return _verify_request(signature, from, _hashRequest(request));
     }
 
     function setOverHead(
         Function _function,
         uint256 _overhead
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         overhead[_function] = _overhead;
         emit GasOverheadUpdate(_function, _overhead);
     }
@@ -275,15 +324,16 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     function settle(
         SettleData calldata settleData,
         bytes calldata signature
-    ) public nonReentrant onlyRole(REFUND_ACCESS) {
+    ) external nonReentrant onlyRole(REFUND_ACCESS) {
         uint256 startGas = gasleft();
         bytes32 structHash = keccak256(
             abi.encode(
+                settleData.universe,
+                settleData.chainID,
                 settleData.solvers,
                 settleData.tokens,
                 settleData.amounts,
-                settleData.nonce,
-                block.chainid
+                settleData.nonce
             )
         );
         bytes32 signatureHash = keccak256(
@@ -304,6 +354,9 @@ contract Vault is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
             "Vault: Solvers and amounts array length mismatch"
         );
         require(!settleNonce[settleData.nonce], "Vault: Nonce already used");
+        require(settleData.chainID == block.chainid, "Vault: Chain ID mismatch");
+        require(settleData.universe == Universe.ETHEREUM, "Vault: Universe mismatch");
+
         settleNonce[settleData.nonce] = true;
         for (uint i = 0; i < settleData.solvers.length; ++i) {
             emit Settle(
