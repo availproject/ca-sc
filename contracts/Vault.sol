@@ -196,7 +196,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         Request calldata request,
         bytes calldata signature,
         uint256 chainIndex
-    ) public payable nonReentrant {
+    ) external payable nonReentrant {
         _deposit(request, signature, chainIndex, false);
     }
 
@@ -213,7 +213,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         Request calldata request,
         bytes calldata signature,
         uint256 chainIndex
-    ) public payable onlyRole(REFUND_ACCESS) nonReentrant {
+    ) external payable onlyRole(REFUND_ACCESS) nonReentrant {
         uint256 startGas = gasleft();
         _deposit(request, signature, chainIndex, true);
         uint256 gasUsed = startGas - gasleft() + overhead[Function.Deposit];
@@ -231,7 +231,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     function fill(
         Request calldata request,
         bytes calldata signature
-    ) public payable nonReentrant {
+    ) external payable nonReentrant {
         address from = extractAddress(request.parties);
         bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 ethSignedMessageHash) = _verify_request(
@@ -286,7 +286,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
     function setMaxGasPrice(
         uint256 _maxGasPrice
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         maxGasPrice = _maxGasPrice;
         emit GasPriceUpdate(_maxGasPrice);
     }
@@ -295,7 +295,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         address to,
         address token,
         uint256 amount
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         if (token == address(0)) {
             (bool sent, ) = payable(to).call{value: amount}("");
             require(sent, "Vault: Transfer failed");
@@ -316,7 +316,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     function setOverHead(
         Function _function,
         uint256 _overhead
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         overhead[_function] = _overhead;
         emit GasOverheadUpdate(_function, _overhead);
     }
@@ -324,7 +324,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     function settle(
         SettleData calldata settleData,
         bytes calldata signature
-    ) public nonReentrant onlyRole(REFUND_ACCESS) {
+    ) external nonReentrant onlyRole(REFUND_ACCESS) {
         uint256 startGas = gasleft();
         bytes32 structHash = keccak256(
             abi.encode(
