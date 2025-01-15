@@ -18,27 +18,27 @@
     {
       "type": "enum errors::VaultError",
       "concreteTypeId": "1174ac322e5f50aeb24de065558295d834bab4ad055eedc043379d91a8958834",
-      "metadataTypeId": 1
+      "metadataTypeId": 2
     },
     {
       "type": "enum standards::src5::AccessError",
       "concreteTypeId": "3f702ea3351c9c1ece2b84048006c8034a24cbc2bad2e740d0412b4172951d3d",
-      "metadataTypeId": 2
+      "metadataTypeId": 3
     },
     {
       "type": "enum standards::src5::State",
       "concreteTypeId": "192bc7098e2fe60635a9918afb563e4e5419d386da2bdbf0d716b4bc8549802c",
-      "metadataTypeId": 3
+      "metadataTypeId": 4
     },
     {
       "type": "enum std::identity::Identity",
       "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "metadataTypeId": 4
+      "metadataTypeId": 5
     },
     {
       "type": "enum std::option::Option<bool>",
       "concreteTypeId": "160e7964babcf172e41aa29b138f9c2ccfc416ad2368dabdbdf877ec5de5503f",
-      "metadataTypeId": 5,
+      "metadataTypeId": 6,
       "typeArguments": [
         "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903"
       ]
@@ -46,7 +46,7 @@
     {
       "type": "enum std::option::Option<struct data_structures::Request>",
       "concreteTypeId": "2644cb541197d16874ed15ff9b4e74d0cb01be34849c3fb2d8356f064f7b097a",
-      "metadataTypeId": 5,
+      "metadataTypeId": 6,
       "typeArguments": [
         "8f17cef827b9269639659b2f90120c93255dfedb8f58f7f69e7f2f2a9040077d"
       ]
@@ -54,62 +54,62 @@
     {
       "type": "enum sway_libs::ownership::errors::InitializationError",
       "concreteTypeId": "1dfe7feadc1d9667a4351761230f948744068a090fe91b1bc6763a90ed5d3893",
-      "metadataTypeId": 6
+      "metadataTypeId": 7
     },
     {
       "type": "enum sway_libs::reentrancy::errors::ReentrancyError",
       "concreteTypeId": "4d216c57b3357523323f59401c7355785b41bdf832f6e1106272186b94797038",
-      "metadataTypeId": 7
+      "metadataTypeId": 8
     },
     {
       "type": "struct data_structures::Request",
       "concreteTypeId": "8f17cef827b9269639659b2f90120c93255dfedb8f58f7f69e7f2f2a9040077d",
-      "metadataTypeId": 11
+      "metadataTypeId": 13
     },
     {
       "type": "struct data_structures::SettleData",
       "concreteTypeId": "3f398311d910f45891ebe297c796818054c203bb631628fb87216c30add71db0",
-      "metadataTypeId": 12
+      "metadataTypeId": 14
     },
     {
       "type": "struct events::Deposit",
       "concreteTypeId": "a93fb3d7088884ac8084fc44b117612059604f3d2051bfb1e2612381c3cebda9",
-      "metadataTypeId": 14
+      "metadataTypeId": 16
     },
     {
       "type": "struct events::Fill",
       "concreteTypeId": "5d6f0cf603f336a11e076b3797ac315dc56056f8fd733e270621be9b42f539f8",
-      "metadataTypeId": 15
+      "metadataTypeId": 17
     },
     {
       "type": "struct events::Settle",
       "concreteTypeId": "d33ab1a100ca3838867bc1b5bd324dbf7d8385b8c61195a20e87cf71d3d35d4f",
-      "metadataTypeId": 16
+      "metadataTypeId": 18
     },
     {
       "type": "struct events::Withdraw",
       "concreteTypeId": "2dbac8ab9d6c521bc756385f712aadb559780f80981fd7f47f28ba0bf5aab3de",
-      "metadataTypeId": 17
+      "metadataTypeId": 19
     },
     {
       "type": "struct std::address::Address",
       "concreteTypeId": "f597b637c3b0f588fb8d7086c6f4735caa3122b85f0423b82e489f9bb58e2308",
-      "metadataTypeId": 18
+      "metadataTypeId": 20
     },
     {
       "type": "struct std::asset_id::AssetId",
       "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974",
-      "metadataTypeId": 19
+      "metadataTypeId": 21
     },
     {
       "type": "struct std::b512::B512",
       "concreteTypeId": "745e252e80bec590efc3999ae943f07ccea4d5b45b00bb6575499b64abdd3322",
-      "metadataTypeId": 20
+      "metadataTypeId": 22
     },
     {
       "type": "struct sway_libs::ownership::events::OwnershipSet",
       "concreteTypeId": "e1ef35033ea9d2956f17c3292dea4a46ce7d61fdf37bbebe03b7b965073f43b5",
-      "metadataTypeId": 24
+      "metadataTypeId": 26
     },
     {
       "type": "u256",
@@ -132,8 +132,26 @@
       ]
     },
     {
-      "type": "enum errors::VaultError",
+      "type": "enum data_structures::Universe",
       "metadataTypeId": 1,
+      "components": [
+        {
+          "name": "ETHEREUM",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "FUEL",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "SOLANA",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        }
+      ]
+    },
+    {
+      "type": "enum errors::VaultError",
+      "metadataTypeId": 2,
       "components": [
         {
           "name": "AssetMismatch",
@@ -145,11 +163,11 @@
         },
         {
           "name": "DestinationPairsNotFilled",
-          "typeId": 23,
+          "typeId": 25,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 10
+              "typeId": 11
             }
           ]
         },
@@ -184,12 +202,16 @@
         {
           "name": "ValueMismatch",
           "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
+        },
+        {
+          "name": "AddressNotFound",
+          "typeId": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d"
         }
       ]
     },
     {
       "type": "enum standards::src5::AccessError",
-      "metadataTypeId": 2,
+      "metadataTypeId": 3,
       "components": [
         {
           "name": "NotOwner",
@@ -199,7 +221,7 @@
     },
     {
       "type": "enum standards::src5::State",
-      "metadataTypeId": 3,
+      "metadataTypeId": 4,
       "components": [
         {
           "name": "Uninitialized",
@@ -207,7 +229,7 @@
         },
         {
           "name": "Initialized",
-          "typeId": 4
+          "typeId": 5
         },
         {
           "name": "Revoked",
@@ -217,21 +239,21 @@
     },
     {
       "type": "enum std::identity::Identity",
-      "metadataTypeId": 4,
+      "metadataTypeId": 5,
       "components": [
         {
           "name": "Address",
-          "typeId": 18
+          "typeId": 20
         },
         {
           "name": "ContractId",
-          "typeId": 21
+          "typeId": 23
         }
       ]
     },
     {
       "type": "enum std::option::Option",
-      "metadataTypeId": 5,
+      "metadataTypeId": 6,
       "components": [
         {
           "name": "None",
@@ -239,16 +261,16 @@
         },
         {
           "name": "Some",
-          "typeId": 8
+          "typeId": 9
         }
       ],
       "typeParameters": [
-        8
+        9
       ]
     },
     {
       "type": "enum sway_libs::ownership::errors::InitializationError",
-      "metadataTypeId": 6,
+      "metadataTypeId": 7,
       "components": [
         {
           "name": "CannotReinitialized",
@@ -258,7 +280,7 @@
     },
     {
       "type": "enum sway_libs::reentrancy::errors::ReentrancyError",
-      "metadataTypeId": 7,
+      "metadataTypeId": 8,
       "components": [
         {
           "name": "NonReentrant",
@@ -268,19 +290,19 @@
     },
     {
       "type": "generic T",
-      "metadataTypeId": 8
-    },
-    {
-      "type": "raw untyped ptr",
       "metadataTypeId": 9
     },
     {
+      "type": "raw untyped ptr",
+      "metadataTypeId": 10
+    },
+    {
       "type": "struct data_structures::DestinationPair",
-      "metadataTypeId": 10,
+      "metadataTypeId": 11,
       "components": [
         {
           "name": "asset_id",
-          "typeId": 19
+          "typeId": 21
         },
         {
           "name": "value",
@@ -289,18 +311,36 @@
       ]
     },
     {
+      "type": "struct data_structures::Party",
+      "metadataTypeId": 12,
+      "components": [
+        {
+          "name": "universe",
+          "typeId": 1
+        },
+        {
+          "name": "address",
+          "typeId": 20
+        }
+      ]
+    },
+    {
       "type": "struct data_structures::Request",
-      "metadataTypeId": 11,
+      "metadataTypeId": 13,
       "components": [
         {
           "name": "sources",
-          "typeId": 23,
+          "typeId": 25,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 13
+              "typeId": 15
             }
           ]
+        },
+        {
+          "name": "destination_universe",
+          "typeId": 1
         },
         {
           "name": "destination_chain_id",
@@ -308,11 +348,11 @@
         },
         {
           "name": "destinations",
-          "typeId": 23,
+          "typeId": 25,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 10
+              "typeId": 11
             }
           ]
         },
@@ -323,36 +363,54 @@
         {
           "name": "expiry",
           "typeId": "1506e6f44c1d6291cdf46395a8e573276a4fa79e8ace3fc891e092ef32d1b0a0"
+        },
+        {
+          "name": "parties",
+          "typeId": 25,
+          "typeArguments": [
+            {
+              "name": "",
+              "typeId": 12
+            }
+          ]
         }
       ]
     },
     {
       "type": "struct data_structures::SettleData",
-      "metadataTypeId": 12,
+      "metadataTypeId": 14,
       "components": [
         {
+          "name": "universe",
+          "typeId": 1
+        },
+        {
+          "name": "chain_id",
+          "typeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e"
+        },
+        {
           "name": "solvers",
-          "typeId": 23,
+          "typeId": 25,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 18
+              "typeId": 20
             }
           ]
         },
         {
           "name": "assets",
-          "typeId": 23,
+          "typeId": 25,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 19
+              "typeId": 21
             }
           ]
         },
         {
           "name": "amounts",
-          "typeId": 23,
+          "typeId": 25,
           "typeArguments": [
             {
               "name": "",
@@ -368,15 +426,19 @@
     },
     {
       "type": "struct data_structures::SourcePair",
-      "metadataTypeId": 13,
+      "metadataTypeId": 15,
       "components": [
+        {
+          "name": "universe",
+          "typeId": 1
+        },
         {
           "name": "chain_id",
           "typeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e"
         },
         {
           "name": "asset_id",
-          "typeId": 19
+          "typeId": 21
         },
         {
           "name": "value",
@@ -386,11 +448,11 @@
     },
     {
       "type": "struct events::Deposit",
-      "metadataTypeId": 14,
+      "metadataTypeId": 16,
       "components": [
         {
           "name": "from",
-          "typeId": 18
+          "typeId": 20
         },
         {
           "name": "signed_message_hash",
@@ -400,11 +462,11 @@
     },
     {
       "type": "struct events::Fill",
-      "metadataTypeId": 15,
+      "metadataTypeId": 17,
       "components": [
         {
           "name": "from",
-          "typeId": 18
+          "typeId": 20
         },
         {
           "name": "signed_message_hash",
@@ -412,21 +474,21 @@
         },
         {
           "name": "solver",
-          "typeId": 18
+          "typeId": 20
         }
       ]
     },
     {
       "type": "struct events::Settle",
-      "metadataTypeId": 16,
+      "metadataTypeId": 18,
       "components": [
         {
           "name": "solver",
-          "typeId": 18
+          "typeId": 20
         },
         {
           "name": "asset_id",
-          "typeId": 19
+          "typeId": 21
         },
         {
           "name": "amount",
@@ -440,15 +502,15 @@
     },
     {
       "type": "struct events::Withdraw",
-      "metadataTypeId": 17,
+      "metadataTypeId": 19,
       "components": [
         {
           "name": "to",
-          "typeId": 4
+          "typeId": 5
         },
         {
           "name": "asset_id",
-          "typeId": 19
+          "typeId": 21
         },
         {
           "name": "amount",
@@ -458,7 +520,7 @@
     },
     {
       "type": "struct std::address::Address",
-      "metadataTypeId": 18,
+      "metadataTypeId": 20,
       "components": [
         {
           "name": "bits",
@@ -468,26 +530,6 @@
     },
     {
       "type": "struct std::asset_id::AssetId",
-      "metadataTypeId": 19,
-      "components": [
-        {
-          "name": "bits",
-          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-        }
-      ]
-    },
-    {
-      "type": "struct std::b512::B512",
-      "metadataTypeId": 20,
-      "components": [
-        {
-          "name": "bits",
-          "typeId": 0
-        }
-      ]
-    },
-    {
-      "type": "struct std::contract_id::ContractId",
       "metadataTypeId": 21,
       "components": [
         {
@@ -497,12 +539,32 @@
       ]
     },
     {
-      "type": "struct std::vec::RawVec",
+      "type": "struct std::b512::B512",
       "metadataTypeId": 22,
       "components": [
         {
+          "name": "bits",
+          "typeId": 0
+        }
+      ]
+    },
+    {
+      "type": "struct std::contract_id::ContractId",
+      "metadataTypeId": 23,
+      "components": [
+        {
+          "name": "bits",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        }
+      ]
+    },
+    {
+      "type": "struct std::vec::RawVec",
+      "metadataTypeId": 24,
+      "components": [
+        {
           "name": "ptr",
-          "typeId": 9
+          "typeId": 10
         },
         {
           "name": "cap",
@@ -510,20 +572,20 @@
         }
       ],
       "typeParameters": [
-        8
+        9
       ]
     },
     {
       "type": "struct std::vec::Vec",
-      "metadataTypeId": 23,
+      "metadataTypeId": 25,
       "components": [
         {
           "name": "buf",
-          "typeId": 22,
+          "typeId": 24,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 8
+              "typeId": 9
             }
           ]
         },
@@ -533,16 +595,16 @@
         }
       ],
       "typeParameters": [
-        8
+        9
       ]
     },
     {
       "type": "struct sway_libs::ownership::events::OwnershipSet",
-      "metadataTypeId": 24,
+      "metadataTypeId": 26,
       "components": [
         {
           "name": "new_owner",
-          "typeId": 4
+          "typeId": 5
         }
       ]
     }
@@ -624,10 +686,6 @@
         {
           "name": "signature",
           "concreteTypeId": "745e252e80bec590efc3999ae943f07ccea4d5b45b00bb6575499b64abdd3322"
-        },
-        {
-          "name": "from",
-          "concreteTypeId": "f597b637c3b0f588fb8d7086c6f4735caa3122b85f0423b82e489f9bb58e2308"
         },
         {
           "name": "chain_index",
@@ -899,10 +957,6 @@
         {
           "name": "signature",
           "concreteTypeId": "745e252e80bec590efc3999ae943f07ccea4d5b45b00bb6575499b64abdd3322"
-        },
-        {
-          "name": "from",
-          "concreteTypeId": "f597b637c3b0f588fb8d7086c6f4735caa3122b85f0423b82e489f9bb58e2308"
         }
       ],
       "name": "fill",
@@ -1163,6 +1217,17 @@
         }
       ],
       "name": "hash_request",
+      "output": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b",
+      "attributes": null
+    },
+    {
+      "inputs": [
+        {
+          "name": "settle_data",
+          "concreteTypeId": "3f398311d910f45891ebe297c796818054c203bb631628fb87216c30add71db0"
+        }
+      ],
+      "name": "hash_settle_data",
       "output": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b",
       "attributes": null
     },
@@ -1832,12 +1897,12 @@
     {
       "name": "INITIAL_OWNER",
       "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "offset": 50536
+      "offset": 55256
     },
     {
       "name": "FUEL_IGNITION_CHAIN_ID",
       "concreteTypeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e",
-      "offset": 50504
+      "offset": 55224
     }
   ]
 }

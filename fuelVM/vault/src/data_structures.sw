@@ -13,8 +13,60 @@ where
     }
 }
 
+pub enum Universe {
+    ETHEREUM: (),
+    FUEL: (),
+    SOLANA: (),
+}
+
+impl Hash for Universe {
+    fn hash(self, ref mut state: Hasher) {
+        match self {
+            Universe::ETHEREUM => {
+                0_u8.hash(state);
+            },
+            Universe::FUEL => {
+                1_u8.hash(state);
+            },
+            Universe::SOLANA => {
+                2_u8.hash(state);
+            },
+        }
+    }
+}
+
+impl Universe {
+    pub fn as_u8(self) -> u8 {
+        match self {
+            Universe::ETHEREUM => {
+                return 0;
+            },
+            Universe::FUEL => {
+                return 1;
+            },
+            Universe::SOLANA => {
+                return 2;
+            },
+        }
+
+    }
+}
+
+pub struct Party {
+    pub universe: Universe,
+    pub address: Address,
+}
+
+impl Hash for Party {
+    fn hash(self, ref mut state: Hasher) {
+        self.universe.hash(state);
+        self.address.hash(state);
+    }
+}
+
 
 pub struct SourcePair {
+    pub universe: Universe,
     /// The chain ID of the source pair.
     pub chain_id: u256,
     /// The asset ID of the source pair.
@@ -25,6 +77,7 @@ pub struct SourcePair {
 
 impl Hash for SourcePair {
     fn hash(self, ref mut state: Hasher) {
+        self.universe.hash(state);
         self.chain_id.hash(state);
         self.asset_id.hash(state);
         self.value.hash(state);
@@ -48,6 +101,8 @@ impl Hash for DestinationPair {
 pub struct Request {
     /// The vector of source chain pairs for the request.
     pub sources: Vec<SourcePair>,
+    /// The destination universe of this request
+    pub destination_universe: Universe,
     /// The chain ID of the destination chain.
     pub destination_chain_id: u256,
     /// The vector of destination chain pairs.
@@ -59,11 +114,14 @@ pub struct Request {
     /// # Additional Information
     /// FuelVM uses TAI64 timestamps
     pub expiry: u64,
+    // The set of parties involved in this request
+    pub parties: Vec<Party>,
 }
 
 impl Hash for Request {
     fn hash(self, ref mut state: Hasher) {
         self.sources.hash(state);
+        self.destination_universe.hash(state);
         self.destination_chain_id.hash(state);
         self.destinations.hash(state);
         self.nonce.hash(state);
@@ -72,6 +130,7 @@ impl Hash for Request {
 }
 
 pub struct StorableRequest {
+    pub destination_universe: Universe,
     /// The chain ID of the destination chain.
     pub destination_chain_id: u256,
     /// The nonce of the request.
@@ -86,6 +145,7 @@ pub struct StorableRequest {
 impl From<Request> for StorableRequest {
     fn from(request: Request) -> Self {
         Self {
+            destination_universe: request.destination_universe,
             destination_chain_id: request.destination_chain_id,
             nonce: request.nonce,
             expiry: request.expiry,
@@ -97,15 +157,21 @@ impl From<StorableRequest> for Request {
     fn from(storable_request: StorableRequest) -> Self {
         Self {
             sources: Vec::new(),
+            destination_universe: storable_request.destination_universe,
             destination_chain_id: storable_request.destination_chain_id,
             destinations: Vec::new(),
             nonce: storable_request.nonce,
             expiry: storable_request.expiry,
+            parties: Vec::new(),
         }
     }
 }
 
 pub struct SettleData {
+    /// The universe of the settlement
+    pub universe: Universe,
+    /// The chain ID of the settlement
+    pub chain_id: u256,
     /// The vector of solvers to be paid.
     pub solvers: Vec<Address>,
     /// The vector of assets ID for the assets to be paid.
@@ -118,6 +184,8 @@ pub struct SettleData {
 
 impl Hash for SettleData {
     fn hash(self, ref mut state: Hasher) {
+        self.universe.hash(state);
+        self.chain_id.hash(state);
         self.solvers.hash(state);
         self.assets.hash(state);
         self.amounts.hash(state);

@@ -26,4 +26,6 @@ pub enum VaultError {
     SolversAndAssetsLengthMismatch: (),
     /// Emitted when the deposited amount doesn't match the request.
     ValueMismatch: (),
+    /// Emitted when a suitable address could not be found in the party list
+    AddressNotFound: (),
 }

@@ -7,7 +7,7 @@ mod personal_sign_hash;
 mod errors;
 
 use interface::ArcanaVault;
-use data_structures::{DestinationPair, Request, SettleData, SourcePair, StorableRequest};
+use data_structures::{DestinationPair, Request, SettleData, SourcePair, StorableRequest, Universe, Party};
 use personal_sign_hash::personal_sign_hash;
 use errors::VaultError;
 use events::{Deposit, Fill, Settle, Withdraw};
@@ -52,6 +52,8 @@ storage {
         requests_sources: StorageMap<b256, StorageVec<SourcePair>> = StorageMap {},
         /// A mapping of `signed_message_hash` to `request_destinations`.
         requests_destinations: StorageMap<b256, StorageVec<DestinationPair>> = StorageMap {},
+        /// A mapping of `signed_message_hash` to `request_parties`.
+        requests_parties: StorageMap<b256, StorageVec<Party>> = StorageMap {},
         /// A mapping of `deposit_nonce` to `bool`.
         deposit_nonce: StorageMap<u256, bool> = StorageMap {},
         /// A mapping of `fill_nonce` to `bool`.
@@ -126,7 +128,6 @@ impl ArcanaVault for Contract {
     fn deposit(
         request: Request,
         signature: B512,
-        from: Address,
         chain_index: u64,
     ) {
         require(
@@ -170,7 +171,7 @@ impl ArcanaVault for Contract {
         );
 
         let request_hash = hash_request(request);
-
+        let from = extract_creator_from_parties(request.parties);
         let signed_message_hash = verify_request(signature, from, request_hash);
 
         storage::V1.deposit_nonce.insert(request.nonce, true);
@@ -186,7 +187,10 @@ impl ArcanaVault for Contract {
             .requests_destinations
             .get(signed_message_hash)
             .store_vec(request.destinations);
-
+        storage::V1
+            .requests_parties
+            .get(signed_message_hash)
+            .store_vec(request.parties);
         log(Deposit {
             from,
             signed_message_hash,
@@ -218,7 +222,7 @@ impl ArcanaVault for Contract {
     /// * Writes: `4`
     #[payable]
     #[storage(read, write)]
-    fn fill(request: Request, signature: B512, from: Address) {
+    fn fill(request: Request, signature: B512) {
         require(
             request
                 .destination_chain_id == FUEL_IGNITION_CHAIN_ID,
@@ -229,6 +233,7 @@ impl ArcanaVault for Contract {
 
         // Iterate through outputs to match unique outputs to destination pairs from the `request`.
         let mut destination_pairs = request.destinations;
+        let from = extract_creator_from_parties(request.parties);
 
         let mut output_index = 0;
         while output_index < output_count().as_u64() {
@@ -280,7 +285,6 @@ impl ArcanaVault for Contract {
         );
 
         let request_hash = hash_request(request);
-
         let signed_message_hash = verify_request(signature, from, request_hash);
 
         storage::V1.fill_nonce.insert(request.nonce, true);
@@ -296,7 +300,10 @@ impl ArcanaVault for Contract {
             .requests_destinations
             .get(signed_message_hash)
             .store_vec(request.destinations);
-
+        storage::V1
+            .requests_parties
+            .get(signed_message_hash)
+            .store_vec(request.parties);
         log(Fill {
             from,
             signed_message_hash,
@@ -384,7 +391,7 @@ impl ArcanaVault for Contract {
             VaultError::SolversAndAmountsLengthMismatch,
         );
 
-        let settle_data_hash = keccak256((settle_data, FUEL_IGNITION_CHAIN_ID));
+        let settle_data_hash = hash_settle_data(settle_data);
 
         let signed_message_hash = personal_sign_hash(settle_data_hash);
 
@@ -445,6 +452,7 @@ impl ArcanaVault for Contract {
                 let mut request: Request = partial_request.into();
                 request.sources = storage::V1.requests_sources.get(signed_message_hash).load_vec();
                 request.destinations = storage::V1.requests_destinations.get(signed_message_hash).load_vec();
+                request.parties = storage::V1.requests_parties.get(signed_message_hash).load_vec();
                 Some(request)
             },
             Option::None => None,
@@ -514,6 +522,22 @@ impl ArcanaVault for Contract {
     fn hash_request(request: Request) -> b256 {
         return hash_request(request)
     }
+
+    fn hash_settle_data(settle_data: SettleData) -> b256 {
+        return hash_settle_data(settle_data)
+    }
+}
+
+fn extract_creator_from_parties(parties: Vec<Party>) -> Address {
+    for member in parties.iter() {
+        if member.universe.as_u8() != Universe::FUEL.as_u8() {
+            continue
+        }
+        return member.address
+    }
+    // ???
+    require(false, VaultError::AddressNotFound);
+    return Address::zero()
 }
 
 /// Get the keccak256 hash of a [Request]
@@ -528,6 +552,10 @@ impl ArcanaVault for Contract {
 /// * [b256] - The hash of the `request`.
 fn hash_request(request: Request) -> b256 {
     keccak256(request)
+}
+
+fn hash_settle_data(settle_data: SettleData) -> b256 {
+    keccak256(settle_data)
 }
 
 /// Verifies if the EIP-191 signed hash of the given `request` was signed by `from`.

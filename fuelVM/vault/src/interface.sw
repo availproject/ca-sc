@@ -50,7 +50,6 @@ abi ArcanaVault {
     fn deposit(
         request: Request,
         signature: B512,
-        from: Address,
         chain_index: u64,
     );
 
@@ -79,7 +78,7 @@ abi ArcanaVault {
     /// * Writes: `2`
     #[payable]
     #[storage(read, write)]
-    fn fill(request: Request, signature: B512, from: Address);
+    fn fill(request: Request, signature: B512);
 
     /// Withdraw assets from the contract.
     ///
@@ -197,4 +196,5 @@ abi ArcanaVault {
 
     fn verify_request_signature(request: Request, signature: B512, from: Address) -> b256;
     fn hash_request(request: Request) -> b256;
+    fn hash_settle_data(settle_data: SettleData) -> b256;
 }
