@@ -19,22 +19,6 @@ pub enum Universe {
     SOLANA: (),
 }
 
-impl Hash for Universe {
-    fn hash(self, ref mut state: Hasher) {
-        match self {
-            Universe::ETHEREUM => {
-                0_u8.hash(state);
-            },
-            Universe::FUEL => {
-                1_u8.hash(state);
-            },
-            Universe::SOLANA => {
-                2_u8.hash(state);
-            },
-        }
-    }
-}
-
 impl Universe {
     pub fn as_u8(self) -> u8 {
         match self {
@@ -49,6 +33,12 @@ impl Universe {
             },
         }
 
+    }
+}
+
+impl Hash for Universe {
+    fn hash(self, ref mut state: Hasher) {
+        self.as_u8().hash(state);
     }
 }
 
