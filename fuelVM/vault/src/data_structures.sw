@@ -32,7 +32,6 @@ impl Universe {
                 return 2;
             },
         }
-
     }
 }
 
@@ -53,7 +52,6 @@ impl Hash for Party {
         self.address.hash(state);
     }
 }
-
 
 pub struct SourcePair {
     pub universe: Universe,

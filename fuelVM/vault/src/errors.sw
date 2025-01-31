@@ -29,3 +29,10 @@ pub enum VaultError {
     /// Emitted when a suitable address could not be found in the party list
     AddressNotFound: (),
 }
+
+pub enum RoleAccessError {
+    /// Emitted when the sender doesn't have the `settlement verifier` role.
+    NotSettlementVerifier: (),
+    /// Emitted when the sender doesn't have the `refund eligible` role.
+    NotRefundEligible: (),
+}

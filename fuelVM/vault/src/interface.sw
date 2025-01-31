@@ -21,6 +21,98 @@ abi ArcanaVault {
     #[storage(read, write)]
     fn initialize_vault();
 
+    /// Transfers ownership to the passed identity.
+    ///
+    /// # Additional Information
+    ///
+    /// Only the contract `owner` can call this method.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_owner`: [Identity] - The `Identity` that will be the next owner.
+    ///
+    /// # Reverts
+    ///
+    /// * When the sender is not the owner.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Write: `1`
+    #[storage(read, write)]
+    fn transfer_ownership(new_owner: Identity);
+
+    /// Revokes ownership of the current owner and disallows any new owners.
+    ///
+    /// # Additional Information
+    ///
+    /// Only the contract `owner` can call this method.
+    ///
+    /// # Reverts
+    ///
+    /// * When the sender is not the owner.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Writes: `1`
+    #[storage(read, write)]
+    fn renounce_ownership();
+
+    /// Returns true if the given `identity` has the `settlement_verifier` role.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    #[storage(read)]
+    fn settlement_verifier_role(identity: Identity) -> bool;
+
+    /// Allows the `owner` to assign or revoke the `settlement verifier` role.
+    ///
+    /// # Additional Information
+    ///
+    /// Only the contract `owner` can call this method.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: [Identity] - The `Identity` who's status as a `settlement verifier` will be updated.
+    /// * `has_role`: [bool] - The status to be set.
+    ///
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Write: `1`
+    #[storage(read, write)]
+    fn set_settlement_verifier_role(identity: Identity, has_role: bool);
+
+    /// Returns true if the given `identity` has the `refund eligible` role.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    #[storage(read)]
+    fn refund_eligible_role(identity: Identity) -> bool;
+
+    /// Allows the `owner` to assign or revoke the `refund eligible` role.
+    ///
+    /// # Additional Information
+    ///
+    /// Only the contract `owner` can call this method.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: [Identity] - The `Identity` who's status as a `refund eligible` will be updated.
+    /// * `has_role`: [bool] - The status to be set.
+    ///
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Write: `1`
+    #[storage(read, write)]
+    fn set_refund_eligible_role(identity: Identity, has_role: bool);
+
     /// Takes a deposit for the given request.
     ///
     /// # Arguments
@@ -47,11 +139,7 @@ abi ArcanaVault {
     /// * Writes: `2`
     #[payable]
     #[storage(read, write)]
-    fn deposit(
-        request: Request,
-        signature: B512,
-        chain_index: u64,
-    );
+    fn deposit(request: Request, signature: B512, chain_index: u64);
 
     /// Verifies that a request has been filled.
     ///

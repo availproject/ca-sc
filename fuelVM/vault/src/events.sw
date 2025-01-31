@@ -41,3 +41,19 @@ pub struct Settle {
     /// The nonce of the settlement.
     pub nonce: u256,
 }
+
+/// Logged when a `settlement verifier` role is updated.
+pub struct SettlementVerifierRoleUpdate {
+    /// The `identity` who's status as a `settlement verifier` has been updated.
+    pub identity: Identity,
+    /// The updated status.
+    pub has_role: bool,
+}
+
+/// Logged when a `refund eligible` role is updated.
+pub struct RefundEligibleRoleUpdate {
+    /// The `identity` who's status as a `refund eligible` has been updated.
+    pub identity: Identity,
+    /// The updated status.
+    pub has_role: bool,
+}

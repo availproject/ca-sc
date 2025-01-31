@@ -82,29 +82,49 @@
       "metadataTypeId": 17
     },
     {
+      "type": "struct events::RefundEligibleRoleUpdate",
+      "concreteTypeId": "7a29f3480538200a2a3a2b9bcb08ca33baf9fbe93aa93b97ded9e247a8a11f57",
+      "metadataTypeId": 18
+    },
+    {
       "type": "struct events::Settle",
       "concreteTypeId": "d33ab1a100ca3838867bc1b5bd324dbf7d8385b8c61195a20e87cf71d3d35d4f",
-      "metadataTypeId": 18
+      "metadataTypeId": 19
+    },
+    {
+      "type": "struct events::SettlementVerifierRoleUpdate",
+      "concreteTypeId": "52e5a8fa25d51f4b857a2f641acc3d4e908dde930e8aa3c014506efa40edbf90",
+      "metadataTypeId": 20
     },
     {
       "type": "struct events::Withdraw",
       "concreteTypeId": "2dbac8ab9d6c521bc756385f712aadb559780f80981fd7f47f28ba0bf5aab3de",
-      "metadataTypeId": 19
+      "metadataTypeId": 21
     },
     {
       "type": "struct std::asset_id::AssetId",
       "concreteTypeId": "c0710b6731b1dd59799cf6bef33eee3b3b04a2e40e80a0724090215bbf2ca974",
-      "metadataTypeId": 21
+      "metadataTypeId": 23
     },
     {
       "type": "struct std::b512::B512",
       "concreteTypeId": "745e252e80bec590efc3999ae943f07ccea4d5b45b00bb6575499b64abdd3322",
-      "metadataTypeId": 22
+      "metadataTypeId": 24
+    },
+    {
+      "type": "struct sway_libs::ownership::events::OwnershipRenounced",
+      "concreteTypeId": "43c4fa7b3297401afbf300127e59ea913e5c8f0c7ae69abbec789ab0bb872bed",
+      "metadataTypeId": 28
     },
     {
       "type": "struct sway_libs::ownership::events::OwnershipSet",
       "concreteTypeId": "e1ef35033ea9d2956f17c3292dea4a46ce7d61fdf37bbebe03b7b965073f43b5",
-      "metadataTypeId": 26
+      "metadataTypeId": 29
+    },
+    {
+      "type": "struct sway_libs::ownership::events::OwnershipTransferred",
+      "concreteTypeId": "b3fffbcb3158d7c010c31b194b60fb7857adb4ad61bdcf4b8b42958951d9f308",
+      "metadataTypeId": 30
     },
     {
       "type": "u256",
@@ -158,7 +178,7 @@
         },
         {
           "name": "DestinationPairsNotFilled",
-          "typeId": 25,
+          "typeId": 27,
           "typeArguments": [
             {
               "name": "",
@@ -238,11 +258,11 @@
       "components": [
         {
           "name": "Address",
-          "typeId": 20
+          "typeId": 22
         },
         {
           "name": "ContractId",
-          "typeId": 23
+          "typeId": 25
         }
       ]
     },
@@ -297,7 +317,7 @@
       "components": [
         {
           "name": "asset_id",
-          "typeId": 21
+          "typeId": 23
         },
         {
           "name": "value",
@@ -315,7 +335,7 @@
         },
         {
           "name": "address",
-          "typeId": 20
+          "typeId": 22
         }
       ]
     },
@@ -325,7 +345,7 @@
       "components": [
         {
           "name": "sources",
-          "typeId": 25,
+          "typeId": 27,
           "typeArguments": [
             {
               "name": "",
@@ -343,7 +363,7 @@
         },
         {
           "name": "destinations",
-          "typeId": 25,
+          "typeId": 27,
           "typeArguments": [
             {
               "name": "",
@@ -361,7 +381,7 @@
         },
         {
           "name": "parties",
-          "typeId": 25,
+          "typeId": 27,
           "typeArguments": [
             {
               "name": "",
@@ -385,27 +405,27 @@
         },
         {
           "name": "solvers",
-          "typeId": 25,
+          "typeId": 27,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 20
+              "typeId": 22
             }
           ]
         },
         {
           "name": "assets",
-          "typeId": 25,
+          "typeId": 27,
           "typeArguments": [
             {
               "name": "",
-              "typeId": 21
+              "typeId": 23
             }
           ]
         },
         {
           "name": "amounts",
-          "typeId": 25,
+          "typeId": 27,
           "typeArguments": [
             {
               "name": "",
@@ -433,7 +453,7 @@
         },
         {
           "name": "asset_id",
-          "typeId": 21
+          "typeId": 23
         },
         {
           "name": "value",
@@ -447,7 +467,7 @@
       "components": [
         {
           "name": "from",
-          "typeId": 20
+          "typeId": 22
         },
         {
           "name": "signed_message_hash",
@@ -461,7 +481,7 @@
       "components": [
         {
           "name": "from",
-          "typeId": 20
+          "typeId": 22
         },
         {
           "name": "signed_message_hash",
@@ -469,21 +489,35 @@
         },
         {
           "name": "solver",
-          "typeId": 20
+          "typeId": 22
+        }
+      ]
+    },
+    {
+      "type": "struct events::RefundEligibleRoleUpdate",
+      "metadataTypeId": 18,
+      "components": [
+        {
+          "name": "identity",
+          "typeId": 5
+        },
+        {
+          "name": "has_role",
+          "typeId": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903"
         }
       ]
     },
     {
       "type": "struct events::Settle",
-      "metadataTypeId": 18,
+      "metadataTypeId": 19,
       "components": [
         {
           "name": "solver",
-          "typeId": 20
+          "typeId": 22
         },
         {
           "name": "asset_id",
-          "typeId": 21
+          "typeId": 23
         },
         {
           "name": "amount",
@@ -496,8 +530,22 @@
       ]
     },
     {
+      "type": "struct events::SettlementVerifierRoleUpdate",
+      "metadataTypeId": 20,
+      "components": [
+        {
+          "name": "identity",
+          "typeId": 5
+        },
+        {
+          "name": "has_role",
+          "typeId": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903"
+        }
+      ]
+    },
+    {
       "type": "struct events::Withdraw",
-      "metadataTypeId": 19,
+      "metadataTypeId": 21,
       "components": [
         {
           "name": "to",
@@ -505,7 +553,7 @@
         },
         {
           "name": "asset_id",
-          "typeId": 21
+          "typeId": 23
         },
         {
           "name": "amount",
@@ -515,7 +563,7 @@
     },
     {
       "type": "struct std::address::Address",
-      "metadataTypeId": 20,
+      "metadataTypeId": 22,
       "components": [
         {
           "name": "bits",
@@ -525,26 +573,6 @@
     },
     {
       "type": "struct std::asset_id::AssetId",
-      "metadataTypeId": 21,
-      "components": [
-        {
-          "name": "bits",
-          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
-        }
-      ]
-    },
-    {
-      "type": "struct std::b512::B512",
-      "metadataTypeId": 22,
-      "components": [
-        {
-          "name": "bits",
-          "typeId": 0
-        }
-      ]
-    },
-    {
-      "type": "struct std::contract_id::ContractId",
       "metadataTypeId": 23,
       "components": [
         {
@@ -554,8 +582,28 @@
       ]
     },
     {
-      "type": "struct std::vec::RawVec",
+      "type": "struct std::b512::B512",
       "metadataTypeId": 24,
+      "components": [
+        {
+          "name": "bits",
+          "typeId": 0
+        }
+      ]
+    },
+    {
+      "type": "struct std::contract_id::ContractId",
+      "metadataTypeId": 25,
+      "components": [
+        {
+          "name": "bits",
+          "typeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
+        }
+      ]
+    },
+    {
+      "type": "struct std::vec::RawVec",
+      "metadataTypeId": 26,
       "components": [
         {
           "name": "ptr",
@@ -572,11 +620,11 @@
     },
     {
       "type": "struct std::vec::Vec",
-      "metadataTypeId": 25,
+      "metadataTypeId": 27,
       "components": [
         {
           "name": "buf",
-          "typeId": 24,
+          "typeId": 26,
           "typeArguments": [
             {
               "name": "",
@@ -594,11 +642,35 @@
       ]
     },
     {
+      "type": "struct sway_libs::ownership::events::OwnershipRenounced",
+      "metadataTypeId": 28,
+      "components": [
+        {
+          "name": "previous_owner",
+          "typeId": 5
+        }
+      ]
+    },
+    {
       "type": "struct sway_libs::ownership::events::OwnershipSet",
-      "metadataTypeId": 26,
+      "metadataTypeId": 29,
       "components": [
         {
           "name": "new_owner",
+          "typeId": 5
+        }
+      ]
+    },
+    {
+      "type": "struct sway_libs::ownership::events::OwnershipTransferred",
+      "metadataTypeId": 30,
+      "components": [
+        {
+          "name": "new_owner",
+          "typeId": 5
+        },
+        {
+          "name": "previous_owner",
           "typeId": 5
         }
       ]
@@ -1327,6 +1399,152 @@
     {
       "inputs": [
         {
+          "name": "identity",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "name": "refund_eligible_role",
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns true if the given `identity` has the `refund eligible` role."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [],
+      "name": "renounce_ownership",
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Revokes ownership of the current owner and disallows any new owners."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Additional Information"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Only the contract `owner` can call this method."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Reverts"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the sender is not the owner."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Writes: `1`"
+          ]
+        },
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
           "name": "signed_message_hash",
           "concreteTypeId": "7c5ee1cecf5f8eacd1284feb5f0bf2bdea533a51e2f0c9aabe9236d335989f3b"
         }
@@ -1416,6 +1634,244 @@
           "name": "storage",
           "arguments": [
             "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "identity",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        },
+        {
+          "name": "has_role",
+          "concreteTypeId": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903"
+        }
+      ],
+      "name": "set_refund_eligible_role",
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Allows the `owner` to assign or revoke the `refund eligible` role."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Additional Information"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Only the contract `owner` can call this method."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Arguments"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `identity`: [Identity] - The `Identity` who's status as a `refund eligible` will be updated."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `has_role`: [bool] - The status to be set."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Write: `1`"
+          ]
+        },
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "identity",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        },
+        {
+          "name": "has_role",
+          "concreteTypeId": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903"
+        }
+      ],
+      "name": "set_settlement_verifier_role",
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Allows the `owner` to assign or revoke the `settlement verifier` role."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Additional Information"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Only the contract `owner` can call this method."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Arguments"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `identity`: [Identity] - The `Identity` who's status as a `settlement verifier` will be updated."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `has_role`: [bool] - The status to be set."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Write: `1`"
+          ]
+        },
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
           ]
         }
       ]
@@ -1686,6 +2142,181 @@
     {
       "inputs": [
         {
+          "name": "identity",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "name": "settlement_verifier_role",
+      "output": "b760f44fa5965c2474a3b471467a22c43185152129295af588b022ae50b50903",
+      "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Returns true if the given `identity` has the `settlement_verifier` role."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
+          "name": "storage",
+          "arguments": [
+            "read"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
+          "name": "new_owner",
+          "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335"
+        }
+      ],
+      "name": "transfer_ownership",
+      "output": "2e38e77b22c314a449e91fafed92a43826ac6aa403ae6a8acb6cf58239fbaf5d",
+      "attributes": [
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Transfers ownership to the passed identity."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Additional Information"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " Only the contract `owner` can call this method."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Arguments"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * `new_owner`: [Identity] - The `Identity` that will be the next owner."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Reverts"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * When the sender is not the owner."
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " # Number of Storage Accesses"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            ""
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Reads: `1`"
+          ]
+        },
+        {
+          "name": "doc-comment",
+          "arguments": [
+            " * Write: `1`"
+          ]
+        },
+        {
+          "name": "storage",
+          "arguments": [
+            "read",
+            "write"
+          ]
+        }
+      ]
+    },
+    {
+      "inputs": [
+        {
           "name": "request",
           "concreteTypeId": "8f17cef827b9269639659b2f90120c93255dfedb8f58f7f69e7f2f2a9040077d"
         },
@@ -1867,6 +2498,22 @@
       "concreteTypeId": "e1ef35033ea9d2956f17c3292dea4a46ce7d61fdf37bbebe03b7b965073f43b5"
     },
     {
+      "logId": "4571204900286667806",
+      "concreteTypeId": "3f702ea3351c9c1ece2b84048006c8034a24cbc2bad2e740d0412b4172951d3d"
+    },
+    {
+      "logId": "4883303303013154842",
+      "concreteTypeId": "43c4fa7b3297401afbf300127e59ea913e5c8f0c7ae69abbec789ab0bb872bed"
+    },
+    {
+      "logId": "8802834437323104266",
+      "concreteTypeId": "7a29f3480538200a2a3a2b9bcb08ca33baf9fbe93aa93b97ded9e247a8a11f57"
+    },
+    {
+      "logId": "5973366273106845515",
+      "concreteTypeId": "52e5a8fa25d51f4b857a2f641acc3d4e908dde930e8aa3c014506efa40edbf90"
+    },
+    {
       "logId": "5557842539076482339",
       "concreteTypeId": "4d216c57b3357523323f59401c7355785b41bdf832f6e1106272186b94797038"
     },
@@ -1875,8 +2522,8 @@
       "concreteTypeId": "d33ab1a100ca3838867bc1b5bd324dbf7d8385b8c61195a20e87cf71d3d35d4f"
     },
     {
-      "logId": "4571204900286667806",
-      "concreteTypeId": "3f702ea3351c9c1ece2b84048006c8034a24cbc2bad2e740d0412b4172951d3d"
+      "logId": "12970362301975156672",
+      "concreteTypeId": "b3fffbcb3158d7c010c31b194b60fb7857adb4ad61bdcf4b8b42958951d9f308"
     },
     {
       "logId": "3295166716781023771",
@@ -1888,12 +2535,12 @@
     {
       "name": "INITIAL_OWNER",
       "concreteTypeId": "ab7cd04e05be58e3fc15d424c2c4a57f824a2a2d97d67252440a3925ebdc1335",
-      "offset": 55520
+      "offset": 61552
     },
     {
       "name": "FUEL_IGNITION_CHAIN_ID",
       "concreteTypeId": "1b5759d94094368cfd443019e7ca5ec4074300e544e5ea993a979f5da627261e",
-      "offset": 55488
+      "offset": 61520
     }
   ]
 }

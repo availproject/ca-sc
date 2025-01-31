@@ -7,12 +7,36 @@ mod personal_sign_hash;
 mod errors;
 
 use interface::ArcanaVault;
-use data_structures::{DestinationPair, Request, SettleData, SourcePair, StorableRequest, Universe, Party};
+use data_structures::{
+    DestinationPair,
+    Party,
+    Request,
+    SettleData,
+    SourcePair,
+    StorableRequest,
+    Universe,
+};
 use personal_sign_hash::personal_sign_hash;
-use errors::VaultError;
-use events::{Deposit, Fill, Settle, Withdraw};
+use errors::{RoleAccessError, VaultError};
+use events::{
+    Deposit,
+    Fill,
+    RefundEligibleRoleUpdate,
+    Settle,
+    SettlementVerifierRoleUpdate,
+    Withdraw,
+};
 
-use sway_libs::{ownership::{_owner, initialize_ownership, only_owner}, reentrancy::*};
+use sway_libs::{
+    ownership::{
+        _owner,
+        initialize_ownership,
+        only_owner,
+        renounce_ownership,
+        transfer_ownership,
+    },
+    reentrancy::*,
+};
 use standards::src5::{SRC5, State};
 
 use std::{
@@ -60,6 +84,10 @@ storage {
         fill_nonce: StorageMap<u256, bool> = StorageMap {},
         /// A mapping of `settle_nonce` to `bool`.
         settle_nonce: StorageMap<u256, bool> = StorageMap {},
+        /// A mapping of `settlement verifiers' to `bool.`
+        settlement_verifier_role: StorageMap<Identity, bool> = StorageMap {},
+        /// A mapping of `refund eligibles' to `bool.`
+        refund_eligible_role: StorageMap<Identity, bool> = StorageMap {},
     },
 }
 
@@ -99,6 +127,122 @@ impl ArcanaVault for Contract {
         initialize_ownership(INITIAL_OWNER);
     }
 
+    /// Transfers ownership to the passed identity.
+    ///
+    /// # Additional Information
+    ///
+    /// Only the contract `owner` can call this method.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_owner`: [Identity] - The `Identity` that will be the next owner.
+    ///
+    /// # Reverts
+    ///
+    /// * When the sender is not the owner.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Write: `1`
+    #[storage(read, write)]
+    fn transfer_ownership(new_owner: Identity) {
+        transfer_ownership(new_owner);
+    }
+
+    /// Revokes ownership of the current owner and disallows any new owners.
+    ///
+    /// # Additional Information
+    ///
+    /// Only the contract `owner` can call this method.
+    ///
+    /// # Reverts
+    ///
+    /// * When the sender is not the owner.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Writes: `1`
+    #[storage(read, write)]
+    fn renounce_ownership() {
+        renounce_ownership();
+    }
+
+    /// Returns true if the given `identity` has the `settlement_verifier` role.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    #[storage(read)]
+    fn settlement_verifier_role(identity: Identity) -> bool {
+        _settlement_verifier_role(identity)
+    }
+
+    /// Allows the `owner` to assign or revoke the `settlement verifier` role.
+    ///
+    /// # Additional Information
+    ///
+    /// Only the contract `owner` can call this method.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: [Identity] - The `Identity` who's status as a `settlement verifier` will be updated.
+    /// * `has_role`: [bool] - The status to be set.
+    ///
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Write: `1`
+    #[storage(read, write)]
+    fn set_settlement_verifier_role(identity: Identity, has_role: bool) {
+        only_owner();
+        storage::V1
+            .settlement_verifier_role
+            .insert(identity, has_role);
+        log(SettlementVerifierRoleUpdate {
+            identity,
+            has_role,
+        });
+    }
+
+    /// Returns true if the given `identity` has the `refund eligible` role.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    #[storage(read)]
+    fn refund_eligible_role(identity: Identity) -> bool {
+        _refund_eligible_role(identity)
+    }
+
+    /// Allows the `owner` to assign or revoke the `refund eligible` role.
+    ///
+    /// # Additional Information
+    ///
+    /// Only the contract `owner` can call this method.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: [Identity] - The `Identity` who's status as a `refund eligible` will be updated.
+    /// * `has_role`: [bool] - The status to be set.
+    ///
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Write: `1`
+    #[storage(read, write)]
+    fn set_refund_eligible_role(identity: Identity, has_role: bool) {
+        only_owner();
+        storage::V1.refund_eligible_role.insert(identity, has_role);
+        log(RefundEligibleRoleUpdate {
+            identity,
+            has_role,
+        });
+    }
+
     /// Takes a deposit for the given request.
     ///
     /// # Arguments
@@ -125,11 +269,7 @@ impl ArcanaVault for Contract {
     /// * Writes: `4`
     #[payable]
     #[storage(read, write)]
-    fn deposit(
-        request: Request,
-        signature: B512,
-        chain_index: u64,
-    ) {
+    fn deposit(request: Request, signature: B512, chain_index: u64) {
         require(
             (request
                     .sources
@@ -142,7 +282,11 @@ impl ArcanaVault for Contract {
             VaultError::ChainIdMismatch,
         );
 
-        require(request.expiry > (timestamp() - 0x4000000000000000 - 10), VaultError::RequestExpired);
+        require(
+            request
+                .expiry > (timestamp() - 0x4000000000000000 - 10),
+            VaultError::RequestExpired,
+        );
 
         require(
             msg_asset_id() == request
@@ -229,7 +373,11 @@ impl ArcanaVault for Contract {
             VaultError::ChainIdMismatch,
         );
 
-        require(request.expiry > (timestamp() - 0x4000000000000000 - 10), VaultError::RequestExpired);
+        require(
+            request
+                .expiry > (timestamp() - 0x4000000000000000 - 10),
+            VaultError::RequestExpired,
+        );
 
         // Iterate through outputs to match unique outputs to destination pairs from the `request`.
         let mut destination_pairs = request.destinations;
@@ -583,4 +731,58 @@ fn verify_request(signature: B512, from: Address, request_hash: b256) -> b256 {
     require(recovered_address == from, VaultError::RequestUnverified);
 
     signed_message_hash
+}
+
+/// Returns true if the given `identity` has the `settlement verifier` role.
+///
+/// # Number of Storage Accesses
+///
+/// * Reads: `1`
+#[storage(read)]
+fn _settlement_verifier_role(identity: Identity) -> bool {
+    storage::V1.settlement_verifier_role.get(identity).try_read().unwrap_or(false)
+}
+
+/// Ensures that the sender has the `settlement verifier` role.
+///
+/// # Reverts
+///
+/// * When the sender is not a `settlement verifier`.
+///
+/// # Number of Storage Accesses
+///
+/// * Reads: `1`
+#[storage(read)]
+fn only_settlement_verifier() {
+    require(
+        _settlement_verifier_role(msg_sender().unwrap()),
+        RoleAccessError::NotSettlementVerifier,
+    );
+}
+
+/// Returns true if the given `identity` has the `refund eligible` role.
+///
+/// # Number of Storage Accesses
+///
+/// * Reads: `1`
+#[storage(read)]
+fn _refund_eligible_role(identity: Identity) -> bool {
+    storage::V1.refund_eligible_role.get(identity).try_read().unwrap_or(false)
+}
+
+/// Ensures that the sender has the `refund eligible` role.
+///
+/// # Reverts
+///
+/// * When the sender is not a `refund eligible`.
+///
+/// # Number of Storage Accesses
+///
+/// * Reads: `1`
+#[storage(read)]
+fn only_refund_eligible() {
+    require(
+        _refund_eligible_role(msg_sender().unwrap()),
+        RoleAccessError::NotRefundEligible,
+    );
 }
