@@ -618,7 +618,7 @@ impl ArcanaVault for Contract {
         let recovered_address = ec_recover_address(signature, signed_message_hash).unwrap();
 
         require(
-            State::Initialized(Identity::Address(recovered_address)) == _owner(),
+            _settlement_verifier_role(Identity::Address(recovered_address)),
             VaultError::InvalidSignature,
         );
 
