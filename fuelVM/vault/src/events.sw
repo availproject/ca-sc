@@ -42,18 +42,33 @@ pub struct Settle {
     pub nonce: u256,
 }
 
-/// Logged when a `settlement verifier` role is updated.
-pub struct SettlementVerifierRoleUpdate {
-    /// The `identity` who's status as a `settlement verifier` has been updated.
+/// Logged when a `settlement verifier` role is set.
+pub struct SettlementVerifierRoleSet {
+    /// The `identity` who's status as a `settlement verifier` has been set.
     pub identity: Identity,
     /// The updated status.
     pub has_role: bool,
 }
 
-/// Logged when a `refund eligible` role is updated.
-pub struct RefundEligibleRoleUpdate {
-    /// The `identity` who's status as a `refund eligible` has been updated.
+/// Logged when a `settlement verifier` role is transferred.
+pub struct SettlementVerifierRoleTransfer {
+    /// The `identity` who transferred the role.
+    pub old_identity: Identity,
+    /// The `identity` who received the role.
+    pub new_identity: Identity,
+}
+/// Logged when a `refund eligible` role is set.
+pub struct RefundEligibleRoleSet {
+    /// The `identity` who's status as a `refund eligible` has been set.
     pub identity: Identity,
     /// The updated status.
     pub has_role: bool,
+}
+
+/// Logged when a `settlement verifier` role is transferred.
+pub struct RefundEligibleRoleTransfer {
+    /// The `identity` who transferred the role.
+    pub old_identity: Identity,
+    /// The `identity` who received the role.
+    pub new_identity: Identity,
 }

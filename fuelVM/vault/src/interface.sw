@@ -86,6 +86,27 @@ abi ArcanaVault {
     #[storage(read, write)]
     fn set_settlement_verifier_role(identity: Identity, has_role: bool);
 
+    /// Allows a `settlement verifier` to transfer their role.
+    ///
+    /// # Additional Information
+    ///
+    /// Only a `settlement verifier` can call this method.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_identity`: [Identity] - The `Identity` who will receive the role.
+    ///
+    /// # Reverts
+    ///
+    /// * When the sender is not a `settlement verifier`.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Write: `2`
+    #[storage(read, write)]
+    fn transfer_settlement_verifier_role(new_identity: Identity);
+
     /// Returns true if the given `identity` has the `refund eligible` role.
     ///
     /// # Number of Storage Accesses
@@ -112,6 +133,27 @@ abi ArcanaVault {
     /// * Write: `1`
     #[storage(read, write)]
     fn set_refund_eligible_role(identity: Identity, has_role: bool);
+
+    /// Allows a `refund eligible` to transfer their role.
+    ///
+    /// # Additional Information
+    ///
+    /// Only a `refund eligible` can call this method.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_identity`: [Identity] - The `Identity` who will receive the role.
+    ///
+    /// # Reverts
+    ///
+    /// * When the sender is not a `refund eligible`.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Write: `2`
+    #[storage(read, write)]
+    fn transfer_refund_eligible_role(new_identity: Identity);
 
     /// Takes a deposit for the given request.
     ///

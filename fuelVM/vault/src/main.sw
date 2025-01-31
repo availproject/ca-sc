@@ -21,9 +21,11 @@ use errors::{RoleAccessError, VaultError};
 use events::{
     Deposit,
     Fill,
-    RefundEligibleRoleUpdate,
+    RefundEligibleRoleSet,
+    RefundEligibleRoleTransfer,
     Settle,
-    SettlementVerifierRoleUpdate,
+    SettlementVerifierRoleSet,
+    SettlementVerifierRoleTransfer,
     Withdraw,
 };
 
@@ -201,9 +203,45 @@ impl ArcanaVault for Contract {
         storage::V1
             .settlement_verifier_role
             .insert(identity, has_role);
-        log(SettlementVerifierRoleUpdate {
+        log(SettlementVerifierRoleSet {
             identity,
             has_role,
+        });
+    }
+
+    /// Allows a `settlement verifier` to transfer their role.
+    ///
+    /// # Additional Information
+    ///
+    /// Only a `settlement verifier` can call this method.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_identity`: [Identity] - The `Identity` who will receive the role.
+    ///
+    /// # Reverts
+    ///
+    /// * When the sender is not a `settlement verifier`.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Write: `2`
+    #[storage(read, write)]
+    fn transfer_settlement_verifier_role(new_identity: Identity) {
+        only_settlement_verifier();
+
+        let sender = msg_sender().unwrap();
+
+        storage::V1.settlement_verifier_role.insert(sender, false);
+
+        storage::V1
+            .settlement_verifier_role
+            .insert(new_identity, true);
+
+        log(SettlementVerifierRoleTransfer {
+            old_identity: sender,
+            new_identity,
         });
     }
 
@@ -237,9 +275,43 @@ impl ArcanaVault for Contract {
     fn set_refund_eligible_role(identity: Identity, has_role: bool) {
         only_owner();
         storage::V1.refund_eligible_role.insert(identity, has_role);
-        log(RefundEligibleRoleUpdate {
+        log(RefundEligibleRoleSet {
             identity,
             has_role,
+        });
+    }
+
+    /// Allows a `refund eligible` to transfer their role.
+    ///
+    /// # Additional Information
+    ///
+    /// Only a `refund eligible` can call this method.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_identity`: [Identity] - The `Identity` who will receive the role.
+    ///
+    /// # Reverts
+    ///
+    /// * When the sender is not a `refund eligible`.
+    ///
+    /// # Number of Storage Accesses
+    ///
+    /// * Reads: `1`
+    /// * Write: `2`
+    #[storage(read, write)]
+    fn transfer_refund_eligible_role(new_identity: Identity) {
+        only_refund_eligible();
+
+        let sender = msg_sender().unwrap();
+
+        storage::V1.refund_eligible_role.insert(sender, false);
+
+        storage::V1.refund_eligible_role.insert(new_identity, true);
+
+        log(RefundEligibleRoleTransfer {
+            old_identity: sender,
+            new_identity,
         });
     }
 
