@@ -76,7 +76,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         uint256 nonce;
     }
 
-    event Deposit(address indexed from, bytes32 indexed requestHash, bool gasRefunded);
+    event Deposit(
+        address indexed from,
+        bytes32 indexed requestHash,
+        bool gasRefunded
+    );
     event Fill(
         address indexed from,
         bytes32 indexed requestHash,
@@ -165,8 +169,10 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             request.sources[chainIndex].chainID == block.chainid,
             "Vault: Chain ID mismatch"
         );
+        require(request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!depositNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
+
         depositNonce[request.nonce] = true;
         requests[ethSignedMessageHash] = request;
 
@@ -174,8 +180,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             uint256 totalValue = request.sources[chainIndex].value;
             require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
-            require(request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch");
-            IERC20 token = IERC20(bytes32ToAddress (request.sources[chainIndex].tokenAddress));
+            IERC20 token = IERC20(bytes32ToAddress(request.sources[chainIndex].tokenAddress));
             uint256 balanceBefore = token.balanceOf(address(this));
             token.safeTransferFrom(
                 from,
@@ -244,9 +249,9 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             uint256(request.destinationChainID) == block.chainid,
             "Vault: Chain ID mismatch"
         );
+        require(request.destinationUniverse == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!fillNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
-        require(request.destinationUniverse == Universe.ETHEREUM, "Vault: Universe mismatch");
 
         fillNonce[request.nonce] = true;
         requests[ethSignedMessageHash] = request;
@@ -268,17 +273,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 }("");
                 require(sent, "Vault: Transfer failed");
             } else {
-                IERC20 token = IERC20( bytes32ToAddress(request.destinations[i].tokenAddress));
-                uint256 balanceBefore = token.balanceOf(from);
+                IERC20 token = IERC20(bytes32ToAddress(request.destinations[i].tokenAddress));
                 token.safeTransferFrom(
                     msg.sender,
                     from,
                     request.destinations[i].value
-                );
-                require(
-                    token.balanceOf(from) - balanceBefore ==
-                        request.destinations[i].value,
-                    "Vault: Transfer failed"
                 );
             }
         }
