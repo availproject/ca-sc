@@ -181,16 +181,10 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
             IERC20 token = IERC20(bytes32ToAddress(request.sources[chainIndex].tokenAddress));
-            uint256 balanceBefore = token.balanceOf(address(this));
             token.safeTransferFrom(
                 from,
                 address(this),
                 request.sources[chainIndex].value
-            );
-            require(
-                token.balanceOf(address(this)) - balanceBefore ==
-                    request.sources[chainIndex].value,
-                "Vault: Transfer failed"
             );
         }
 
