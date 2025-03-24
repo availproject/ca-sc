@@ -3,4 +3,4 @@ channel = "mainnet"
 
 [components]
 forc = "0.67.0"
-fuel-core = "0.40.0"
+fuel-core = "0.41.9"
