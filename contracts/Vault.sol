@@ -37,7 +37,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     uint256 public vaultBalance;
     uint256 public maxGasPrice;
 
-    mapping(bytes32 => RFFState) public requestStates;
+    mapping(bytes32 => RFFState) public requestState;
     mapping(bytes32 => address) public winningSolver;
     mapping(uint256 => bool) public depositNonce;
     mapping(uint256 => bool) public fillNonce;
@@ -183,9 +183,9 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
         depositNonce[request.nonce] = true;
         if (willGasBeRefunded) {
-            requestStates[ethSignedMessageHash] = RFFState.DEPOSITED_WITH_GAS_REFUND;
+            requestState[ethSignedMessageHash] = RFFState.DEPOSITED_WITH_GAS_REFUND;
         } else {
-            requestStates[ethSignedMessageHash] = RFFState.DEPOSITED_WITHOUT_GAS_REFUND;
+            requestState[ethSignedMessageHash] = RFFState.DEPOSITED_WITHOUT_GAS_REFUND;
         }
 
         if (request.sources[chainIndex].tokenAddress == bytes32(0)) {
@@ -260,7 +260,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
         fillNonce[request.nonce] = true;
-        requestStates[ethSignedMessageHash] = RFFState.FULFILLED;
+        requestState[ethSignedMessageHash] = RFFState.FULFILLED;
         winningSolver[ethSignedMessageHash] = msg.sender;
 
         uint256 gasBalance = msg.value;
