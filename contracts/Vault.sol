@@ -202,7 +202,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     function extractAddress(Party[] memory parties) internal pure returns (address from) {
           for(uint i = 0; i < parties.length; i++) {
             if (parties[i].universe == Universe.ETHEREUM) {
-                 from = bytes32ToAddress(parties[i].address_); 
+                 from = bytes32ToAddress(parties[i].address_);
                  break;
             }
         }

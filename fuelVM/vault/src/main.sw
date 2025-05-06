@@ -451,9 +451,20 @@ impl ArcanaVault for Contract {
             VaultError::RequestExpired,
         );
 
+        require(
+            !storage::V1
+                .fill_nonce
+                .get(request.nonce)
+                .try_read()
+                .unwrap_or(false),
+            VaultError::NonceAlreadyUsed,
+        );
+        let request_hash = hash_request(request);
+        let from = extract_creator_from_parties(request.parties);
+        let signed_message_hash = verify_request(signature, from, request_hash);
+
         // Iterate through outputs to match unique outputs to destination pairs from the `request`.
         let mut destination_pairs = request.destinations;
-        let from = extract_creator_from_parties(request.parties);
 
         let mut output_index = 0;
         while output_index < output_count().as_u64() {
@@ -495,20 +506,7 @@ impl ArcanaVault for Contract {
             VaultError::DestinationPairsNotFilled(destination_pairs),
         );
 
-        require(
-            !storage::V1
-                .fill_nonce
-                .get(request.nonce)
-                .try_read()
-                .unwrap_or(false),
-            VaultError::NonceAlreadyUsed,
-        );
-
-        let request_hash = hash_request(request);
-        let signed_message_hash = verify_request(signature, from, request_hash);
-
         storage::V1.fill_nonce.insert(request.nonce, true);
-
         storage::V1
             .requests_partial
             .insert(signed_message_hash, request.into());
