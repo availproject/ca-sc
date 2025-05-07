@@ -5,15 +5,32 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import {ERC2771ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
+import {ERC2771Forwarder} from "@openzeppelin/contracts/metatx/ERC2771Forwarder.sol";
 
-contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, ERC2771ContextUpgradeable {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
+
+    function _msgSender() internal override(ContextUpgradeable, ERC2771ContextUpgradeable)
+    view returns (address) {
+        return ERC2771ContextUpgradeable._msgSender();
+    }
+
+    function _msgData() internal override(ContextUpgradeable, ERC2771ContextUpgradeable)
+    view returns (bytes calldata) {
+        return ERC2771ContextUpgradeable._msgData();
+    }
+
+    function _contextSuffixLength() internal override(ContextUpgradeable, ERC2771ContextUpgradeable)
+    view returns (uint256) {
+        return ERC2771ContextUpgradeable._contextSuffixLength();
+    }
 
     enum Function {
         Deposit,
@@ -101,7 +118,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     event ReceiveETH(address indexed from, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor() ContextUpgradeable() ERC2771ContextUpgradeable(address(new ERC2771Forwarder("VaultForwarder"))) {
         _disableInitializers();
     }
 
@@ -261,10 +278,10 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
         fillNonce[request.nonce] = true;
         requestState[ethSignedMessageHash] = RFFState.FULFILLED;
-        winningSolver[ethSignedMessageHash] = msg.sender;
+        winningSolver[ethSignedMessageHash] = _msgSender();
 
         uint256 gasBalance = msg.value;
-        emit Fill(ethSignedMessageHash, from, msg.sender);
+        emit Fill(ethSignedMessageHash, from, _msgSender());
         for (uint i = 0; i < request.destinations.length; ++i) {
             if (request.destinations[i].tokenAddress == bytes32(0)) {
                 require(
@@ -283,7 +300,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             } else {
                 IERC20 token = IERC20(bytes32ToAddress(request.destinations[i].tokenAddress));
                 token.safeTransferFrom(
-                    msg.sender,
+                    _msgSender(),
                     from,
                     request.destinations[i].value
                 );
@@ -399,6 +416,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
     receive() external payable {
         vaultBalance = vaultBalance + msg.value;
-        emit ReceiveETH(msg.sender, msg.value);
+        emit ReceiveETH(_msgSender(), msg.value);
     }
 }
