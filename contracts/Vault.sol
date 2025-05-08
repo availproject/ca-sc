@@ -95,7 +95,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         address solver
     );
     event Withdraw(address indexed to, address token, uint256 amount);
-    event Settle(address indexed solver, address token, uint256 amount, uint256 indexed nonce);
+    event Settle(uint256 indexed nonce, address[] solver, address[] token, uint256[] amount);
     event GasPriceUpdate(uint256 gasPrice);
     event GasOverheadUpdate(Function indexed _function, uint256 overhead);
     event ReceiveETH(address indexed from, uint256 amount);
@@ -366,12 +366,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
         settleNonce[settleData.nonce] = true;
         for (uint i = 0; i < settleData.solvers.length; ++i) {
-            emit Settle(
-                settleData.solvers[i],
-                settleData.tokens[i],
-                settleData.amounts[i],
-                settleData.nonce
-            );
             if (settleData.tokens[i] == address(0)) {
                 (bool sent, ) = settleData.solvers[i].call{
                     value: settleData.amounts[i]
@@ -385,6 +379,12 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 );
             }
         }
+        emit Settle(
+            settleData.nonce,
+            settleData.solvers,
+            settleData.tokens,
+            settleData.amounts
+        );
         uint256 gasUsed = startGas - gasleft() + overhead[Function.Settle];
         uint256 gasPrice = tx.gasprice < maxGasPrice
             ? tx.gasprice
