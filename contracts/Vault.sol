@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity ^0.8.29;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -26,11 +26,19 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         SOLANA
     }
 
+    enum RFFState {
+        UNPROCESSED,
+        DEPOSITED_WITHOUT_GAS_REFUND,
+        DEPOSITED_WITH_GAS_REFUND,
+        FULFILLED
+    }
+
     mapping(Function => uint256) public overhead;
     uint256 public vaultBalance;
     uint256 public maxGasPrice;
 
-    mapping(bytes32 => Request) public requests;
+    mapping(bytes32 => RFFState) public requestState;
+    mapping(bytes32 => address) public winningSolver;
     mapping(uint256 => bool) public depositNonce;
     mapping(uint256 => bool) public fillNonce;
     mapping(uint256 => bool) public settleNonce;
@@ -77,17 +85,17 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     }
 
     event Deposit(
-        address indexed from,
         bytes32 indexed requestHash,
+        address from,
         bool gasRefunded
     );
     event Fill(
-        address indexed from,
         bytes32 indexed requestHash,
+        address from,
         address solver
     );
     event Withdraw(address indexed to, address token, uint256 amount);
-    event Settle(address indexed solver, address token, uint256 amount, uint256 indexed nonce);
+    event Settle(uint256 indexed nonce, address[] solver, address[] token, uint256[] amount);
     event GasPriceUpdate(uint256 gasPrice);
     event GasOverheadUpdate(Function indexed _function, uint256 overhead);
     event ReceiveETH(address indexed from, uint256 amount);
@@ -174,7 +182,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
         depositNonce[request.nonce] = true;
-        requests[ethSignedMessageHash] = request;
+        if (willGasBeRefunded) {
+            requestState[ethSignedMessageHash] = RFFState.DEPOSITED_WITH_GAS_REFUND;
+        } else {
+            requestState[ethSignedMessageHash] = RFFState.DEPOSITED_WITHOUT_GAS_REFUND;
+        }
 
         if (request.sources[chainIndex].tokenAddress == bytes32(0)) {
             uint256 totalValue = request.sources[chainIndex].value;
@@ -188,7 +200,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             );
         }
 
-        emit Deposit(from, ethSignedMessageHash, willGasBeRefunded);
+        emit Deposit(ethSignedMessageHash, from, willGasBeRefunded);
     }
 
     function deposit(
@@ -248,20 +260,22 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
         fillNonce[request.nonce] = true;
-        requests[ethSignedMessageHash] = request;
-        uint256 gasToken = msg.value;
-        emit Fill(from, ethSignedMessageHash, msg.sender);
+        requestState[ethSignedMessageHash] = RFFState.FULFILLED;
+        winningSolver[ethSignedMessageHash] = msg.sender;
+
+        uint256 gasBalance = msg.value;
+        emit Fill(ethSignedMessageHash, from, msg.sender);
         for (uint i = 0; i < request.destinations.length; ++i) {
             if (request.destinations[i].tokenAddress == bytes32(0)) {
                 require(
-                    gasToken >= request.destinations[i].value,
+                    gasBalance >= request.destinations[i].value,
                     "Vault: Value mismatch"
                 );
                 require(
                     request.destinations[i].value > 0,
                     "Vault: Value mismatch"
                 );
-                gasToken -= request.destinations[i].value;
+                gasBalance -= request.destinations[i].value;
                 (bool sent, ) = payable(from).call{
                     value: request.destinations[i].value
                 }("");
@@ -352,12 +366,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
         settleNonce[settleData.nonce] = true;
         for (uint i = 0; i < settleData.solvers.length; ++i) {
-            emit Settle(
-                settleData.solvers[i],
-                settleData.tokens[i],
-                settleData.amounts[i],
-                settleData.nonce
-            );
             if (settleData.tokens[i] == address(0)) {
                 (bool sent, ) = settleData.solvers[i].call{
                     value: settleData.amounts[i]
@@ -371,6 +379,12 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 );
             }
         }
+        emit Settle(
+            settleData.nonce,
+            settleData.solvers,
+            settleData.tokens,
+            settleData.amounts
+        );
         uint256 gasUsed = startGas - gasleft() + overhead[Function.Settle];
         uint256 gasPrice = tx.gasprice < maxGasPrice
             ? tx.gasprice
