@@ -52,12 +52,12 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     struct SourcePair {
         Universe universe;
         uint256 chainID;
-        bytes32 tokenAddress;
+        bytes32 contractAddress;
         uint256 value;
     }
 
     struct DestinationPair {
-        bytes32 tokenAddress;
+        bytes32 contractAddress;
         uint256 value;
     }
 
@@ -80,7 +80,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         Universe universe;
         uint256 chainID;
         address[] solvers;
-        address[] tokens;
+        address[] contractAddresses;
         uint256[] amounts;
         uint256 nonce;
     }
@@ -189,11 +189,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             requestState[ethSignedMessageHash] = RFFState.DEPOSITED_WITHOUT_GAS_REFUND;
         }
 
-        if (request.sources[chainIndex].tokenAddress == bytes32(0)) {
+        if (request.sources[chainIndex].contractAddress == bytes32(0)) {
             uint256 totalValue = request.sources[chainIndex].value;
             require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
-            IERC20 token = IERC20(bytes32ToAddress(request.sources[chainIndex].tokenAddress));
+            IERC20 token = IERC20(bytes32ToAddress(request.sources[chainIndex].contractAddress));
             token.safeTransferFrom(
                 from,
                 address(this),
@@ -267,7 +267,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         uint256 gasBalance = msg.value;
         emit Fill(ethSignedMessageHash, from, msg.sender);
         for (uint i = 0; i < request.destinations.length; ++i) {
-            if (request.destinations[i].tokenAddress == bytes32(0)) {
+            if (request.destinations[i].contractAddress == bytes32(0)) {
                 require(
                     gasBalance >= request.destinations[i].value,
                     "Vault: Value mismatch"
@@ -282,7 +282,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 }("");
                 require(sent, "Vault: Transfer failed");
             } else {
-                IERC20 token = IERC20(bytes32ToAddress(request.destinations[i].tokenAddress));
+                IERC20 token = IERC20(bytes32ToAddress(request.destinations[i].contractAddress));
                 token.safeTransferFrom(
                     msg.sender,
                     from,
@@ -339,7 +339,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 settleData.universe,
                 settleData.chainID,
                 settleData.solvers,
-                settleData.tokens,
+                settleData.contractAddresses,
                 settleData.amounts,
                 settleData.nonce
             )
@@ -353,7 +353,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             "Vault: Invalid signature"
         );
         require(
-            settleData.solvers.length == settleData.tokens.length,
+            settleData.solvers.length == settleData.contractAddresses.length,
             "Vault: Solvers and tokens array length mismatch"
         );
 
@@ -367,13 +367,13 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
         settleNonce[settleData.nonce] = true;
         for (uint i = 0; i < settleData.solvers.length; ++i) {
-            if (settleData.tokens[i] == address(0)) {
+            if (settleData.contractAddresses[i] == address(0)) {
                 (bool sent, ) = settleData.solvers[i].call{
                     value: settleData.amounts[i]
                 }("");
                 require(sent, "Vault: Transfer failed");
             } else {
-                IERC20 token = IERC20(settleData.tokens[i]);
+                IERC20 token = IERC20(settleData.contractAddresses[i]);
                 token.safeTransfer(
                     settleData.solvers[i],
                     settleData.amounts[i]
@@ -383,7 +383,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         emit Settle(
             settleData.nonce,
             settleData.solvers,
-            settleData.tokens,
+            settleData.contractAddresses,
             settleData.amounts
         );
         uint256 gasUsed = startGas - gasleft() + overhead[Function.Settle];
