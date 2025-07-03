@@ -16,7 +16,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     using SafeERC20 for IERC20;
 
     enum Function {
-        Deposit,
         Settle
     }
 
@@ -29,8 +28,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
     enum RFFState {
         UNPROCESSED,
-        DEPOSITED_WITHOUT_GAS_REFUND,
-        DEPOSITED_WITH_GAS_REFUND,
+        DEPOSITED,
         FULFILLED
     }
 
@@ -87,8 +85,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
     event Deposit(
         bytes32 indexed requestHash,
-        address from,
-        bool gasRefunded
+        address from
     );
     event Fulfilment(
         bytes32 indexed requestHash,
@@ -160,12 +157,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         return (signer == from, ethSignedMessageHash);
     }
 
-    function _deposit(
+    function deposit(
         Request calldata request,
         bytes calldata signature,
-        uint256 chainIndex,
-        bool willGasBeRefunded
-    ) private {
+        uint256 chainIndex
+    ) external payable nonReentrant {
         address from = extractAddress(request.parties);
         bytes32 structHash = _hashRequest(request);
         (bool success, bytes32 ethSignedMessageHash) = _verify_request(
@@ -183,11 +179,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
         depositNonce[request.nonce] = true;
-        if (willGasBeRefunded) {
-            requestState[ethSignedMessageHash] = RFFState.DEPOSITED_WITH_GAS_REFUND;
-        } else {
-            requestState[ethSignedMessageHash] = RFFState.DEPOSITED_WITHOUT_GAS_REFUND;
-        }
+        requestState[ethSignedMessageHash] = RFFState.DEPOSITED;
 
         if (request.sources[chainIndex].contractAddress == bytes32(0)) {
             uint256 totalValue = request.sources[chainIndex].value;
@@ -201,15 +193,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             );
         }
 
-        emit Deposit(ethSignedMessageHash, from, willGasBeRefunded);
-    }
-
-    function deposit(
-        Request calldata request,
-        bytes calldata signature,
-        uint256 chainIndex
-    ) external payable nonReentrant {
-        _deposit(request, signature, chainIndex, false);
+        emit Deposit(ethSignedMessageHash, from);
     }
 
     function extractAddress(Party[] memory parties) internal pure returns (address from) {
@@ -218,25 +202,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                  from = bytes32ToAddress(parties[i].address_);
                  break;
             }
-        }
-    }
-
-    function depositWithRefund(
-        Request calldata request,
-        bytes calldata signature,
-        uint256 chainIndex
-    ) external payable onlyRole(REFUND_ACCESS) nonReentrant {
-        uint256 startGas = gasleft();
-        _deposit(request, signature, chainIndex, true);
-        uint256 gasUsed = startGas - gasleft() + overhead[Function.Deposit];
-        uint256 gasPrice = tx.gasprice < maxGasPrice
-            ? tx.gasprice
-            : maxGasPrice;
-        uint256 refund = gasUsed * gasPrice;
-        if (refund <= vaultBalance) {
-            vaultBalance -= refund;
-            (bool sent, ) = msg.sender.call{value: refund}("");
-            require(sent, "Vault: Refund failed");
         }
     }
 
