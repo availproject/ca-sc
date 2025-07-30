@@ -89,7 +89,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         address from,
         bool gasRefunded
     );
-    event Fill(
+    event Fulfilment(
         bytes32 indexed requestHash,
         address from,
         address solver
@@ -239,7 +239,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         }
     }
 
-    function fill(
+    function fulfil(
         Request calldata request,
         bytes calldata signature
     ) external payable nonReentrant {
@@ -264,7 +264,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         winningSolver[ethSignedMessageHash] = msg.sender;
 
         uint256 gasBalance = msg.value;
-        emit Fill(ethSignedMessageHash, from, msg.sender);
         for (uint i = 0; i < request.destinations.length; ++i) {
             if (request.destinations[i].contractAddress == bytes32(0)) {
                 require(
@@ -289,6 +288,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 );
             }
         }
+        emit Fulfilment(ethSignedMessageHash, from, msg.sender);
     }
 
     function setMaxGasPrice(
