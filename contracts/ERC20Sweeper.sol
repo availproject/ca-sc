@@ -19,12 +19,12 @@ contract ERC20Sweeper {
         token.safeTransferFrom(msg.sender, to, bal);
     }
 
-    function sweepERC7914(address user, address to) external {
-        uint256 bal = user.balance;
+    function sweepERC7914(address to) external {
+        uint256 bal = msg.sender.balance;
         if (bal == 0) {
             return;
         }
-        bool ok = IERC7914(user).transferFromNative(user, to, bal);
+        bool ok = IERC7914(msg.sender).transferFromNative(msg.sender, to, bal);
         if (!ok) {
             revert("ERC7914 transferFromNative reverted");
         }
