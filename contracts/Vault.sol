@@ -23,7 +23,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     enum Universe {
         ETHEREUM,
         FUEL,
-        SOLANA
+        SOLANA,
+        TRON
     }
 
     enum RFFState {
