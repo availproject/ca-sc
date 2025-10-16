@@ -15,10 +15,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
-    enum Function {
-        Settle
-    }
-
     enum Universe {
         ETHEREUM,
         FUEL,
@@ -32,16 +28,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         FULFILLED
     }
 
-    mapping(Function => uint256) public overhead;
-    uint256 public vaultBalance;
-    uint256 public maxGasPrice;
-
     mapping(bytes32 => RFFState) public requestState;
     mapping(bytes32 => address) public winningSolver;
     mapping(uint256 => bool) public depositNonce;
     mapping(uint256 => bool) public fillNonce;
     mapping(uint256 => bool) public settleNonce;
-    bytes32 private constant REFUND_ACCESS = keccak256("REFUND_ACCESS");
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     // Storage gap to reserve slots for future use
@@ -94,9 +85,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     );
     event Withdraw(address indexed to, address token, uint256 amount);
     event Settle(uint256 indexed nonce, address[] solver, address[] token, uint256[] amount);
-    event GasPriceUpdate(uint256 gasPrice);
-    event GasOverheadUpdate(Function indexed _function, uint256 overhead);
-    event ReceiveETH(address indexed from, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -109,10 +97,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         __ReentrancyGuard_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(REFUND_ACCESS, admin);
         _grantRole(UPGRADER_ROLE, admin);
-
-        maxGasPrice = 50 gwei;
     }
 
     function _authorizeUpgrade(address newImplementation)
@@ -137,7 +122,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 )
             );
     }
-     function bytes32ToAddress(bytes32 a) internal pure returns (address) {
+
+    function bytes32ToAddress(bytes32 a) internal pure returns (address) {
         // Cast the last 20 bytes of bytes32 into an address
         return address(uint160(uint256(a)));
     }
@@ -145,16 +131,16 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     function _verify_request(
         bytes calldata signature,
         address from,
-        bytes32 structHash
+        Request calldata request
     ) private pure returns (bool, bytes32) {
         // Prepend the Ethereum signed message prefix
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash)
+        bytes32 signedMessageHash = keccak256(
+            abi.encodePacked("\x19Ethereum Signed Message:\n32", _hashRequest(request))
         );
 
         // Recover the signer from the signature
-        address signer = ethSignedMessageHash.recover(signature);
-        return (signer == from, ethSignedMessageHash);
+        address signer = signedMessageHash.recover(signature);
+        return (signer == from, signedMessageHash);
     }
 
     function deposit(
@@ -163,11 +149,10 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         uint256 chainIndex
     ) external payable nonReentrant {
         address from = extractAddress(request.parties);
-        bytes32 structHash = _hashRequest(request);
-        (bool success, bytes32 ethSignedMessageHash) = _verify_request(
+        (bool success, bytes32 signedMessageHash) = _verify_request(
             signature,
             from,
-            structHash
+            request
         );
         require(success, "Vault: Invalid signature or from");
         require(
@@ -179,7 +164,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
         depositNonce[request.nonce] = true;
-        requestState[ethSignedMessageHash] = RFFState.DEPOSITED;
+        requestState[signedMessageHash] = RFFState.DEPOSITED;
 
         if (request.sources[chainIndex].contractAddress == bytes32(0)) {
             uint256 totalValue = request.sources[chainIndex].value;
@@ -193,16 +178,16 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             );
         }
 
-        emit Deposit(ethSignedMessageHash, from);
+        emit Deposit(signedMessageHash, from);
     }
 
-    function extractAddress(Party[] memory parties) internal pure returns (address from) {
-          for(uint i = 0; i < parties.length; i++) {
+    function extractAddress(Party[] memory parties) internal pure returns (address user) {
+        for(uint i = 0; i < parties.length; i++) {
             if (parties[i].universe == Universe.ETHEREUM) {
-                 from = bytes32ToAddress(parties[i].address_);
-                 break;
+                return bytes32ToAddress(parties[i].address_);
             }
         }
+        revert("Vault: Party not found");
     }
 
     function fulfil(
@@ -210,11 +195,10 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         bytes calldata signature
     ) external payable nonReentrant {
         address from = extractAddress(request.parties);
-        bytes32 structHash = _hashRequest(request);
-        (bool success, bytes32 ethSignedMessageHash) = _verify_request(
+        (bool success, bytes32 signedMessageHash) = _verify_request(
             signature,
             from,
-            structHash
+            request
         );
         require(success, "Vault: Invalid signature or from");
         require(
@@ -226,8 +210,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
         fillNonce[request.nonce] = true;
-        requestState[ethSignedMessageHash] = RFFState.FULFILLED;
-        winningSolver[ethSignedMessageHash] = msg.sender;
+        requestState[signedMessageHash] = RFFState.FULFILLED;
+        winningSolver[signedMessageHash] = msg.sender;
 
         uint256 gasBalance = msg.value;
         for (uint i = 0; i < request.destinations.length; ++i) {
@@ -254,14 +238,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 );
             }
         }
-        emit Fulfilment(ethSignedMessageHash, from, msg.sender);
-    }
-
-    function setMaxGasPrice(
-        uint256 _maxGasPrice
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        maxGasPrice = _maxGasPrice;
-        emit GasPriceUpdate(_maxGasPrice);
+        emit Fulfilment(signedMessageHash, from, msg.sender);
     }
 
     function withdraw(
@@ -283,22 +260,13 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         bytes calldata signature
     ) external pure returns (bool, bytes32) {
         address from = extractAddress(request.parties);
-        return _verify_request(signature, from, _hashRequest(request));
-    }
-
-    function setOverHead(
-        Function _function,
-        uint256 _overhead
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        overhead[_function] = _overhead;
-        emit GasOverheadUpdate(_function, _overhead);
+        return _verify_request(signature, from, request);
     }
 
     function settle(
         SettleData calldata settleData,
         bytes calldata signature
-    ) external nonReentrant onlyRole(REFUND_ACCESS) {
-        uint256 startGas = gasleft();
+    ) external nonReentrant {
         bytes32 structHash = keccak256(
             abi.encode(
                 settleData.universe,
@@ -351,20 +319,5 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             settleData.contractAddresses,
             settleData.amounts
         );
-        uint256 gasUsed = startGas - gasleft() + overhead[Function.Settle];
-        uint256 gasPrice = tx.gasprice < maxGasPrice
-            ? tx.gasprice
-            : maxGasPrice;
-        uint256 refund = gasUsed * gasPrice;
-        if (refund < vaultBalance) {
-            vaultBalance -= refund;
-            (bool sent, ) = msg.sender.call{value: refund}("");
-            require(sent, "Vault: Refund failed");
-        }
-    }
-
-    receive() external payable {
-        vaultBalance = vaultBalance + msg.value;
-        emit ReceiveETH(msg.sender, msg.value);
     }
 }
