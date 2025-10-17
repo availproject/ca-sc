@@ -59,6 +59,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         SourcePair[] sources;
         Universe destinationUniverse;
         uint256 destinationChainID;
+        bytes32 recipientAddress;
         DestinationPair[] destinations;
         uint256 nonce;
         uint256 expiry;
@@ -115,6 +116,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                     request.sources,
                     request.destinationUniverse,
                     request.destinationChainID,
+                    request.recipientAddress,
                     request.destinations,
                     request.nonce,
                     request.expiry,
@@ -208,6 +210,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(request.destinationUniverse == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!fillNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
+        address recipient = bytes32ToAddress(request.recipientAddress);
 
         fillNonce[request.nonce] = true;
         requestState[signedMessageHash] = RFFState.FULFILLED;
@@ -225,7 +228,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                     "Vault: Value mismatch"
                 );
                 gasBalance -= request.destinations[i].value;
-                (bool sent, ) = payable(from).call{
+                (bool sent, ) = payable(recipient).call{
                     value: request.destinations[i].value
                 }("");
                 require(sent, "Vault: Transfer failed");
@@ -233,7 +236,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 IERC20 token = IERC20(bytes32ToAddress(request.destinations[i].contractAddress));
                 token.safeTransferFrom(
                     msg.sender,
-                    from,
+                    recipient,
                     request.destinations[i].value
                 );
             }
