@@ -84,7 +84,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         address from,
         address solver
     );
-    event Withdraw(address indexed to, address token, uint256 amount);
     event Settle(uint256 indexed nonce, address[] solver, address[] token, uint256[] amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -173,18 +172,24 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
             IERC20 token = IERC20(bytes32ToAddress(request.sources[chainIndex].contractAddress));
+
+            uint256 bal = token.balanceOf(address(this));
             token.safeTransferFrom(
                 from,
                 address(this),
                 request.sources[chainIndex].value
             );
+            // fee on transfer tokens
+            if (token.balanceOf(address(this)) - bal != request.sources[chainIndex].value) {
+                revert("Vault: failed to transfer the source amount");
+            }
         }
 
         emit Deposit(signedMessageHash, from);
     }
 
     function extractAddress(Party[] memory parties) internal pure returns (address user) {
-        for(uint i = 0; i < parties.length; i++) {
+        for(uint i = 0; i < parties.length; ++i) {
             if (parties[i].universe == Universe.ETHEREUM) {
                 return bytes32ToAddress(parties[i].address_);
             }
@@ -216,18 +221,18 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         requestState[signedMessageHash] = RFFState.FULFILLED;
         winningSolver[signedMessageHash] = msg.sender;
 
-        uint256 gasBalance = msg.value;
+        uint256 nativeBalance = msg.value;
         for (uint i = 0; i < request.destinations.length; ++i) {
             if (request.destinations[i].contractAddress == bytes32(0)) {
                 require(
-                    gasBalance >= request.destinations[i].value,
+                    nativeBalance >= request.destinations[i].value,
                     "Vault: Value mismatch"
                 );
                 require(
                     request.destinations[i].value > 0,
                     "Vault: Value mismatch"
                 );
-                gasBalance -= request.destinations[i].value;
+                nativeBalance -= request.destinations[i].value;
                 (bool sent, ) = payable(recipient).call{
                     value: request.destinations[i].value
                 }("");
@@ -241,21 +246,13 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 );
             }
         }
-        emit Fulfilment(signedMessageHash, from, msg.sender);
-    }
-
-    function withdraw(
-        address to,
-        address token,
-        uint256 amount
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
-        if (token == address(0)) {
-            (bool sent, ) = payable(to).call{value: amount}("");
+        if (nativeBalance > 0) {
+            (bool sent, ) = payable(msg.sender).call{
+                value: nativeBalance
+            }("");
             require(sent, "Vault: Transfer failed");
-        } else {
-            IERC20(token).safeTransfer(to, amount);
         }
-        emit Withdraw(to, token, amount);
+        emit Fulfilment(signedMessageHash, from, msg.sender);
     }
 
     function verifyRequestSignature(
@@ -290,12 +287,12 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         );
         require(
             settleData.solvers.length == settleData.contractAddresses.length,
-            "Vault: Solvers and tokens array length mismatch"
+            "tokens length mismatch"
         );
 
         require(
             settleData.solvers.length == settleData.amounts.length,
-            "Vault: Solvers and amounts array length mismatch"
+            "amounts length mismatch"
         );
         require(!settleNonce[settleData.nonce], "Vault: Nonce already used");
         require(settleData.chainID == block.chainid, "Vault: Chain ID mismatch");
