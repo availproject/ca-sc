@@ -237,11 +237,17 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 require(sent, "Vault: Transfer failed");
             } else {
                 IERC20 token = IERC20(bytes32ToAddress(request.destinations[i].contractAddress));
+
+                uint256 bal = token.balanceOf(recipient);
                 token.safeTransferFrom(
                     msg.sender,
                     recipient,
                     request.destinations[i].value
                 );
+                // fee on transfer tokens
+                if (token.balanceOf(recipient) - bal != request.destinations[i].value) {
+                    revert("Vault: failed to transfer the destination amount");
+                }
             }
         }
         if (nativeBalance > 0) {
