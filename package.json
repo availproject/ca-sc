@@ -4,12 +4,12 @@
     "test": "hardhat test"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.4.0",
-    "@openzeppelin/contracts-upgradeable": "^5.4.0",
-    "hardhat": "^2.26.3"
+    "@openzeppelin/contracts": "^5.5.0",
+    "@openzeppelin/contracts-upgradeable": "^5.5.0",
+    "hardhat": "^2.27.0"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-ethers": "^3.1.0",
+    "@nomicfoundation/hardhat-ethers": "^3.1.2",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/hardhat-upgrades": "^3.9.1",
     "ethers": "^6.15.0"
