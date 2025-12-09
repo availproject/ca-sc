@@ -51,7 +51,8 @@ contract Vault is
     mapping(uint256 => bool) public fillNonce;
     mapping(uint256 => bool) public settleNonce;
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
-
+    bytes32 private constant SETTLEMENT_VERIFIER_ROLE =
+        keccak256("SETTLEMENT_VERIFIER_ROLE");
     // Storage gap to reserve slots for future use
     uint256[50] private __gap;
 
@@ -335,7 +336,7 @@ contract Vault is
         );
         address signer = signatureHash.recover(signature);
         require(
-            hasRole(DEFAULT_ADMIN_ROLE, signer),
+            hasRole(SETTLEMENT_VERIFIER_ROLE, signer),
             "Vault: Invalid signature"
         );
         require(
