@@ -227,7 +227,6 @@ function printReport() {
       const cost = data.estimatedCostETH || "N/A";
       const nativeToken = NATIVE_TOKENS[network] || "ETH";
 
-      // Format cost with token, limit decimal places for readability
       let costFormatted = "N/A";
       if (cost !== "N/A") {
         const costNum = parseFloat(cost);
@@ -297,15 +296,12 @@ async function main() {
     }
   }
 
-  // Calculate summary
   calculateSummary();
 
-  // Save report to file
   const reportPath = path.join(__dirname, "..", "gas-report.json");
   fs.writeFileSync(reportPath, JSON.stringify(gasReport, null, 2));
   console.log(`\n📝 Full report saved to: ${reportPath}`);
 
-  // Print formatted report
   printReport();
 }
 
