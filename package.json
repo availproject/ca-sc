@@ -3,7 +3,8 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "estimate-gas": "hardhat run scripts/estimate-gas-multi-network.js",
-    "deploy:multi": "hardhat run scripts/deploy-vault-multi-network.js"
+    "deploy:multi": "hardhat run scripts/deploy-vault-multi-network.js",
+    "upgrade:multi": "hardhat run scripts/upgrade-proxy-multi-network.js"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.5.0",

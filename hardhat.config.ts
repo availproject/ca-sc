@@ -84,6 +84,11 @@ const config: HardhatUserConfig = {
       accounts: [PK],
     },
 
+    citrea_testnet:  {
+      url:"https://rpc.testnet.citrea.xyz",
+      accounts:[PK]
+    },
+
     monad_mainnet: {
       url: "https://monad-mainnet.drpc.org",
       accounts: [PK],
