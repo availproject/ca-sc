@@ -1,0 +1,59 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+
+# Solidity compiler settings
+solc = "0.8.30"
+evm_version = "prague"
+optimizer = true
+optimizer_runs = 1_000_000
+via_ir = true
+
+# Remappings
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "forge-std/=lib/forge-std/src/",
+]
+
+# Testing
+ffi = false
+verbosity = 2
+fuzz = { runs = 256 }
+
+# Formatter settings
+[fmt]
+line_length = 100
+tab_width = 4
+bracket_spacing = true
+int_types = "long"
+multiline_func_header = "attributes_first"
+quote_style = "double"
+number_underscore = "thousands"
+
+# RPC endpoints for forking/deployment
+[rpc_endpoints]
+ethereum = "${ETH_RPC_URL}"
+polygon = "https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+arbitrum = "https://arbitrum-one-rpc.publicnode.com"
+optimism = "https://optimism-rpc.publicnode.com"
+base = "https://base-rpc.publicnode.com"
+scroll = "https://scroll-rpc.publicnode.com"
+linea = "https://linea-rpc.publicnode.com"
+avalanche = "https://avalanche-c-chain-rpc.publicnode.com"
+bnb = "https://bsc-mainnet.public.blastapi.io"
+sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
+arb_sepolia = "https://sepolia-rollup.arbitrum.io/rpc"
+op_sepolia = "https://sepolia.optimism.io"
+base_sepolia = "https://sepolia.base.org"
+
+# Etherscan API keys for verification
+[etherscan]
+ethereum = { key = "${ETHERSCAN_API_KEY}" }
+polygon = { key = "${POLYGONSCAN_API_KEY}", chain = 137 }
+arbitrum = { key = "${ARBISCAN_API_KEY}", chain = 42161 }
+optimism = { key = "${OPTIMISTIC_ETHERSCAN_API_KEY}", chain = 10 }
+base = { key = "${BASESCAN_API_KEY}", chain = 8453 }

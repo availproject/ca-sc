@@ -23,6 +23,8 @@ import {
     UUPSUpgradeable
 } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
+import {Request, Party, Universe, RFFState, SettleData} from "./types.sol";
+
 contract Vault is
     Initializable,
     UUPSUpgradeable,
@@ -31,19 +33,6 @@ contract Vault is
 {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
-
-    enum Universe {
-        ETHEREUM,
-        FUEL,
-        SOLANA,
-        TRON
-    }
-
-    enum RFFState {
-        UNPROCESSED,
-        DEPOSITED,
-        FULFILLED
-    }
 
     mapping(bytes32 => RFFState) public requestState;
     mapping(bytes32 => address) public winningSolver;
@@ -55,43 +44,6 @@ contract Vault is
         keccak256("SETTLEMENT_VERIFIER_ROLE");
     // Storage gap to reserve slots for future use
     uint256[50] private __gap;
-
-    struct SourcePair {
-        Universe universe;
-        uint256 chainID;
-        bytes32 contractAddress;
-        uint256 value;
-    }
-
-    struct DestinationPair {
-        bytes32 contractAddress;
-        uint256 value;
-    }
-
-    struct Party {
-        Universe universe;
-        bytes32 address_; // address is a reserved keyword
-    }
-
-    struct Request {
-        SourcePair[] sources;
-        Universe destinationUniverse;
-        uint256 destinationChainID;
-        bytes32 recipientAddress;
-        DestinationPair[] destinations;
-        uint256 nonce;
-        uint256 expiry;
-        Party[] parties;
-    }
-
-    struct SettleData {
-        Universe universe;
-        uint256 chainID;
-        address[] solvers;
-        address[] contractAddresses;
-        uint256[] amounts;
-        uint256 nonce;
-    }
 
     event Deposit(bytes32 indexed requestHash, address from);
     event Fulfilment(bytes32 indexed requestHash, address from, address solver);

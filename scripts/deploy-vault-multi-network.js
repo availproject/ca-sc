@@ -11,11 +11,18 @@ const NETWORKS_TO_DEPLOY = [
   // "scroll_mainnet",
   // "linea_mainnet",
   // "avalanche_c_chain",
-  "hyperliquid",
+  // "hyperliquid",
   // "kaia_mainnet",
   // "bnb_smart_chain_mainnet",
   // "monad_mainnet",
   // "ethereum",
+  "sepolia",
+  "arb_sepolia",
+  "op_sepolia",
+  "base_sepolia",
+  "polygon_amony",
+  "citrea_testnet"
+
 ];
 
 // Native token names for each network
@@ -32,6 +39,11 @@ const NATIVE_TOKENS = {
   kaia_mainnet: "KAI",
   bnb_smart_chain_mainnet: "BNB",
   monad_mainnet: "MONAD",
+  sepolia: "ETH",
+  "arb_sepolia": "ETH",
+  "op_sepolia": "ETH",
+  "base_sepolia": "ETH",
+  "polygon_amony": "MATIC",
 };
 
 // Deployment results storage

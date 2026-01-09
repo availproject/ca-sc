@@ -1,22 +1,42 @@
 {
-  "timestamp": "2025-12-12T21:09:51.216Z",
+  "timestamp": "2026-01-05T12:10:06.292Z",
   "deployments": {
-    "hyperliquid": {
-      "chainId": "999",
-      "implementationAddress": "0x107CdC100BB330aDc1Bf2B4F5682d44Cf251cA63",
+    "sepolia": {
+      "error": "server response 404 Not Found (request={  }, response={  }, error=null, info={ \"requestUrl\": \"https://sepolia-rpc.publicnode.com\", \"responseBody\": null, \"responseStatus\": \"404 Not Found\" }, code=SERVER_ERROR, version=6.15.0)",
+      "timestamp": "2026-01-05T12:10:07.394Z"
+    },
+    "arb-sepolia": {
+      "error": "Network arb-sepolia not found in hardhat.config.ts",
+      "timestamp": "2026-01-05T12:10:10.397Z"
+    },
+    "op-sepolia": {
+      "error": "Network op-sepolia not found in hardhat.config.ts",
+      "timestamp": "2026-01-05T12:10:13.400Z"
+    },
+    "base-sepolia": {
+      "error": "Network base-sepolia not found in hardhat.config.ts",
+      "timestamp": "2026-01-05T12:10:16.404Z"
+    },
+    "polygon_amony": {
+      "error": "unsupported protocol  https (info={ \"protocol\": \" https\" }, operation=\"request\", code=UNSUPPORTED_OPERATION, version=6.15.0)",
+      "timestamp": "2026-01-05T12:10:19.412Z"
+    },
+    "citrea_testnet": {
+      "chainId": "5115",
+      "implementationAddress": "0xD0Fc4BA98FCE575d299322f85060365D56852cB9",
       "admin": "0x3273656fe82E6eB179b0b24da4a8f7684C0b8165",
       "deployer": "0x3273656fe82E6eB179b0b24da4a8f7684C0b8165",
       "gasUsed": "3213391",
-      "gasPrice": "2.036968078",
-      "actualCost": "0.006545574889132498",
-      "nativeToken": "HYPE",
-      "txHash": "0x7d70ae30de10baa987717eab969bde2b8173937aad3f2eb85ba7d84359f467bb",
-      "blockNumber": "21675538",
-      "timestamp": "2025-12-12T21:10:01.907Z"
+      "gasPrice": "0.0010001",
+      "actualCost": "0.0000032137123391",
+      "nativeToken": "ETH",
+      "txHash": "0x514d4e6c08993314531327fc50da8f7d785f036610a746f68ebafa147db88718",
+      "blockNumber": "20403042",
+      "timestamp": "2026-01-05T12:10:32.402Z"
     }
   },
   "summary": {
     "successful": 1,
-    "failed": 0
+    "failed": 5
   }
 }

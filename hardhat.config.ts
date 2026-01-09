@@ -2,8 +2,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import "hardhat-gas-reporter";
-
-// import '@nomicfoundation/hardhat-verify';
+import "dotenv/config";
 
 const PK = process.env.PRIVATE_KEY!;
 
@@ -20,121 +19,105 @@ const config: HardhatUserConfig = {
   },
   networks: {
     ethereum: {
-      url: "https://ethereum-rpc.publicnode.com",
+      url: process.env.ETHEREUM_RPC_URL!,
       accounts: [PK],
     },
     polygon_mainnet: {
-      url: "https://polygon-mainnet.g.alchemy.com/v2/PfaswrKq0rjOrfYWHfE9uLQKhiD4JCdq",
+      url: process.env.POLYGON_RPC_URL!,
       accounts: [PK],
     },
     arb_sepolia: {
-      url: "https://arbitrum-sepolia-rpc.publicnode.com",
+      url: process.env.ARB_SEPOLIA_RPC_URL!,
       accounts: [PK],
     },
     op_sepolia: {
-      url: "https://optimism-sepolia.api.onfinality.io/public",
+      url: process.env.OP_SEPOLIA_RPC_URL!,
       accounts: [PK],
     },
     monad_testnet: {
-      url: "https://testnet-rpc.monad.xyz",
+      url: process.env.MONAD_TESTNET_RPC_URL!,
       accounts: [PK],
     },
     holešky: {
-      url: "https://ethereum-holesky-rpc.publicnode.com",
+      url: process.env.HOLESKY_RPC_URL!,
       accounts: [PK],
     },
     arbitrum_one: {
-      url: "https://arbitrum-one-rpc.publicnode.com",
+      url: process.env.ARBITRUM_RPC_URL!,
       accounts: [PK],
     },
     optimism_mainnet: {
-      url: "https://optimism-rpc.publicnode.com",
+      url: process.env.OPTIMISM_RPC_URL!,
       accounts: [PK],
     },
     base_mainnet: {
-      url: "https://base-rpc.publicnode.com",
+      url: process.env.BASE_RPC_URL!,
       accounts: [PK],
     },
     scroll_mainnet: {
-      url: "https://scroll-rpc.publicnode.com",
+      url: process.env.SCROLL_RPC_URL!,
       accounts: [PK],
     },
     linea_mainnet: {
-      url: "https://linea-rpc.publicnode.com",
+      url: process.env.LINEA_RPC_URL!,
       accounts: [PK],
     },
     sophon_mainnet: {
-      url: "https://rpc.sophon.xyz",
+      url: process.env.SOPHON_RPC_URL!,
       accounts: [PK],
     },
     avalanche_c_chain: {
-      url: "https://avalanche-c-chain-rpc.publicnode.com",
+      url: process.env.AVALANCHE_RPC_URL!,
       accounts: [PK],
     },
     hyperliquid: {
-      url: "https://rpc.hyperliquid.xyz/evm",
+      url: process.env.HYPERLIQUID_RPC_URL!,
       accounts: [PK],
     },
     kaia_mainnet: {
-      url: "https://rpc.ankr.com/kaia",
+      url: process.env.KAIA_RPC_URL!,
       accounts: [PK],
     },
     bnb_smart_chain_mainnet: {
-      url: "https://bsc-mainnet.public.blastapi.io",
+      url: process.env.BNB_RPC_URL!,
       accounts: [PK],
     },
-
-    citrea_testnet:  {
-      url:"https://rpc.testnet.citrea.xyz",
-      accounts:[PK]
+    citrea_testnet: {
+      url: process.env.CITREA_TESTNET_RPC_URL!,
+      accounts: [PK]
     },
-
     monad_mainnet: {
-      url: "https://monad-mainnet.drpc.org",
+      url: process.env.MONAD_MAINNET_RPC_URL!,
       accounts: [PK],
     },
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL!,
+      accounts: [PK],
+    },
+    base_sepolia: {
+      url: process.env.BASE_SEPOLIA_RPC_URL!,
+      accounts: [PK],
+    },
+    polygon_amony: {
+      url: process.env.POLYGON_AMOY_RPC_URL!,
+      accounts: [PK],
+    },
+    mega_eth: {
+      url: process.env.MEGA_ETH_RPC_URL!,
+      accounts: [PK],
+    }
   },
-  // etherscan: {
-  //   apiKey: {
-  //     polygon_mainnet: process.env.POLYGONSCAN_API_KEY,
-  //     arbitrum_one: process.env.ARBISCAN_API_KEY,
-  //     optimism_mainnet: process.env.OPTIMISTIC_ETHERSCAN_API_KEY,
-  //   },
-  //   customChains: [
-  //     {
-  //       network: 'polygon_mainnet',
-  //       chainId: 137,
-  //       urls: {
-  //         apiURL: "https://api.polygonscan.com/api",
-  //         browserURL: "https://polygonscan.com"
-  //       }
-  //     },
-  //     {
-  //       network: "optimism_mainnet",
-  //       chainId: 10,
-  //       urls: {
-  //         apiURL: "https://api-optimistic.etherscan.io/api",
-  //         browserURL: "https://optimistic.etherscan.io"
-  //       }
-  //     },
-  //     {
-  //       network: "arbitrum_one",
-  //       chainId: 42161,
-  //       urls: {
-  //         apiURL: "https://api.arbiscan.io/api",
-  //         browserURL: "https://arbiscan.io"
-  //       }
-  //     }
-  //   ]
-  // },
-  // sourcify: {
-  //   enabled: false
-  // }
   gasReporter: {
     enabled: true,
     currency: "USD",
     coinmarketcap: process.env.COINMARKETCAP_API_KEY!,
     excludeContracts: [],
+  },
+  paths: {
+    sources: "./src",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts"
   },
 };
 
