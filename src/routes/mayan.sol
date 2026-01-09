@@ -114,7 +114,7 @@ contract MayanRouter is ICaRouter {
         uint16 wormholeChainId = _parseCAIP2ToWormhole(destChain);
 
         // Get Swift V2 protocol address for current chain
-        address swiftProtocol = swiftV2Protocol[block.chainid];
+        address swiftProtocol = swiftV2Protocol[wormholeChainId];
         require(
             swiftProtocol != address(0),
             "Swift V2 not configured for this chain"
@@ -130,7 +130,7 @@ contract MayanRouter is ICaRouter {
             .OrderParams({
                 payloadType: 0,
                 trader: request.recipientAddress, 
-                destAddr: destToken, 
+                destAddr: request.recipientAddress, 
                 destChainId: wormholeChainId, 
                 referrerAddr: bytes32(0), 
                 tokenOut: destToken, 
