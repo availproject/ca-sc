@@ -3,7 +3,7 @@ pragma solidity ^0.8.29;
 
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
-import {Router} from "../../src/Router.sol";
+import {Router} from "../src/Router.sol";
 
 /// @title DeployRouter
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -14,13 +14,21 @@ contract DeployRouter is Script {
         address admin = vm.envAddress("ADMIN_ADDRESS");
 
         vm.startBroadcast(deployerPrivateKey);
+        address deployer = vm.addr(deployerPrivateKey);
 
         // Deploy Router directly (no proxy)
-        Router routerContract = new Router(admin);
+        // Initialize with deployer to allow configuration if needed
+        Router routerContract = new Router(deployer);
         router = address(routerContract);
         
         console.log("Router deployed at:", router);
         console.log("Admin address:", admin);
+
+        if (admin != deployer) {
+            routerContract.grantRole(routerContract.DEFAULT_ADMIN_ROLE(), admin);
+            routerContract.renounceRole(routerContract.DEFAULT_ADMIN_ROLE(), deployer);
+            console.log("Transferred Router admin rights to:", admin);
+        }
 
         vm.stopBroadcast();
 

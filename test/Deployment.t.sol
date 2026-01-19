@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
-import {DeployAll} from "../script/deploy/DeployAll.s.sol";
+import {DeployAll} from "../script/DeployAll.s.sol";
 import {Router} from "../src/Router.sol";
 import {Vault} from "../src/Vault.sol";
 import {MayanRouter} from "../src/routes/mayan.sol";
@@ -23,13 +23,10 @@ contract DeploymentTest is Test {
     function test_DeployAll() public {
         DeployAll.DeploymentAddresses memory addresses = deployScript.run();
 
-        // Verify addresses are not zero
         assertTrue(addresses.router != address(0), "Router is zero");
         assertTrue(addresses.vaultProxy != address(0), "Vault proxy is zero");
-        assertTrue(addresses.vaultImplementation != address(0), "Vault impl is zero");
         assertTrue(addresses.mayanRouter != address(0), "MayanRouter is zero");
 
-        // Verify Router setup
         Router router = Router(addresses.router);
         assertTrue(
             router.hasRole(router.DEFAULT_ADMIN_ROLE(), admin),
@@ -41,7 +38,6 @@ contract DeploymentTest is Test {
             "MayanRouter not configured"
         );
 
-        // Verify Vault setup
         Vault vault = Vault(payable(addresses.vaultProxy));
         assertTrue(
             vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), admin),
@@ -53,11 +49,10 @@ contract DeploymentTest is Test {
             "Router not set in Vault"
         );
 
-        // Verify MayanRouter setup
         MayanRouter mayanRouter = MayanRouter(addresses.mayanRouter);
         assertEq(
             mayanRouter.owner(),
-            address(deployScript),
+            admin,
             "MayanRouter owner not set"
         );
     }

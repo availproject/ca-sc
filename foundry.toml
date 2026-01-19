@@ -17,10 +17,15 @@ remappings = [
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "forge-std/=lib/forge-std/src/",
+    "openzeppelin-foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
 ]
 
+# Build info for upgrades plugin
+build_info = true
+extra_output = ["storageLayout"]
+
 # Testing
-ffi = false
+ffi = true
 verbosity = 2
 fuzz = { runs = 256 }
 

@@ -3,9 +3,9 @@ pragma solidity ^0.8.29;
 
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
-import {MayanRouter} from "../../src/routes/mayan.sol";
-import {Router} from "../../src/Router.sol";
-import {Route} from "../../src/types.sol";
+import {MayanRouter} from "../src/routes/mayan.sol";
+import {Router} from "../src/Router.sol";
+import {Route} from "../src/types.sol";
 
 /// @title DeployMayanRouter
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -30,6 +30,15 @@ contract DeployMayanRouter is Script {
         Router router = Router(routerProxyAddress);
         router.setRouter(Route.MAYAN, mayanRouter);
         console.log("MayanRouter set in Router for Route.MAYAN");
+
+        address admin = vm.envAddress("ADMIN_ADDRESS");
+        address deployer = vm.addr(deployerPrivateKey);
+        
+        MayanRouter mayanRouterContract = MayanRouter(mayanRouter);
+        if (admin != deployer) {
+            mayanRouterContract.transferOwnership(admin);
+            console.log("Transferred MayanRouter ownership to:", admin);
+        }
 
         vm.stopBroadcast();
 
