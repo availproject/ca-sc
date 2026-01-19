@@ -13,7 +13,8 @@ interface IMayanForwarder {
         bytes32 r;
         bytes32 s;
     }
-//
+
+    //
     function forwardERC20(
         address tokenIn,
         uint256 amountIn,
@@ -46,6 +47,11 @@ interface IMayanSwiftV2 {
         bytes32 random;
     }
 
+    function createOrderWithEth(
+        OrderParams memory params,
+        bytes memory customPayload
+    ) external payable returns (bytes32 orderHash);
+
     function createOrderWithToken(
         address tokenIn,
         uint256 amountIn,
@@ -73,6 +79,7 @@ contract MayanRouter is ICaRouter {
         evmToWormholeChainId[43114] = 6; // Avalanche
         evmToWormholeChainId[137] = 5; // Polygon
         evmToWormholeChainId[56] = 4; // BSC
+        swiftV2Protocol[1] = 0xc05fb021704D4709c8C058da691fdf4070574685;
     }
 
     /// @notice Process cross-chain bridge via Mayan Swift V2
@@ -103,10 +110,10 @@ contract MayanRouter is ICaRouter {
         // Decode additional parameters from data
         (
             string memory destChain, // CAIP-2 string: "eip155:8453", "solana:mainnet", etc.
-            bytes32 destToken,       // Destination token (bytes32 for cross-chain)
-            uint256 minAmountOut,    // Minimum output after fees
-            uint64 gasDrop,          // Optional: native gas to drop to recipient
-            uint64 deadline          // Deadline timestamp (0 = 1 hour default)
+            bytes32 destToken, // Destination token (bytes32 for cross-chain)
+            uint256 minAmountOut, // Minimum output after fees
+            uint64 gasDrop, // Optional: native gas to drop to recipient
+            uint64 deadline // Deadline timestamp (0 = 1 hour default)
         ) = abi.decode(data, (string, bytes32, uint256, uint64, uint64));
 
         // Parse CAIP-2 string to get Wormhole chain ID
@@ -129,18 +136,18 @@ contract MayanRouter is ICaRouter {
         IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2
             .OrderParams({
                 payloadType: 0,
-                trader: request.recipientAddress, 
-                destAddr: request.recipientAddress, 
-                destChainId: wormholeChainId, 
-                referrerAddr: bytes32(0), 
-                tokenOut: destToken, 
-                minAmountOut: uint64(minAmountOut), 
-                gasDrop: gasDrop, 
+                trader: request.recipientAddress,
+                destAddr: request.recipientAddress,
+                destChainId: wormholeChainId,
+                referrerAddr: bytes32(0),
+                tokenOut: destToken,
+                minAmountOut: uint64(minAmountOut),
+                gasDrop: gasDrop,
                 cancelFee: 0,
                 refundFee: 0,
-                deadline: deadline, 
+                deadline: deadline,
                 referrerBps: 0,
-                auctionMode: 0, 
+                auctionMode: 0,
                 random: keccak256(
                     abi.encodePacked(
                         block.timestamp,
@@ -148,26 +155,31 @@ contract MayanRouter is ICaRouter {
                         amountIn,
                         request.nonce
                     )
-                ) 
+                )
             });
-
-        // Encode the createOrderWithToken call
-        bytes memory protocolData = abi.encodeWithSelector(
-            IMayanSwiftV2.createOrderWithToken.selector,
-            tokenIn, // tokenIn on source chain
-            amountIn, // amountIn
-            orderParams, // OrderParams struct
-            bytes("") 
-        );
 
         // Execute via forwarder
         if (tokenIn == address(0)) {
+            bytes memory protocolData = abi.encodeWithSelector(
+                IMayanSwiftV2.createOrderWithEth.selector,
+                orderParams, // OrderParams struct
+                bytes("")
+            );
+
             // Native ETH transfer
             IMayanForwarder(MAYAN_FORWARDER).forwardEth{value: amountIn}(
                 swiftProtocol,
                 protocolData
             );
         } else {
+            // Encode the createOrderWithToken call
+            bytes memory protocolData = abi.encodeWithSelector(
+                IMayanSwiftV2.createOrderWithToken.selector,
+                tokenIn, // tokenIn on source chain
+                amountIn, // amountIn
+                orderParams, // OrderParams struct
+                bytes("")
+            );
             IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
             IERC20(tokenIn).approve(MAYAN_FORWARDER, amountIn);
 
@@ -193,7 +205,10 @@ contract MayanRouter is ICaRouter {
     /// @notice Add or update EVM chain to Wormhole chain ID mapping
     /// @param evmChainId EVM chain ID (e.g., 1 for Ethereum, 8453 for Base)
     /// @param wormholeChainId Corresponding Wormhole chain ID
-    function setWormholeChainMapping(uint256 evmChainId, uint16 wormholeChainId) external {
+    function setWormholeChainMapping(
+        uint256 evmChainId,
+        uint16 wormholeChainId
+    ) external {
         // TODO: Add access control (onlyOwner, etc.)
         evmToWormholeChainId[evmChainId] = wormholeChainId;
     }
@@ -208,7 +223,9 @@ contract MayanRouter is ICaRouter {
     ///        - "tron:mainnet" → Tron (Wormhole ID: 3)
     /// @param caip2String CAIP-2 formatted chain identifier
     /// @return wormholeChainId Corresponding Wormhole chain ID
-    function _parseCAIP2ToWormhole(string memory caip2String) internal view returns (uint16 wormholeChainId) {
+    function _parseCAIP2ToWormhole(
+        string memory caip2String
+    ) internal view returns (uint16 wormholeChainId) {
         return _parseUint(caip2String);
         // bytes memory caip2Bytes = bytes(caip2String);
         // require(caip2Bytes.length > 0, "Empty CAIP-2 string");
@@ -265,42 +282,54 @@ contract MayanRouter is ICaRouter {
         //     revert("Unsupported CAIP-2 namespace");
         // }
     }
-    
+
     /// @notice Extract substring from string
     /// @param str Source string
     /// @param startIndex Start index (inclusive)
     /// @param endIndex End index (exclusive)
     /// @return result Substring
-    function _substring(string memory str, uint256 startIndex, uint256 endIndex) internal pure returns (string memory result) {
+    function _substring(
+        string memory str,
+        uint256 startIndex,
+        uint256 endIndex
+    ) internal pure returns (string memory result) {
         bytes memory strBytes = bytes(str);
-        require(startIndex < endIndex && endIndex <= strBytes.length, "Invalid substring indices");
-        
+        require(
+            startIndex < endIndex && endIndex <= strBytes.length,
+            "Invalid substring indices"
+        );
+
         bytes memory resultBytes = new bytes(endIndex - startIndex);
         for (uint256 i = 0; i < endIndex - startIndex; i++) {
             resultBytes[i] = strBytes[startIndex + i];
         }
         return string(resultBytes);
     }
-    
+
     /// @notice Compare two strings for equality
     /// @param a First string
     /// @param b Second string
     /// @return equal True if strings are equal
-    function _compareStrings(string memory a, string memory b) internal pure returns (bool equal) {
+    function _compareStrings(
+        string memory a,
+        string memory b
+    ) internal pure returns (bool equal) {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
-    
+
     /// @notice Parse string to uint16
     /// @param str Numeric string (e.g., "8453")
     /// @return result Parsed uint16
-    function _parseUint(string memory str) internal pure returns (uint16 result) {
+    function _parseUint(
+        string memory str
+    ) internal pure returns (uint16 result) {
         bytes memory strBytes = bytes(str);
         require(strBytes.length > 0, "Empty string");
-        
+
         for (uint256 i = 0; i < strBytes.length; i++) {
             uint8 digit = uint8(strBytes[i]);
             require(digit >= 48 && digit <= 57, "Invalid numeric character");
-            
+
             uint16 newResult = result * 10 + (digit - 48);
             require(newResult >= result, "Numeric overflow");
             result = newResult;

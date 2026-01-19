@@ -1,3 +1,4 @@
+
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
@@ -118,7 +119,23 @@ const config: HardhatUserConfig = {
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts"
+
   },
+  etherscan: {
+    apiKey: {
+      'mega-mainnet': 'empty'
+    },
+    customChains: [
+      {
+        network: "mega-mainnet",
+        chainId: 4326,
+        urls: {
+          apiURL: "https://megaeth.blockscout.com/api",
+          browserURL: "https://megaeth.blockscout.com"
+        }
+      }
+    ]
+  }
 };
 
 export default config;
