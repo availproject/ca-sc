@@ -255,6 +255,30 @@ contract MayanRouterTest is Test {
 
         bytes memory signature = _signAction(action, userPrivateKey);
 
+        console.log("========== INPUTS FOR depositRouter ==========");
+        console.log("Action Source ChainID:", action.sources[0].chainID);
+        console.log("Action Source Value:", action.sources[0].value);
+        console.log("Recipient:", uint256(action.recipientAddress));
+        console.log("Dest Namespace Hash:", uint256(action.destinationCaip2namespace));
+        console.log("Dest ChainID:", action.destinationCaip2ChainId);
+        console.log("Nonce:", uint256(action.nonce));
+        console.log("Expiry:", uint256(action.expiry));
+        
+        console.log("Signature:");
+        console.logBytes(signature);
+        
+        console.log("Chain Index:", uint256(0));
+        console.log("Route Enum:", uint256(Route.MAYAN));
+        console.log("Route Data:");
+        console.logBytes(routeData);
+
+        bytes memory callData = abi.encodeCall(
+            Vault.depositRouter,
+            (action, signature, 0, Route.MAYAN, routeData)
+        );
+        console.log("Raw Calldata:");
+        console.logBytes(callData);
+
         uint256 userBalanceBefore = token.balanceOf(user);
         uint256 vaultBalanceBefore = token.balanceOf(address(vault));
 
