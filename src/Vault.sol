@@ -23,8 +23,13 @@ import {
     UUPSUpgradeable
 } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import {Request, Party, Universe, RFFState, SettleData} from "./types.sol";
+import {Request, Party, Universe, RFFState, SettleData, Action, Route} from "./types.sol";
+import {IRouter} from "./interfaces/IRouter.sol";
 
+/// @title Vault
+/// @author Rachit Anand Srivastava (@privacy_prophet)
+/// @notice Vault contract for managing deposits, fulfillments, and settlements of cross-chain transfers
+/// @dev UUPS upgradeable contract with role-based access control
 contract Vault is
     Initializable,
     UUPSUpgradeable,
@@ -39,6 +44,10 @@ contract Vault is
     mapping(uint256 => bool) public depositNonce;
     mapping(uint256 => bool) public fillNonce;
     mapping(uint256 => bool) public settleNonce;
+    
+    /// @notice Router contract for processing cross-chain transfers
+    IRouter public router;
+    
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 private constant SETTLEMENT_VERIFIER_ROLE =
         keccak256("SETTLEMENT_VERIFIER_ROLE");
@@ -53,6 +62,12 @@ contract Vault is
         address[] token,
         uint256[] amount
     );
+    event RouterSet(address indexed newRouter);
+    event DepositAndRoute(
+        bytes32 indexed requestHash,
+        address from,
+        Route route
+    );
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -66,9 +81,39 @@ contract Vault is
         _grantRole(UPGRADER_ROLE, admin);
     }
 
+    /// @notice Set the router contract address
+    /// @param _router Address of the Router contract
+    function setRouter(address _router) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_router != address(0), "Vault: Zero address");
+        router = IRouter(_router);
+        emit RouterSet(_router);
+    }
+
     function _authorizeUpgrade(
         address newImplementation
     ) internal override onlyRole(UPGRADER_ROLE) {}
+
+    function _hashAction(
+        Action calldata action
+    ) private pure returns (bytes32) {
+        return keccak256(abi.encode(action));
+    }
+
+    function _verifyAction(
+        bytes calldata signature,
+        address from,
+        Action calldata action
+    ) private pure returns (bool, bytes32) {
+        bytes32 signedMessageHash = keccak256(
+            abi.encodePacked(
+                "\x19Ethereum Signed Message:\n32",
+                _hashAction(action)
+            )
+        );
+
+        address signer = signedMessageHash.recover(signature);
+        return (signer == from, signedMessageHash);
+    }
 
     function _hashRequest(
         Request calldata request
@@ -161,6 +206,75 @@ contract Vault is
         }
 
         emit Deposit(signedMessageHash, from);
+    }
+
+    /// @notice Deposit funds and initiate cross-chain transfer via router
+    /// @param action Action struct for router containing cross-chain transfer details
+    /// @param signature User's signature authorizing the deposit
+    /// @param chainIndex Index of the source chain in the action.sources array
+    /// @param route Route to use (NATIVE or MAYAN)
+    /// @param routeData Additional route-specific encoded parameters
+    function depositRouter(
+        Action calldata action,
+        bytes calldata signature,
+        uint256 chainIndex,
+        Route route,
+        bytes calldata routeData
+    ) external payable nonReentrant {
+        require(address(router) != address(0), "Vault: Router not set");
+        
+        address from = extractAddress(action.parties);
+        (bool success, bytes32 actionHash) = _verifyAction(
+            signature,
+            from,
+            action
+        );
+        require(success, "Vault: Invalid signature or from");
+        require(
+            action.sources[chainIndex].chainID == block.chainid,
+            "Vault: Chain ID mismatch"
+        );
+        require(
+            action.sources[chainIndex].universe == Universe.ETHEREUM,
+            "Vault: Universe mismatch"
+        );
+        require(!depositNonce[action.nonce], "Vault: Nonce already used");
+        require(action.expiry > block.timestamp, "Vault: Action expired");
+
+        depositNonce[action.nonce] = true;
+        requestState[actionHash] = RFFState.DEPOSITED;
+
+        uint256 valueToRoute = 0;
+        
+        if (action.sources[chainIndex].contractAddress == bytes32(0)) {
+            uint256 totalValue = action.sources[chainIndex].value;
+            require(msg.value == totalValue, "Vault: Value mismatch");
+            valueToRoute = totalValue;
+        } else {
+            IERC20 token = IERC20(
+                bytes32ToAddress(action.sources[chainIndex].contractAddress)
+            );
+
+            uint256 bal = token.balanceOf(address(this));
+            token.safeTransferFrom(
+                from,
+                address(this),
+                action.sources[chainIndex].value
+            );
+            
+            if (
+                token.balanceOf(address(this)) - bal !=
+                action.sources[chainIndex].value
+            ) {
+                revert("Vault: failed to transfer the source amount");
+            }
+            
+            token.safeTransfer(address(router), action.sources[chainIndex].value);
+        }
+
+        router.processTransfer{value: valueToRoute}(action, route, routeData);
+
+        emit DepositAndRoute(actionHash, from, route);
     }
 
     function extractAddress(

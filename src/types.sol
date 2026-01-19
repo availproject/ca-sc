@@ -14,6 +14,11 @@ enum RFFState {
     FULFILLED
 }
 
+enum Route {
+    NATIVE,
+    MAYAN
+}
+
 struct SourcePair {
     Universe universe;
     uint256 chainID;
@@ -45,11 +50,13 @@ struct Request {
 struct Action {
     SourcePair[] sources;
     bytes32 recipientAddress;
-    DestinationPair[] destinations;
-    uint256 nonce;
-    uint256 expiry;
     Party[] parties;
-    string origin;
+    bytes32 destinationCaip2namespace;
+    bytes32 destinationContractAddress;
+    uint256 destinationCaip2ChainId;
+    uint256 destinationMinTokenAmount;
+    uint128 nonce;
+    uint128 expiry;
 }
 
 struct SettleData {
