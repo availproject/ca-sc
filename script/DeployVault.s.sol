@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Script} from "forge-std/Script.sol";
-import {console} from "forge-std/console.sol";
-import {Vault} from "../src/Vault.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import { Script } from "forge-std/Script.sol";
+import { console } from "forge-std/console.sol";
+import { Vault } from "../src/Vault.sol";
+import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployVault
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -20,10 +20,7 @@ contract DeployVault is Script {
         vm.startBroadcast(deployerPrivateKey);
         address deployer = vm.addr(deployerPrivateKey);
 
-        proxy = Upgrades.deployUUPSProxy(
-            "Vault.sol",
-            abi.encodeCall(Vault.initialize, (deployer))
-        );
+        proxy = Upgrades.deployUUPSProxy("Vault.sol", abi.encodeCall(Vault.initialize, (deployer)));
         console.log("Vault proxy deployed at:", proxy);
         console.log("Admin address:", admin);
 
@@ -39,14 +36,8 @@ contract DeployVault is Script {
 
         vm.stopBroadcast();
 
-        require(
-            vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), admin),
-            "Admin role not granted"
-        );
-        require(
-            address(vault.router()) == routerAddress,
-            "Router not set correctly"
-        );
+        require(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), admin), "Admin role not granted");
+        require(address(vault.router()) == routerAddress, "Router not set correctly");
         console.log("Deployment verified successfully");
 
         return proxy;

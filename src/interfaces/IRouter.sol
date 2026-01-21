@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Action, Route} from "../types.sol";
+import { RouterAction, Route } from "../types.sol";
 
 /// @title IRouter
 /// @notice Interface for the main Router contract
@@ -10,11 +10,9 @@ interface IRouter {
     /// @param request Action struct containing transfer details
     /// @param route Route to use (NATIVE or MAYAN)
     /// @param data Additional route-specific encoded parameters
-    function processTransfer(
-        Action calldata request,
-        Route route,
-        bytes calldata data
-    ) external payable;
+    function processTransfer(RouterAction calldata request, Route route, bytes calldata data)
+        external
+        payable;
 
     /// @notice Set or update a router contract address for a specific route
     /// @param route Route identifier

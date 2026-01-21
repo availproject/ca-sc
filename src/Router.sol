@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
 
-import {Action, Route} from "./types.sol";
-import {ICaRouter} from "./interfaces/ICaRouter.sol";
+import { RouterAction, Route } from "./types.sol";
+import { ICaRouter } from "./interfaces/ICaRouter.sol";
 
 /// @title Router
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -49,10 +49,7 @@ contract Router is AccessControl {
     /// @dev Only callable by admin
     /// @param route Route identifier (NATIVE or MAYAN)
     /// @param routerAddress Address of the router contract implementing ICaRouter
-    function setRouter(
-        Route route,
-        address routerAddress
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setRouter(Route route, address routerAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (routerAddress == address(0)) revert ZeroAddress();
         routers[route] = routerAddress;
         emit RouterSet(route, routerAddress);
@@ -63,25 +60,16 @@ contract Router is AccessControl {
     /// @param request Action struct containing transfer details
     /// @param route Route to use (NATIVE or MAYAN)
     /// @param data Additional route-specific encoded parameters
-    function processTransfer(
-        Action calldata request,
-        Route route,
-        bytes calldata data
-    ) external payable {
+    function processTransfer(RouterAction calldata request, Route route, bytes calldata data)
+        external
+        payable
+    {
         address routerAddress = routers[route];
         if (routerAddress == address(0)) revert InvalidRoute();
 
-        // Approve router to spend tokens if ERC20
-        if (request.sources.length > 0) {
-            address tokenAddress = address(
-                uint160(uint256(request.sources[0].contractAddress))
-            );
-            if (tokenAddress != address(0)) {
-                IERC20(tokenAddress).approve(
-                    routerAddress,
-                    request.sources[0].value
-                );
-            }
+        address tokenAddress = address(uint160(uint256(request.tokenAddress)));
+        if (tokenAddress != address(0)) {
+            IERC20(tokenAddress).approve(routerAddress, request.amountIn);
         }
 
         ICaRouter router = ICaRouter(routerAddress);
@@ -91,6 +79,7 @@ contract Router is AccessControl {
         } else {
             revert InvalidRoute();
         }
-        router.processTransfer{value: msg.value}(request, data);
+
+        router.processTransfer{ value: msg.value }(request, data);
     }
 }

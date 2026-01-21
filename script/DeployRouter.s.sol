@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Script} from "forge-std/Script.sol";
-import {console} from "forge-std/console.sol";
-import {Router} from "../src/Router.sol";
+import { Script } from "forge-std/Script.sol";
+import { console } from "forge-std/console.sol";
+import { Router } from "../src/Router.sol";
 
 /// @title DeployRouter
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -20,7 +20,7 @@ contract DeployRouter is Script {
         // Initialize with deployer to allow configuration if needed
         Router routerContract = new Router(deployer);
         router = address(routerContract);
-        
+
         console.log("Router deployed at:", router);
         console.log("Admin address:", admin);
 

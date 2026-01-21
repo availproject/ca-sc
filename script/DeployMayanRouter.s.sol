@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Script} from "forge-std/Script.sol";
-import {console} from "forge-std/console.sol";
-import {MayanRouter} from "../src/routes/mayan.sol";
-import {Router} from "../src/Router.sol";
-import {Route} from "../src/types.sol";
+import { Script } from "forge-std/Script.sol";
+import { console } from "forge-std/console.sol";
+import { MayanRouter } from "../src/routes/mayan.sol";
+import { Router } from "../src/Router.sol";
+import { Route } from "../src/types.sol";
 
 /// @title DeployMayanRouter
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -15,10 +15,7 @@ contract DeployMayanRouter is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address routerProxyAddress = vm.envAddress("ROUTER_ADDRESS");
 
-        require(
-            routerProxyAddress != address(0),
-            "Router address cannot be zero"
-        );
+        require(routerProxyAddress != address(0), "Router address cannot be zero");
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -33,7 +30,7 @@ contract DeployMayanRouter is Script {
 
         address admin = vm.envAddress("ADMIN_ADDRESS");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         MayanRouter mayanRouterContract = MayanRouter(mayanRouter);
         if (admin != deployer) {
             mayanRouterContract.transferOwnership(admin);
@@ -43,10 +40,7 @@ contract DeployMayanRouter is Script {
         vm.stopBroadcast();
 
         // Verify configuration
-        require(
-            router.routers(Route.MAYAN) == mayanRouter,
-            "MayanRouter not set correctly"
-        );
+        require(router.routers(Route.MAYAN) == mayanRouter, "MayanRouter not set correctly");
         console.log("Deployment and configuration verified successfully");
 
         return mayanRouter;

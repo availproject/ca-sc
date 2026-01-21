@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Script} from "forge-std/Script.sol";
-import {console} from "forge-std/console.sol";
-import {Router} from "../src/Router.sol";
-import {Vault} from "../src/Vault.sol";
-import {MayanRouter} from "../src/routes/mayan.sol";
-import {Route} from "../src/types.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import { Script } from "forge-std/Script.sol";
+import { console } from "forge-std/console.sol";
+import { Router } from "../src/Router.sol";
+import { Vault } from "../src/Vault.sol";
+import { MayanRouter } from "../src/routes/mayan.sol";
+import { Route } from "../src/types.sol";
+import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 /// @title DeployAll
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -37,10 +37,8 @@ contract DeployAll is Script {
 
         console.log("\n========== Deploying Vault ==========");
         // Initialize with deployer first to allow configuration
-        addresses.vaultProxy = Upgrades.deployUUPSProxy(
-            "Vault.sol",
-            abi.encodeCall(Vault.initialize, (deployer))
-        );
+        addresses.vaultProxy =
+            Upgrades.deployUUPSProxy("Vault.sol", abi.encodeCall(Vault.initialize, (deployer)));
         console.log("Vault proxy:", addresses.vaultProxy);
 
         Vault vault = Vault(payable(addresses.vaultProxy));
@@ -85,9 +83,7 @@ contract DeployAll is Script {
         return addresses;
     }
 
-    function _verifyDeployment(
-        DeploymentAddresses memory addresses
-    ) internal view {
+    function _verifyDeployment(DeploymentAddresses memory addresses) internal view {
         Router router = Router(addresses.router);
         Vault vault = Vault(payable(addresses.vaultProxy));
 
@@ -104,17 +100,12 @@ contract DeployAll is Script {
             vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), addresses.admin),
             "Vault: Admin role not granted"
         );
-        require(
-            address(vault.router()) == addresses.router,
-            "Vault: Router not set"
-        );
+        require(address(vault.router()) == addresses.router, "Vault: Router not set");
 
         console.log("All verifications passed");
     }
 
-    function _printSummary(
-        DeploymentAddresses memory addresses
-    ) internal pure {
+    function _printSummary(DeploymentAddresses memory addresses) internal pure {
         console.log("\n========================================");
         console.log("DEPLOYMENT SUMMARY");
         console.log("========================================");
