@@ -4,16 +4,7 @@ const hre = require("hardhat");
 // Networks and their deployed Vault contract addresses
 // You can add multiple addresses per network if needed
 const DEPLOYED_CONTRACTS = {
-  "avalanche_c_chain": [
-    "0xAc73E77b4FE9BBAAA35C7147DC3Fd5286929A746"
-  ],
-  "hyperliquid": [
-    "0xAc73E77b4FE9BBAAA35C7147DC3Fd5286929A746"
-  ],
-  "monad_mainnet": [
-    "0x590cb8868c6DeBc12CCd42E837042659cfB91504"
-  ],
-  "ethereum": [
+  "citrea_mainnet": [
     "0xAc73E77b4FE9BBAAA35C7147DC3Fd5286929A746"
   ]
 };
