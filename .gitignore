@@ -26,3 +26,5 @@ fuelVM/vault/tests
 
 # OS files
 .DS_Store
+
+.sisyphus
