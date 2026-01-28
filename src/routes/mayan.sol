@@ -3,6 +3,7 @@ pragma solidity ^0.8.29;
 
 import { Request, RouterAction, Universe, SourcePair } from "../types.sol";
 import { ICaRouter } from "../interfaces/ICaRouter.sol";
+import { IMayanSwiftV1 } from "../interfaces/IMayanSwiftV1.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -36,6 +37,11 @@ interface IMayanForwarder {
     /// @param mayanProtocol Target Mayan protocol address
     /// @param protocolData Encoded protocol call data
     function forwardEth(address mayanProtocol, bytes calldata protocolData) external payable;
+}
+
+enum SwiftVersion {
+    V2,
+    V1
 }
 
 /// @title IMayanSwiftV2
@@ -91,6 +97,10 @@ contract MayanRouter is ICaRouter, Ownable {
 
     address public constant SWIFT_V2_PROTOCOL = 0xc05fb021704D4709c8C058da691fdf4070574685;
 
+    address public constant SWIFT_V1_PROTOCOL = 0xC38e4e6A15593f908255214653d3D947CA1c2338;
+
+    error InvalidSwiftVersion(uint8 version);
+
     mapping(bytes32 => mapping(uint256 => uint16)) public caip2ToWormholeChainId;
 
     /// @notice Emitted when a Wormhole chain mapping is updated
@@ -113,10 +123,10 @@ contract MayanRouter is ICaRouter, Ownable {
         caip2ToWormholeChainId[eip155][56] = 4;
     }
 
-    /// @notice Process cross-chain token transfer via Mayan Swift V2
+    /// @notice Process cross-chain token transfer via Mayan Swift V2 or V1
     /// @dev Only supports ETHEREUM universe sources. Destination chain must be configured.
     /// @param request Action struct containing source, destination, and recipient details
-    /// @param data ABI-encoded (uint64 gasDrop, uint64 deadline)
+    /// @param data ABI-encoded (SwiftVersion, remaining data)
     function processTransfer(RouterAction calldata request, bytes calldata data)
         external
         payable
@@ -124,6 +134,29 @@ contract MayanRouter is ICaRouter, Ownable {
     {
         address tokenIn = address(uint160(uint256(request.tokenAddress)));
         uint256 amountIn = request.amountIn;
+
+        (SwiftVersion version, bytes memory remainingData) = abi.decode(data, (SwiftVersion, bytes));
+
+        if (version == SwiftVersion.V2) {
+            _processTransferV2(request, tokenIn, amountIn, remainingData);
+        } else if (version == SwiftVersion.V1) {
+            _processTransferV1(request, tokenIn, amountIn, remainingData);
+        } else {
+            revert InvalidSwiftVersion(uint8(version));
+        }
+    }
+
+    /// @notice Process cross-chain transfer via Mayan Swift V2
+    /// @param request Action struct containing source, destination, and recipient details
+    /// @param tokenIn Source token address (address(0) for ETH)
+    /// @param amountIn Amount to transfer
+    /// @param data ABI-encoded V2 payload
+    function _processTransferV2(
+        RouterAction calldata request,
+        address tokenIn,
+        uint256 amountIn,
+        bytes memory data
+    ) internal {
         (
             uint64 gasDrop,
             bytes32 destAddr,
@@ -182,6 +215,91 @@ contract MayanRouter is ICaRouter, Ownable {
             IMayanForwarder.PermitParams memory emptyPermit;
             IMayanForwarder(MAYAN_FORWARDER)
                 .forwardERC20(tokenIn, amountIn, emptyPermit, SWIFT_V2_PROTOCOL, protocolData);
+        }
+    }
+
+    /// @notice Process cross-chain transfer via Mayan Swift V1
+    /// @param request Action struct containing source, destination, and recipient details
+    /// @param tokenIn Source token address (address(0) for ETH)
+    /// @param amountIn Amount to transfer
+    /// @param data ABI-encoded V1 payload
+    function _processTransferV1(
+        RouterAction calldata request,
+        address tokenIn,
+        uint256 amountIn,
+        bytes memory data
+    ) internal {
+        (
+            bytes32 trader,
+            bytes32 tokenOut,
+            uint64 minAmountOut,
+            uint64 gasDrop,
+            uint64 cancelFee,
+            uint64 refundFee,
+            uint64 deadline,
+            bytes32 destAddr,
+            uint16 payloadDestChainId,
+            bytes32 referrerAddr,
+            uint8 referrerBps,
+            uint8 auctionMode,
+            bytes32 random
+        ) = abi.decode(
+            data,
+            (
+                bytes32,
+                bytes32,
+                uint64,
+                uint64,
+                uint64,
+                uint64,
+                uint64,
+                bytes32,
+                uint16,
+                bytes32,
+                uint8,
+                uint8,
+                bytes32
+            )
+        );
+
+        uint16 wormholeChainId = caip2ToWormholeChainId[
+            request.destinationCaip2namespace
+        ][request.destinationCaip2chainId];
+        require(wormholeChainId != 0, "Unsupported destination chain");
+
+        IMayanSwiftV1.OrderParams memory orderParams = IMayanSwiftV1.OrderParams({
+            trader: trader,
+            tokenOut: tokenOut,
+            minAmountOut: minAmountOut,
+            gasDrop: gasDrop,
+            cancelFee: cancelFee,
+            refundFee: refundFee,
+            deadline: deadline,
+            destAddr: destAddr,
+            destChainId: wormholeChainId,
+            referrerAddr: referrerAddr,
+            referrerBps: referrerBps,
+            auctionMode: auctionMode,
+            random: random
+        });
+
+        if (tokenIn == address(0)) {
+            bytes memory protocolData =
+                abi.encodeWithSelector(IMayanSwiftV1.createOrderWithEth.selector, orderParams);
+
+            IMayanForwarder(MAYAN_FORWARDER).forwardEth{ value: amountIn }(
+                SWIFT_V1_PROTOCOL, protocolData
+            );
+        } else {
+            bytes memory protocolData = abi.encodeWithSelector(
+                IMayanSwiftV1.createOrderWithToken.selector, tokenIn, amountIn, orderParams
+            );
+            IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
+            IERC20(tokenIn).approve(MAYAN_FORWARDER, amountIn);
+
+            IMayanForwarder.PermitParams memory emptyPermit;
+            IMayanForwarder(MAYAN_FORWARDER)
+                .forwardERC20(tokenIn, amountIn, emptyPermit, SWIFT_V1_PROTOCOL, protocolData);
         }
     }
 
