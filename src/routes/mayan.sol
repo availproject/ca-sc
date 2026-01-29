@@ -4,88 +4,14 @@ pragma solidity ^0.8.29;
 import { Request, RouterAction, Universe, SourcePair } from "../types.sol";
 import { ICaRouter } from "../interfaces/ICaRouter.sol";
 import { IMayanSwiftV1 } from "../interfaces/IMayanSwiftV1.sol";
+import { IMayanForwarder } from "../interfaces/IMayanForwarder.sol";
+import { IMayanSwiftV2 } from "../interfaces/IMayanSwiftV2.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-
-/// @title IMayanForwarder
-/// @notice Interface for Mayan's forwarder contract that handles token transfers
-interface IMayanForwarder {
-    /// @notice Permit parameters for gasless ERC20 approvals
-    struct PermitParams {
-        uint256 value;
-        uint256 deadline;
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-    }
-
-    /// @notice Forward ERC20 tokens to Mayan protocol
-    /// @param tokenIn Source token address
-    /// @param amountIn Amount to forward
-    /// @param permitParams Permit signature parameters
-    /// @param mayanProtocol Target Mayan protocol address
-    /// @param protocolData Encoded protocol call data
-    function forwardERC20(
-        address tokenIn,
-        uint256 amountIn,
-        PermitParams calldata permitParams,
-        address mayanProtocol,
-        bytes calldata protocolData
-    ) external payable;
-
-    /// @notice Forward native ETH to Mayan protocol
-    /// @param mayanProtocol Target Mayan protocol address
-    /// @param protocolData Encoded protocol call data
-    function forwardEth(address mayanProtocol, bytes calldata protocolData) external payable;
-}
 
 enum SwiftVersion {
     V2,
     V1
-}
-
-/// @title IMayanSwiftV2
-/// @notice Interface for Mayan Swift V2 cross-chain swap protocol
-interface IMayanSwiftV2 {
-    /// @notice Order parameters for cross-chain swap
-    struct OrderParams {
-        uint8 payloadType;
-        bytes32 trader;
-        bytes32 destAddr;
-        uint16 destChainId;
-        bytes32 referrerAddr;
-        bytes32 tokenOut;
-        uint64 minAmountOut;
-        uint64 gasDrop;
-        uint64 cancelFee;
-        uint64 refundFee;
-        uint64 deadline;
-        uint8 referrerBps;
-        uint8 auctionMode;
-        bytes32 random;
-    }
-
-    /// @notice Create order with native ETH
-    /// @param params Order parameters
-    /// @param customPayload Additional payload data
-    /// @return orderHash Hash of the created order
-    function createOrderWithEth(OrderParams memory params, bytes memory customPayload)
-        external
-        payable
-        returns (bytes32 orderHash);
-
-    /// @notice Create order with ERC20 token
-    /// @param tokenIn Source token address
-    /// @param amountIn Amount to swap
-    /// @param params Order parameters
-    /// @param customPayload Additional payload data
-    /// @return orderHash Hash of the created order
-    function createOrderWithToken(
-        address tokenIn,
-        uint256 amountIn,
-        OrderParams memory params,
-        bytes memory customPayload
-    ) external returns (bytes32 orderHash);
 }
 
 /// @title MayanRouter

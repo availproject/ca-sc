@@ -10,72 +10,10 @@ import { Action, RouterAction, SourcePair, Party, Universe, Route } from "../src
 import { console } from "forge-std/console.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-enum SwiftVersion { V2, V1 }
-
-interface IMayanForwarder {
-    struct PermitParams {
-        uint256 value;
-        uint256 deadline;
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-    }
-
-    function forwardERC20(
-        address tokenIn,
-        uint256 amountIn,
-        PermitParams calldata permitParams,
-        address mayanProtocol,
-        bytes calldata protocolData
-    ) external payable;
-
-    function forwardEth(address mayanProtocol, bytes calldata protocolData) external payable;
-}
-
-interface IMayanSwiftV2 {
-    struct OrderParams {
-        uint8 payloadType;
-        bytes32 trader;
-        bytes32 destAddr;
-        uint16 destChainId;
-        bytes32 referrerAddr;
-        bytes32 tokenOut;
-        uint64 minAmountOut;
-        uint64 gasDrop;
-        uint64 cancelFee;
-        uint64 refundFee;
-        uint64 deadline;
-        uint8 referrerBps;
-        uint8 auctionMode;
-        bytes32 random;
-    }
-
-    function createOrderWithToken(
-        address tokenIn,
-        uint256 amountIn,
-        OrderParams memory params,
-        bytes memory customPayload
-    ) external returns (bytes32 orderHash);
-}
-
-interface IMayanSwiftV1 {
-    struct OrderParams {
-        bytes32 trader;
-        bytes32 tokenOut;
-        uint64 minAmountOut;
-        uint64 gasDrop;
-        uint64 cancelFee;
-        uint64 refundFee;
-        uint64 deadline;
-        bytes32 destAddr;
-        uint16 destChainId;
-        bytes32 referrerAddr;
-        uint8 referrerBps;
-        uint8 auctionMode;
-        bytes32 random;
-    }
-}
+import { IMayanForwarder } from "../src/interfaces/IMayanForwarder.sol";
+import { IMayanSwiftV2 } from "../src/interfaces/IMayanSwiftV2.sol";
+import { IMayanSwiftV1 } from "../src/interfaces/IMayanSwiftV1.sol";
+import { SwiftVersion } from "../src/routes/mayan.sol";
 
 contract MayanRouterTest is Test {
     MayanRouter public mayanRouter;
