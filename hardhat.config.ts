@@ -97,6 +97,11 @@ const config: HardhatUserConfig = {
     citrea_mainnet: {
       url: "https://rpc.mainnet.citrea.xyz",
       accounts: [PK]
+    },
+
+    mega_eth: {
+      url: "https://mainnet.megaeth.com/rpc?vip=1&u=avail%20v1&v=5184000&s=mafia&verify=1766582028-si48VPmKapsIL%2FGTf7uQuPYGc5f0%2F8VYCiBdrvVSfqg%3D",
+      accounts: [PK]
     }
   },
   // etherscan: {

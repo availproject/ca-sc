@@ -4,8 +4,8 @@ const hre = require("hardhat");
 // Networks and their deployed Vault contract addresses
 // You can add multiple addresses per network if needed
 const DEPLOYED_CONTRACTS = {
-  "citrea_mainnet": [
-    "0xAc73E77b4FE9BBAAA35C7147DC3Fd5286929A746"
+  "mega_eth": [
+    "0x5f02ED27A20BbDbB90EEf98670fA36c36fc02D12"
   ]
 };
 
