@@ -2,6 +2,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import "hardhat-gas-reporter";
+import "dotenv/config";
 
 // import '@nomicfoundation/hardhat-verify';
 
@@ -20,89 +21,85 @@ const config: HardhatUserConfig = {
   },
   networks: {
     ethereum: {
-      url: "https://ethereum-rpc.publicnode.com",
+      url: process.env.ETHEREUM_RPC_URL!,
       accounts: [PK],
     },
     polygon_mainnet: {
-      url: "https://polygon-mainnet.g.alchemy.com/v2/PfaswrKq0rjOrfYWHfE9uLQKhiD4JCdq",
+      url: process.env.POLYGON_MAINNET_RPC_URL!,
       accounts: [PK],
     },
     arb_sepolia: {
-      url: "https://arbitrum-sepolia-rpc.publicnode.com",
+      url: process.env.ARB_SEPOLIA_RPC_URL!,
       accounts: [PK],
     },
     op_sepolia: {
-      url: "https://optimism-sepolia.api.onfinality.io/public",
+      url: process.env.OP_SEPOLIA_RPC_URL!,
       accounts: [PK],
     },
     monad_testnet: {
-      url: "https://testnet-rpc.monad.xyz",
+      url: process.env.MONAD_TESTNET_RPC_URL!,
       accounts: [PK],
     },
     holešky: {
-      url: "https://ethereum-holesky-rpc.publicnode.com",
+      url: process.env.HOLESKY_RPC_URL!,
       accounts: [PK],
     },
     arbitrum_one: {
-      url: "https://arbitrum-one-rpc.publicnode.com",
+      url: process.env.ARBITRUM_ONE_RPC_URL!,
       accounts: [PK],
     },
     optimism_mainnet: {
-      url: "https://optimism-rpc.publicnode.com",
+      url: process.env.OPTIMISM_MAINNET_RPC_URL!,
       accounts: [PK],
     },
     base_mainnet: {
-      url: "https://base-rpc.publicnode.com",
+      url: process.env.BASE_MAINNET_RPC_URL!,
       accounts: [PK],
     },
     scroll_mainnet: {
-      url: "https://scroll-rpc.publicnode.com",
+      url: process.env.SCROLL_MAINNET_RPC_URL!,
       accounts: [PK],
     },
     linea_mainnet: {
-      url: "https://linea-rpc.publicnode.com",
+      url: process.env.LINEA_MAINNET_RPC_URL!,
       accounts: [PK],
     },
     sophon_mainnet: {
-      url: "https://rpc.sophon.xyz",
+      url: process.env.SOPHON_MAINNET_RPC_URL!,
       accounts: [PK],
     },
     avalanche_c_chain: {
-      url: "https://avalanche-c-chain-rpc.publicnode.com",
+      url: process.env.AVALANCHE_C_CHAIN_RPC_URL!,
       accounts: [PK],
     },
     hyperliquid: {
-      url: "https://rpc.hyperliquid.xyz/evm",
+      url: process.env.HYPERLIQUID_RPC_URL!,
       accounts: [PK],
     },
     kaia_mainnet: {
-      url: "https://rpc.ankr.com/kaia",
+      url: process.env.KAIA_MAINNET_RPC_URL!,
       accounts: [PK],
     },
     bnb_smart_chain_mainnet: {
-      url: "https://bsc-mainnet.public.blastapi.io",
+      url: process.env.BNB_SMART_CHAIN_MAINNET_RPC_URL!,
       accounts: [PK],
     },
-
     citrea_testnet: {
-      url: "https://rpc.testnet.citrea.xyz",
-      accounts: [PK]
-    },
-
-    monad_mainnet: {
-      url: "https://monad-mainnet.drpc.org",
+      url: process.env.CITREA_TESTNET_RPC_URL!,
       accounts: [PK],
     },
-
-    citrea_mainnet: {
-      url: "https://rpc.mainnet.citrea.xyz",
-      accounts: [PK]
+    monad_mainnet: {
+      url: process.env.MONAD_MAINNET_RPC_URL!,
+      accounts: [PK],
     },
-
+    citrea_mainnet: {
+      url: process.env.CITREA_MAINNET_RPC_URL!,
+      accounts: [PK],
+    },
     mega_eth: {
-      url: "https://mainnet.megaeth.com/rpc?vip=1&u=avail%20v1&v=5184000&s=mafia&verify=1766582028-si48VPmKapsIL%2FGTf7uQuPYGc5f0%2F8VYCiBdrvVSfqg%3D",
-      accounts: [PK]
-    }
+      url: process.env.MEGA_ETH_RPC_URL!,
+      accounts: [PK],
+    },
   },
   // etherscan: {
   //   apiKey: {

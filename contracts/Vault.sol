@@ -2,33 +2,16 @@
 pragma solidity ^0.8.29;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-    SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import {
-    AccessControlUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {
-    ReentrancyGuardTransient
-} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
-import {
-    AccessControlUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {
-    Initializable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {
-    UUPSUpgradeable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract Vault is
-    Initializable,
-    UUPSUpgradeable,
-    AccessControlUpgradeable,
-    ReentrancyGuardTransient
-{
+contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ReentrancyGuardTransient {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
@@ -51,8 +34,8 @@ contract Vault is
     mapping(uint256 => bool) public fillNonce;
     mapping(uint256 => bool) public settleNonce;
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
-    bytes32 private constant SETTLEMENT_VERIFIER_ROLE =
-        keccak256("SETTLEMENT_VERIFIER_ROLE");
+    bytes32 private constant SETTLEMENT_VERIFIER_ROLE = keccak256("SETTLEMENT_VERIFIER_ROLE");
+    bytes32 private constant SIGNATURE_PREFIX = "Sign this intent to proceed";
     // Storage gap to reserve slots for future use
     uint256[50] private __gap;
 
@@ -95,12 +78,7 @@ contract Vault is
 
     event Deposit(bytes32 indexed requestHash, address from);
     event Fulfilment(bytes32 indexed requestHash, address from, address solver);
-    event Settle(
-        uint256 indexed nonce,
-        address[] solver,
-        address[] token,
-        uint256[] amount
-    );
+    event Settle(uint256 indexed nonce, address[] solver, address[] token, uint256[] amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -114,26 +92,21 @@ contract Vault is
         _grantRole(UPGRADER_ROLE, admin);
     }
 
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(UPGRADER_ROLE) {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
-    function _hashRequest(
-        Request calldata request
-    ) private pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    request.sources,
-                    request.destinationUniverse,
-                    request.destinationChainID,
-                    request.recipientAddress,
-                    request.destinations,
-                    request.nonce,
-                    request.expiry,
-                    request.parties
-                )
-            );
+    function _hashRequest(Request calldata request) private pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                request.sources,
+                request.destinationUniverse,
+                request.destinationChainID,
+                request.recipientAddress,
+                request.destinations,
+                request.nonce,
+                request.expiry,
+                request.parties
+            )
+        );
     }
 
     function bytes32ToAddress(bytes32 a) internal pure returns (address) {
@@ -141,44 +114,32 @@ contract Vault is
         return address(uint160(uint256(a)));
     }
 
-    function _verify_request(
-        bytes calldata signature,
-        address from,
-        Request calldata request
-    ) private pure returns (bool, bytes32) {
-        // Prepend the Ethereum signed message prefix
-        bytes32 signedMessageHash = keccak256(
-            abi.encodePacked(
-                "\x19Ethereum Signed Message:\n32",
-                _hashRequest(request)
-            )
-        );
+    function _verify_request(bytes calldata signature, address from, bytes32 hash)
+        private
+        pure
+        returns (bool, bytes32)
+    {
+        bytes32 prefixedHash = keccak256(abi.encodePacked(SIGNATURE_PREFIX, hash));
+
+        // Apply EIP-191 prefix
+        bytes32 signedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", prefixedHash));
 
         // Recover the signer from the signature
         address signer = signedMessageHash.recover(signature);
         return (signer == from, signedMessageHash);
     }
 
-    function deposit(
-        Request calldata request,
-        bytes calldata signature,
-        uint256 chainIndex
-    ) external payable nonReentrant {
+    function deposit(Request calldata request, bytes calldata signature, uint256 chainIndex)
+        external
+        payable
+        nonReentrant
+    {
         address from = extractAddress(request.parties);
-        (bool success, bytes32 signedMessageHash) = _verify_request(
-            signature,
-            from,
-            request
-        );
+        bytes32 request_hash = _hashRequest(request);
+        (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
-        require(
-            request.sources[chainIndex].chainID == block.chainid,
-            "Vault: Chain ID mismatch"
-        );
-        require(
-            request.sources[chainIndex].universe == Universe.ETHEREUM,
-            "Vault: Universe mismatch"
-        );
+        require(request.sources[chainIndex].chainID == block.chainid, "Vault: Chain ID mismatch");
+        require(request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!depositNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
@@ -189,32 +150,21 @@ contract Vault is
             uint256 totalValue = request.sources[chainIndex].value;
             require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
-            IERC20 token = IERC20(
-                bytes32ToAddress(request.sources[chainIndex].contractAddress)
-            );
+            IERC20 token = IERC20(bytes32ToAddress(request.sources[chainIndex].contractAddress));
 
             uint256 bal = token.balanceOf(address(this));
-            token.safeTransferFrom(
-                from,
-                address(this),
-                request.sources[chainIndex].value
-            );
+            token.safeTransferFrom(from, address(this), request.sources[chainIndex].value);
             // fee on transfer tokens
-            if (
-                token.balanceOf(address(this)) - bal !=
-                request.sources[chainIndex].value
-            ) {
+            if (token.balanceOf(address(this)) - bal != request.sources[chainIndex].value) {
                 revert("Vault: failed to transfer the source amount");
             }
         }
 
-        emit Deposit(signedMessageHash, from);
+        emit Deposit(request_hash, from);
     }
 
-    function extractAddress(
-        Party[] memory parties
-    ) internal pure returns (address user) {
-        for (uint i = 0; i < parties.length; ++i) {
+    function extractAddress(Party[] memory parties) internal pure returns (address user) {
+        for (uint256 i = 0; i < parties.length; ++i) {
             if (parties[i].universe == Universe.ETHEREUM) {
                 return bytes32ToAddress(parties[i].address_);
             }
@@ -222,25 +172,13 @@ contract Vault is
         revert("Vault: Party not found");
     }
 
-    function fulfil(
-        Request calldata request,
-        bytes calldata signature
-    ) external payable nonReentrant {
+    function fulfil(Request calldata request, bytes calldata signature) external payable nonReentrant {
         address from = extractAddress(request.parties);
-        (bool success, bytes32 signedMessageHash) = _verify_request(
-            signature,
-            from,
-            request
-        );
+        bytes32 request_hash = _hashRequest(request);
+        (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
-        require(
-            uint256(request.destinationChainID) == block.chainid,
-            "Vault: Chain ID mismatch"
-        );
-        require(
-            request.destinationUniverse == Universe.ETHEREUM,
-            "Vault: Universe mismatch"
-        );
+        require(uint256(request.destinationChainID) == block.chainid, "Vault: Chain ID mismatch");
+        require(request.destinationUniverse == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!fillNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
         address recipient = bytes32ToAddress(request.recipientAddress);
@@ -250,60 +188,43 @@ contract Vault is
         winningSolver[signedMessageHash] = msg.sender;
 
         uint256 nativeBalance = msg.value;
-        for (uint i = 0; i < request.destinations.length; ++i) {
+        for (uint256 i = 0; i < request.destinations.length; ++i) {
             if (request.destinations[i].contractAddress == bytes32(0)) {
-                require(
-                    nativeBalance >= request.destinations[i].value,
-                    "Vault: Value mismatch"
-                );
-                require(
-                    request.destinations[i].value > 0,
-                    "Vault: Value mismatch"
-                );
+                require(nativeBalance >= request.destinations[i].value, "Vault: Value mismatch");
+                require(request.destinations[i].value > 0, "Vault: Value mismatch");
                 nativeBalance -= request.destinations[i].value;
-                (bool sent, ) = payable(recipient).call{
-                    value: request.destinations[i].value
-                }("");
+                (bool sent,) = payable(recipient).call{value: request.destinations[i].value}("");
                 require(sent, "Vault: Transfer failed");
             } else {
-                IERC20 token = IERC20(
-                    bytes32ToAddress(request.destinations[i].contractAddress)
-                );
+                IERC20 token = IERC20(bytes32ToAddress(request.destinations[i].contractAddress));
 
                 uint256 bal = token.balanceOf(recipient);
-                token.safeTransferFrom(
-                    msg.sender,
-                    recipient,
-                    request.destinations[i].value
-                );
+                token.safeTransferFrom(msg.sender, recipient, request.destinations[i].value);
                 // fee on transfer tokens
-                if (
-                    token.balanceOf(recipient) - bal !=
-                    request.destinations[i].value
-                ) {
+                if (token.balanceOf(recipient) - bal != request.destinations[i].value) {
                     revert("Vault: failed to transfer the destination amount");
                 }
             }
         }
         if (nativeBalance > 0) {
-            (bool sent, ) = payable(msg.sender).call{value: nativeBalance}("");
+            (bool sent,) = payable(msg.sender).call{value: nativeBalance}("");
             require(sent, "Vault: Transfer failed");
         }
         emit Fulfilment(signedMessageHash, from, msg.sender);
     }
 
-    function verifyRequestSignature(
-        Request calldata request,
-        bytes calldata signature
-    ) external pure returns (bool, bytes32) {
+    function verifyRequestSignature(Request calldata request, bytes calldata signature)
+        external
+        pure
+        returns (bool, bytes32)
+    {
         address from = extractAddress(request.parties);
-        return _verify_request(signature, from, request);
+
+        bytes32 request_hash = _hashRequest(request);
+        return _verify_request(signature, from, request_hash);
     }
 
-    function settle(
-        SettleData calldata settleData,
-        bytes calldata signature
-    ) external nonReentrant {
+    function settle(SettleData calldata settleData, bytes calldata signature) external nonReentrant {
         bytes32 structHash = keccak256(
             abi.encode(
                 settleData.universe,
@@ -314,53 +235,26 @@ contract Vault is
                 settleData.nonce
             )
         );
-        bytes32 signatureHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash)
-        );
+        bytes32 signatureHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
         address signer = signatureHash.recover(signature);
-        require(
-            hasRole(SETTLEMENT_VERIFIER_ROLE, signer),
-            "Vault: Invalid signature"
-        );
-        require(
-            settleData.solvers.length == settleData.contractAddresses.length,
-            "tokens length mismatch"
-        );
+        require(hasRole(SETTLEMENT_VERIFIER_ROLE, signer), "Vault: Invalid signature");
+        require(settleData.solvers.length == settleData.contractAddresses.length, "tokens length mismatch");
 
-        require(
-            settleData.solvers.length == settleData.amounts.length,
-            "amounts length mismatch"
-        );
+        require(settleData.solvers.length == settleData.amounts.length, "amounts length mismatch");
         require(!settleNonce[settleData.nonce], "Vault: Nonce already used");
-        require(
-            settleData.chainID == block.chainid,
-            "Vault: Chain ID mismatch"
-        );
-        require(
-            settleData.universe == Universe.ETHEREUM,
-            "Vault: Universe mismatch"
-        );
+        require(settleData.chainID == block.chainid, "Vault: Chain ID mismatch");
+        require(settleData.universe == Universe.ETHEREUM, "Vault: Universe mismatch");
 
         settleNonce[settleData.nonce] = true;
-        for (uint i = 0; i < settleData.solvers.length; ++i) {
+        for (uint256 i = 0; i < settleData.solvers.length; ++i) {
             if (settleData.contractAddresses[i] == address(0)) {
-                (bool sent, ) = settleData.solvers[i].call{
-                    value: settleData.amounts[i]
-                }("");
+                (bool sent,) = settleData.solvers[i].call{value: settleData.amounts[i]}("");
                 require(sent, "Vault: Transfer failed");
             } else {
                 IERC20 token = IERC20(settleData.contractAddresses[i]);
-                token.safeTransfer(
-                    settleData.solvers[i],
-                    settleData.amounts[i]
-                );
+                token.safeTransfer(settleData.solvers[i], settleData.amounts[i]);
             }
         }
-        emit Settle(
-            settleData.nonce,
-            settleData.solvers,
-            settleData.contractAddresses,
-            settleData.amounts
-        );
+        emit Settle(settleData.nonce, settleData.solvers, settleData.contractAddresses, settleData.amounts);
     }
 }
