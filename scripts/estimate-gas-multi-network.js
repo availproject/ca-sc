@@ -140,8 +140,7 @@ async function estimateGasForNetwork(networkName) {
       const nativeToken = NATIVE_TOKENS[networkName] || "ETH";
       console.log(`✅ Gas Estimate: ${gasEstimate.toString()}`);
       console.log(
-        `   Cost: ${
-          estimatedCost ? ethers.formatEther(estimatedCost) : "N/A"
+        `   Cost: ${estimatedCost ? ethers.formatEther(estimatedCost) : "N/A"
         } ${nativeToken}`
       );
 
