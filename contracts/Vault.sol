@@ -2,33 +2,16 @@
 pragma solidity ^0.8.29;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-    SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import {
-    AccessControlUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {
-    ReentrancyGuardTransient
-} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
-import {
-    AccessControlUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {
-    Initializable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {
-    UUPSUpgradeable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract Vault is
-    Initializable,
-    UUPSUpgradeable,
-    AccessControlUpgradeable,
-    ReentrancyGuardTransient
-{
+contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ReentrancyGuardTransient {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
@@ -168,32 +151,13 @@ contract Vault is
             uint256 totalValue = request.sources[chainIndex].value;
             require(msg.value == totalValue, "Vault: Value mismatch");
         } else {
-            IERC20 token = IERC20(
-                bytes32ToAddress(request.sources[chainIndex].contractAddress)
-            );
+            IERC20 token = IERC20(bytes32ToAddress(request.sources[chainIndex].contractAddress));
 
             uint256 bal = token.balanceOf(address(this));
             token.safeTransferFrom(from, address(this), request.sources[chainIndex].value);
             // fee on transfer tokens
-            if (
-                token.balanceOf(address(this)) - bal !=
-                request.sources[chainIndex].value
-            ) {
+            if (token.balanceOf(address(this)) - bal != request.sources[chainIndex].value) {
                 revert("Vault: failed to transfer the source amount");
-            }
-
-            token.safeTransferFrom(
-                from,
-                address(msg.sender),
-                request.sources[chainIndex].fee
-            );
-
-            // fee on transfer tokens
-            if (
-                token.balanceOf(msg.sender) - solverBal !=
-                request.sources[chainIndex].fee
-            ) {
-                revert("Vault: failed to transfer the fee amount");
             }
         }
 
@@ -233,17 +197,12 @@ contract Vault is
                 (bool sent,) = payable(recipient).call{value: request.destinations[i].value}("");
                 require(sent, "Vault: Transfer failed");
             } else {
-                IERC20 token = IERC20(
-                    bytes32ToAddress(request.destinations[i].contractAddress)
-                );
+                IERC20 token = IERC20(bytes32ToAddress(request.destinations[i].contractAddress));
 
                 uint256 bal = token.balanceOf(recipient);
                 token.safeTransferFrom(msg.sender, recipient, request.destinations[i].value);
                 // fee on transfer tokens
-                if (
-                    token.balanceOf(recipient) - bal !=
-                    request.destinations[i].value
-                ) {
+                if (token.balanceOf(recipient) - bal != request.destinations[i].value) {
                     revert("Vault: failed to transfer the destination amount");
                 }
             }
@@ -252,7 +211,7 @@ contract Vault is
             (bool sent,) = payable(msg.sender).call{value: nativeBalance}("");
             require(sent, "Vault: Transfer failed");
         }
-        emit Fulfilment(signedMessageHash, from, msg.sender);
+        emit Fulfilment(request_hash, from, msg.sender);
     }
 
     function verifyRequestSignature(Request calldata request, bytes calldata signature)
@@ -284,14 +243,8 @@ contract Vault is
 
         require(settleData.solvers.length == settleData.amounts.length, "amounts length mismatch");
         require(!settleNonce[settleData.nonce], "Vault: Nonce already used");
-        require(
-            settleData.chainID == block.chainid,
-            "Vault: Chain ID mismatch"
-        );
-        require(
-            settleData.universe == Universe.ETHEREUM,
-            "Vault: Universe mismatch"
-        );
+        require(settleData.chainID == block.chainid, "Vault: Chain ID mismatch");
+        require(settleData.universe == Universe.ETHEREUM, "Vault: Universe mismatch");
 
         settleNonce[settleData.nonce] = true;
         for (uint256 i = 0; i < settleData.solvers.length; ++i) {
