@@ -35,7 +35,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     mapping(uint256 => bool) public settleNonce;
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 private constant SETTLEMENT_VERIFIER_ROLE = keccak256("SETTLEMENT_VERIFIER_ROLE");
-    bytes32 private constant SIGNATURE_PREFIX = "Sign this intent to proceed";
+    bytes32 private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
     // Storage gap to reserve slots for future use
     uint256[50] private __gap;
 
