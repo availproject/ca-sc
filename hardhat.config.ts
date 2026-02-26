@@ -100,6 +100,18 @@ const config: HardhatUserConfig = {
       url: process.env.MEGA_ETH_RPC_URL!,
       accounts: [PK],
     },
+    base_sepolia: {
+      url: process.env.BASE_SEPOLIA_RPC_URL!,
+      accounts: [PK],
+    },
+    polygon_amony: {
+      url: process.env.POLYGON_AMONY_RPC_URL!,
+      accounts: [PK],
+    },
+    sepolia: {
+      url: process.env.SEPOLIA,
+      accounts: [PK]
+    }
   },
   // etherscan: {
   //   apiKey: {

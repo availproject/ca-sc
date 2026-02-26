@@ -5,13 +5,19 @@ const path = require("path");
 
 // Networks to upgrade (modify as needed)
 const NETWORKS_TO_UPGRADE = [
-  "polygon_mainnet",
-  "arbitrum_one",
-  "optimism_mainnet",
-  "base_mainnet",
-  "scroll_mainnet",
-  "bnb_smart_chain_mainnet",
+  // "polygon_mainnet",
+  // "arbitrum_one",
+  // "optimism_mainnet",
+  // "base_mainnet",
+  // "scroll_mainnet",
   //   "tron_mainnet",
+  // "base_sepolia",
+  // "arb_sepolia",
+  // "op_sepolia",
+  // "polygon_amony",
+  // "sepolia",
+  // "monad_testnet",
+  "citrea_testnet"
 ];
 
 // Native token names for each network
@@ -71,8 +77,7 @@ async function upgradeProxyOnNetwork(networkName, proxyAddress) {
     // Check balance
     const balance = await provider.getBalance(wallet.address);
     console.log(
-      `Balance: ${ethers.formatEther(balance)} ${
-        NATIVE_TOKENS[networkName] || "ETH"
+      `Balance: ${ethers.formatEther(balance)} ${NATIVE_TOKENS[networkName] || "ETH"
       }`
     );
 
@@ -186,8 +191,7 @@ async function upgradeProxyOnNetwork(networkName, proxyAddress) {
     }
     if (actualCost) {
       console.log(
-        `   Cost: ${ethers.formatEther(actualCost)} ${
-          NATIVE_TOKENS[networkName] || "ETH"
+        `   Cost: ${ethers.formatEther(actualCost)} ${NATIVE_TOKENS[networkName] || "ETH"
         }`
       );
     }
@@ -275,8 +279,7 @@ function printReport() {
       );
       if (data.gasUsed) {
         console.log(
-          `   Gas: ${data.gasUsed} | Cost: ${data.actualCost || "N/A"} ${
-            data.nativeToken || "ETH"
+          `   Gas: ${data.gasUsed} | Cost: ${data.actualCost || "N/A"} ${data.nativeToken || "ETH"
           } | Tx: ${data.txHash || "N/A"}`
         );
       }
@@ -332,8 +335,7 @@ async function main() {
       }
     });
     console.log(
-      `📝 Loaded ${
-        Object.keys(proxyAddresses).length
+      `📝 Loaded ${Object.keys(proxyAddresses).length
       } proxy addresses from command line`
     );
   } else {
@@ -357,16 +359,15 @@ async function main() {
               typeof proxies[network] === "string"
                 ? proxies[network]
                 : proxies[network].proxyAddress ||
-                  proxies[network].address ||
-                  proxies[network].implementationAddress;
+                proxies[network].address ||
+                proxies[network].implementationAddress;
             if (proxyAddr) {
               proxyAddresses[network] = proxyAddr;
             }
           }
         });
         console.log(
-          `📝 Loaded ${
-            Object.keys(proxyAddresses).length
+          `📝 Loaded ${Object.keys(proxyAddresses).length
           } proxy addresses from proxy-addresses.json`
         );
       } catch (e) {

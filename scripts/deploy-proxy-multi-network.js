@@ -17,21 +17,27 @@ const NATIVE_TOKENS = {
   kaia_mainnet: "KAI",
   bnb_smart_chain_mainnet: "BNB",
   monad_mainnet: "MONAD",
-  sepolia: "ETH",
   arb_sepolia: "ETH",
   op_sepolia: "ETH",
   base_sepolia: "ETH",
-  polygon_amony: "MATIC",
   citrea_testnet: "cBTC",
+  monad_testnet: "MONAD"
 };
 
 const NETWORKS_TO_DEPLOY = [
-  "avalanche_c_chain",
-  "hyperliquid",
+  // "avalanche_c_chain",
+  // "hyperliquid",
   // "kaia_mainnet",
   // "bnb_smart_chain_mainnet",
-  "monad_mainnet",
-  "ethereum",
+  // "monad_mainnet",
+  // "ethereum",
+  // "base_sepolia",
+  // "arb_sepolia",
+  // "op_sepolia",
+  // "polygon_amony",
+  // "sepolia"
+  // "monad_testnet",
+  "citrea_testnet"
 ];
 
 async function deploySingleNetwork(adminAddress) {
@@ -120,7 +126,7 @@ function runMultiNetwork(adminAddress, networks) {
     try {
       const adminArg = adminAddress ? `--admin ${adminAddress}` : "";
       const cmd = `npx hardhat run scripts/deploy-proxy-multi-network.js --network ${networkName} ${adminArg}`;
-      
+
       const output = execSync(cmd, {
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
@@ -212,7 +218,7 @@ async function main() {
   const args = process.argv.slice(2);
   // Allow admin address via Env var or CLI arg (CLI takes precedence)
   let adminAddress = process.env.PROXY_ADMIN_ADDRESS || null;
-  
+
   const adminIdx = args.indexOf("--admin");
   if (adminIdx !== -1 && args[adminIdx + 1]) {
     adminAddress = args[adminIdx + 1];

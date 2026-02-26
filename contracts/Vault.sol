@@ -35,7 +35,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     mapping(uint256 => bool) public settleNonce;
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 private constant SETTLEMENT_VERIFIER_ROLE = keccak256("SETTLEMENT_VERIFIER_ROLE");
-    bytes32 private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
+    string private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
     // Storage gap to reserve slots for future use
     uint256[50] private __gap;
 
@@ -120,10 +120,13 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         pure
         returns (bool, bytes32)
     {
-        bytes32 prefixedHash = keccak256(abi.encodePacked(SIGNATURE_PREFIX, hash));
+        bytes memory prefixedMsg = abi.encodePacked(SIGNATURE_PREFIX, hash);
+
+        uint256 messageLen = prefixedMsg.length;
 
         // Apply EIP-191 prefix
-        bytes32 signedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", prefixedHash));
+        bytes32 signedMessageHash =
+            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n", messageLen, prefixedMsg));
 
         // Recover the signer from the signature
         address signer = signedMessageHash.recover(signature);
