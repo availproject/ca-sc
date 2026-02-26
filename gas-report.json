@@ -1,0 +1,133 @@
+{
+  "timestamp": "2025-12-08T20:21:06.594Z",
+  "networks": {
+    "ethereum": {
+      "chainId": "1",
+      "gasEstimate": "3415061",
+      "gasPrice": "0.274750221",
+      "maxFeePerGas": "0.549430442",
+      "estimatedCostETH": "0.000938288764478481",
+      "nativeToken": "ETH",
+      "estimatedCostWei": "938288764478481",
+      "timestamp": "2025-12-08T20:21:08.847Z"
+    },
+    "polygon_mainnet": {
+      "chainId": "137",
+      "gasEstimate": "3415061",
+      "gasPrice": "25.087735343",
+      "maxFeePerGas": "26.875026278",
+      "estimatedCostETH": "0.085676146548200923",
+      "nativeToken": "MATIC",
+      "estimatedCostWei": "85676146548200923",
+      "timestamp": "2025-12-08T20:21:13.001Z"
+    },
+    "arbitrum_one": {
+      "chainId": "42161",
+      "gasEstimate": "3415061",
+      "gasPrice": "0.01",
+      "maxFeePerGas": "0.02",
+      "estimatedCostETH": "0.00003415061",
+      "nativeToken": "ETH",
+      "estimatedCostWei": "34150610000000",
+      "timestamp": "2025-12-08T20:21:17.301Z"
+    },
+    "optimism_mainnet": {
+      "chainId": "10",
+      "gasEstimate": "3415061",
+      "gasPrice": "0.001000438",
+      "maxFeePerGas": "0.001000876",
+      "estimatedCostETH": "0.000003416556796718",
+      "nativeToken": "ETH",
+      "estimatedCostWei": "3416556796718",
+      "timestamp": "2025-12-08T20:21:21.030Z"
+    },
+    "base_mainnet": {
+      "chainId": "8453",
+      "gasEstimate": "3415061",
+      "gasPrice": "0.0012",
+      "maxFeePerGas": "0.0014",
+      "estimatedCostETH": "0.0000040980732",
+      "nativeToken": "ETH",
+      "estimatedCostWei": "4098073200000",
+      "timestamp": "2025-12-08T20:21:24.757Z"
+    },
+    "scroll_mainnet": {
+      "chainId": "534352",
+      "gasEstimate": "3388391",
+      "gasPrice": "0.000120108",
+      "maxFeePerGas": "0.000240116",
+      "estimatedCostETH": "0.000000406972866228",
+      "nativeToken": "ETH",
+      "estimatedCostWei": "406972866228",
+      "timestamp": "2025-12-08T20:21:28.835Z"
+    },
+    "linea_mainnet": {
+      "chainId": "59144",
+      "gasEstimate": "3415061",
+      "gasPrice": "0.036904",
+      "maxFeePerGas": "0.036904007",
+      "estimatedCostETH": "0.000126029411144",
+      "nativeToken": "ETH",
+      "estimatedCostWei": "126029411144000",
+      "timestamp": "2025-12-08T20:21:32.745Z"
+    },
+    "avalanche_c_chain": {
+      "chainId": "43114",
+      "gasEstimate": "3415061",
+      "gasPrice": "0.054361849",
+      "maxFeePerGas": "0.108357104",
+      "estimatedCostETH": "0.000185649030407789",
+      "nativeToken": "AVAX",
+      "estimatedCostWei": "185649030407789",
+      "timestamp": "2025-12-08T20:21:36.857Z"
+    },
+    "hyperliquid": {
+      "chainId": "999",
+      "gasEstimate": "3415061",
+      "gasPrice": "2.214357485",
+      "maxFeePerGas": "5.061388536",
+      "estimatedCostETH": "0.007562165887081585",
+      "nativeToken": "HYPE",
+      "estimatedCostWei": "7562165887081585",
+      "timestamp": "2025-12-08T20:21:42.328Z"
+    },
+    "kaia_mainnet": {
+      "chainId": "8217",
+      "gasEstimate": "3388391",
+      "gasPrice": "27.5",
+      "maxFeePerGas": "50.0",
+      "estimatedCostETH": "0.0931807525",
+      "nativeToken": "KAI",
+      "estimatedCostWei": "93180752500000000",
+      "timestamp": "2025-12-08T20:21:46.767Z"
+    },
+    "bnb_smart_chain_mainnet": {
+      "chainId": "56",
+      "gasEstimate": "3415061",
+      "gasPrice": "0.05",
+      "maxFeePerGas": "N/A",
+      "estimatedCostETH": "0.00017075305",
+      "nativeToken": "BNB",
+      "estimatedCostWei": "170753050000000",
+      "timestamp": "2025-12-08T20:21:51.277Z"
+    },
+    "monad_mainnet": {
+      "chainId": "143",
+      "gasEstimate": "3421109",
+      "gasPrice": "102.0",
+      "maxFeePerGas": "202.0",
+      "estimatedCostETH": "0.348953118",
+      "nativeToken": "MONAD",
+      "estimatedCostWei": "348953118000000000",
+      "timestamp": "2025-12-08T20:21:55.053Z"
+    }
+  },
+  "summary": {
+    "minGas": "3388391",
+    "maxGas": "3421109",
+    "avgGas": "3411120",
+    "minCost": "406972866228",
+    "maxCost": "348953118000000000",
+    "avgCost": "44736247950347977"
+  }
+}

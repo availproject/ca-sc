@@ -1,8 +1,10 @@
 // test/VaultTest.ts
 import { ethers, upgrades } from "hardhat";
 import { expect } from "chai";
-import { keccak256, getBytes } from "ethers";
+import { keccak256, getBytes, toUtf8Bytes } from "ethers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+
+const SIGNATURE_PREFIX = "Sign this intent to proceed";
 
 enum Function {
   DEPOSIT = 0,
@@ -29,7 +31,7 @@ describe("Vault Contract", function () {
 
     // Deploy the Vault contract
     const VaultContract = await ethers.getContractFactory("Vault");
-    vault = (await upgrades.deployProxy(VaultContract, [], {
+    vault = (await upgrades.deployProxy(VaultContract, [owner.address], {
       initializer: "initialize",
     })) as unknown as any;
 
@@ -39,7 +41,6 @@ describe("Vault Contract", function () {
       value: ethers.parseEther("0.0005"), // enough to cover gas fees for 1 tx
     });
 
-    await vault.setOverHead(Function.DEPOSIT, OVERHEAD);
   });
 
   it("should assign admin role to deployer", async function () {
@@ -111,7 +112,12 @@ describe("Vault Contract", function () {
       )
     );
 
-    const signature = await from.signMessage(getBytes(requestHash));
+    const prefixBytes = toUtf8Bytes(SIGNATURE_PREFIX);
+    const prefixedHash = keccak256(
+      ethers.concat([prefixBytes, getBytes(requestHash)])
+    );
+
+    const signature = await from.signMessage(getBytes(prefixedHash));
     return { request, signature };
   }
 
