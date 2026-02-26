@@ -47,10 +47,16 @@ async function deploySingleNetwork(adminAddress) {
 
   console.log(`Chain ID: ${network.chainId}`);
   console.log(`Deployer: ${deployer.address}`);
-  console.log(`Gas Price: ${ethers.formatUnits(feeData.gasPrice || 0n, "gwei")} gwei`);
+  console.log(
+    `Gas Price: ${ethers.formatUnits(feeData.gasPrice || 0n, "gwei")} gwei`,
+  );
 
   const balance = await provider.getBalance(deployer.address);
-  console.log(`Balance: ${ethers.formatEther(balance)} ${NATIVE_TOKENS[networkName] || "ETH"}`);
+  console.log(
+    `Balance: ${ethers.formatEther(balance)} ${
+      NATIVE_TOKENS[networkName] || "ETH"
+    }`,
+  );
 
   const admin = adminAddress || deployer.address;
   console.log(`Admin: ${admin}`);
@@ -67,7 +73,9 @@ async function deploySingleNetwork(adminAddress) {
 
   await vault.waitForDeployment();
 
-  const implementationAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
+  const implementationAddress = await upgrades.erc1967.getImplementationAddress(
+    proxyAddress,
+  );
   console.log(`Implementation address: ${implementationAddress}`);
 
   const deployTx = vault.deploymentTransaction();
@@ -77,7 +85,8 @@ async function deploySingleNetwork(adminAddress) {
   }
 
   const gasUsed = receipt ? receipt.gasUsed : null;
-  const actualCost = receipt && feeData.gasPrice ? receipt.gasUsed * feeData.gasPrice : null;
+  const actualCost =
+    receipt && feeData.gasPrice ? receipt.gasUsed * feeData.gasPrice : null;
 
   const result = {
     chainId: network.chainId.toString(),
@@ -86,7 +95,9 @@ async function deploySingleNetwork(adminAddress) {
     admin,
     deployer: deployer.address,
     gasUsed: gasUsed ? gasUsed.toString() : "N/A",
-    gasPrice: feeData.gasPrice ? ethers.formatUnits(feeData.gasPrice, "gwei") : "N/A",
+    gasPrice: feeData.gasPrice
+      ? ethers.formatUnits(feeData.gasPrice, "gwei")
+      : "N/A",
     actualCost: actualCost ? ethers.formatEther(actualCost) : "N/A",
     nativeToken: NATIVE_TOKENS[networkName] || "ETH",
     txHash: receipt ? receipt.hash : "N/A",
@@ -120,7 +131,7 @@ function runMultiNetwork(adminAddress, networks) {
     try {
       const adminArg = adminAddress ? `--admin ${adminAddress}` : "";
       const cmd = `npx hardhat run scripts/deploy-proxy-multi-network.js --network ${networkName} ${adminArg}`;
-      
+
       const output = execSync(cmd, {
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
@@ -210,8 +221,9 @@ function printReport(deploymentResults) {
 
 async function main() {
   const args = process.argv.slice(2);
-  let adminAddress = null;
-  
+  // Allow admin address via Env var or CLI arg (CLI takes precedence)
+  let adminAddress = process.env.PROXY_ADMIN_ADDRESS || null;
+
   const adminIdx = args.indexOf("--admin");
   if (adminIdx !== -1 && args[adminIdx + 1]) {
     adminAddress = args[adminIdx + 1];
@@ -220,7 +232,9 @@ async function main() {
   if (hre.network.name !== "hardhat") {
     await deploySingleNetwork(adminAddress);
   } else {
-    const networksArg = args.find((a) => !a.startsWith("--") && a !== adminAddress);
+    const networksArg = args.find(
+      (a) => !a.startsWith("--") && a !== adminAddress,
+    );
     const networksToDeploy = networksArg
       ? networksArg.split(",").map((n) => n.trim())
       : NETWORKS_TO_DEPLOY;
