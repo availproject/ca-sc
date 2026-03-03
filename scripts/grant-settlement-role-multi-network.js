@@ -6,6 +6,24 @@ const hre = require("hardhat");
 const DEPLOYED_CONTRACTS = {
   "mega_eth": [
     "0x5f02ED27A20BbDbB90EEf98670fA36c36fc02D12"
+  ],
+  "arb_sepolia": [
+    "0x5f02ED27A20BbDbB90EEf98670fA36c36fc02D12"
+  ],
+  "op_sepolia": [
+    "0x91BC4bd9Ced9cD9C35467a0797a0724A3FA7ff9b"
+  ],
+  "sepolia": [
+    "0xA7458040272226378397C3036eda862D60C3b307"
+  ],
+  "base_sepolia": [
+    "0x4152FAFe480013F2a33d1aE4d7322fCDD5393395"
+  ],
+  "monad_testnet": [
+    "0x10B69f0E3c21C1187526940A615959E9ee6012F9"
+  ],
+  "citrea_testnet": [
+    "0xc22C0D6Be68b3068b21E563Cd24A598a4f209771"
   ]
 };
 

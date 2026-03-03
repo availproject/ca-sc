@@ -4,6 +4,7 @@ pragma solidity ^0.8.29;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
@@ -122,11 +123,13 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     {
         bytes memory prefixedMsg = abi.encodePacked(SIGNATURE_PREFIX, hash);
 
-        uint256 messageLen = prefixedMsg.length;
-
-        // Apply EIP-191 prefix
-        bytes32 signedMessageHash =
-            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n", messageLen, prefixedMsg));
+        // Apply EIP-191 prefix with length as ASCII string (compatible with standard wallets)
+        bytes32 signedMessageHash = keccak256(
+            abi.encodePacked(
+                "\x19Ethereum Signed Message:\n61",
+                prefixedMsg
+            )
+        );
 
         // Recover the signer from the signature
         address signer = signedMessageHash.recover(signature);
@@ -215,6 +218,15 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             require(sent, "Vault: Transfer failed");
         }
         emit Fulfilment(request_hash, from, msg.sender);
+    }
+
+    function getMessageLength(bytes32 hash) external pure returns (uint256, string memory) {
+        bytes memory prefixedMsg = abi.encodePacked(SIGNATURE_PREFIX, hash);
+        return (prefixedMsg.length, Strings.toString(prefixedMsg.length));
+    }
+
+    function getHashToSign(Request calldata request) external pure returns (bytes32) {
+        return _hashRequest(request);
     }
 
     function verifyRequestSignature(Request calldata request, bytes calldata signature)

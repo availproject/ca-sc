@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-03-03T15:00:21.972Z",
+  "upgrades": {
+    "base_sepolia": {
+      "error": "server response 500 Internal Server Error (request={  }, response={  }, error=null, info={ \"requestUrl\": \"https://base-sepolia.drpc.org\", \"responseBody\": \"[{\\\"id\\\":3,\\\"jsonrpc\\\":\\\"2.0\\\",\\\"error\\\":{\\\"message\\\":\\\"Batch of more than 3 requests are not allowed on free tier, to use this feature register paid account at drpc.org\\\",\\\"code\\\":31}},{\\\"id\\\":4,\\\"jsonrpc\\\":\\\"2.0\\\",\\\"error\\\":{\\\"message\\\":\\\"Batch of more than 3 requests are not allowed on free tier, to use this feature register paid account at drpc.org\\\",\\\"code\\\":31}},{\\\"id\\\":5,\\\"jsonrpc\\\":\\\"2.0\\\",\\\"error\\\":{\\\"message\\\":\\\"Batch of more than 3 requests are not allowed on free tier, to use this feature register paid account at drpc.org\\\",\\\"code\\\":31}},{\\\"id\\\":6,\\\"jsonrpc\\\":\\\"2.0\\\",\\\"error\\\":{\\\"message\\\":\\\"Batch of more than 3 requests are not allowed on free tier, to use this feature register paid account at drpc.org\\\",\\\"code\\\":31}}]\", \"responseStatus\": \"500 Internal Server Error\" }, code=SERVER_ERROR, version=6.15.0)",
+      "proxyAddress": "0x4152FAFe480013F2a33d1aE4d7322fCDD5393395",
+      "status": "failed",
+      "timestamp": "2026-03-03T15:00:23.286Z"
+    },
+    "arb_sepolia": {
+      "error": "Contract at 0x5f02ED27A20BbDbB90EEf98670fA36c36fc02D12 doesn't look like an ERC 1967 proxy with a logic contract address\n\n",
+      "proxyAddress": "0x5f02ED27A20BbDbB90EEf98670fA36c36fc02D12",
+      "status": "failed",
+      "timestamp": "2026-03-03T15:00:36.444Z"
+    },
+    "op_sepolia": {
+      "error": "Contract at 0x91BC4bd9Ced9cD9C35467a0797a0724A3FA7ff9b doesn't look like an ERC 1967 proxy with a logic contract address\n\n",
+      "proxyAddress": "0x91BC4bd9Ced9cD9C35467a0797a0724A3FA7ff9b",
+      "status": "failed",
+      "timestamp": "2026-03-03T15:00:57.818Z"
+    },
+    "sepolia": {
+      "error": "Contract at 0xA7458040272226378397C3036eda862D60C3b307 doesn't look like an ERC 1967 proxy with a logic contract address\n\n",
+      "proxyAddress": "0xA7458040272226378397C3036eda862D60C3b307",
+      "status": "failed",
+      "timestamp": "2026-03-03T15:01:34.340Z"
+    }
+  },
+  "summary": {
+    "successful": 0,
+    "failed": 4
+  }
+}

@@ -5,6 +5,7 @@ libs = ["node_modules", "lib"]
 remappings = [
     "@openzeppelin/=node_modules/@openzeppelin/",
     "forge-std/=lib/forge-std/src/",
+    "createx-forge/=lib/createx-forge/",
 ]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
