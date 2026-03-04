@@ -131,7 +131,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         // EIP-191 hash with dynamic decimal length (e.g. 95)
         bytes32 signedMessageHash = MessageHashUtils.toEthSignedMessageHash(msgBytes);
 
-        address signer = ECDSA.recover(signedMessageHash, signature);
+        address signer = signedMessageHash.recover(signature);
         return (signer == from, signedMessageHash);
     }
 
