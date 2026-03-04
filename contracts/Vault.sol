@@ -4,6 +4,7 @@ pragma solidity ^0.8.29;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -121,17 +122,15 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         pure
         returns (bool, bytes32)
     {
-        bytes memory prefixedMsg = abi.encodePacked(SIGNATURE_PREFIX, hash);
-
-        // Apply EIP-191 prefix with length as ASCII string (compatible with standard wallets)
-        bytes32 signedMessageHash = keccak256(
-            abi.encodePacked(
-                "\x19Ethereum Signed Message:\n61",
-                prefixedMsg
-            )
+        // Must match EXACT client string: "Sign this intent to proceed \n" + "0x...."
+        bytes memory msgBytes = abi.encodePacked(
+            SIGNATURE_PREFIX,
+            Strings.toHexString(uint256(hash), 32) // 0x + 64 hex chars
         );
 
-        // Recover the signer from the signature
+        // EIP-191 hash with dynamic decimal length (e.g. 95)
+        bytes32 signedMessageHash = MessageHashUtils.toEthSignedMessageHash(msgBytes);
+
         address signer = signedMessageHash.recover(signature);
         return (signer == from, signedMessageHash);
     }

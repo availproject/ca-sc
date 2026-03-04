@@ -2,6 +2,7 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "test:local": "bash ./scripts/test-local.sh",
     "estimate-gas": "hardhat run scripts/estimate-gas-multi-network.js",
     "deploy:multi": "hardhat run scripts/deploy-vault-multi-network.js",
     "upgrade:multi": "hardhat run scripts/upgrade-proxy-multi-network.js"
