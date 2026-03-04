@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage:
+#   scripts/test-local.sh
+#   scripts/test-local.sh test/Vault.verifyRequestSignature.test.ts
+
+TEST_PATH="${1:-}"
+
+# Hardhat default local dev key (account #0). Never use this key outside local/testing.
+export PRIVATE_KEY="${PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}"
+export ETHEREUM_RPC_URL="${ETHEREUM_RPC_URL:-http://127.0.0.1:8545}"
+export POLYGON_MAINNET_RPC_URL="${POLYGON_MAINNET_RPC_URL:-http://127.0.0.1:8545}"
+export ARB_SEPOLIA_RPC_URL="${ARB_SEPOLIA_RPC_URL:-http://127.0.0.1:8545}"
+export OP_SEPOLIA_RPC_URL="${OP_SEPOLIA_RPC_URL:-http://127.0.0.1:8545}"
+export MONAD_TESTNET_RPC_URL="${MONAD_TESTNET_RPC_URL:-http://127.0.0.1:8545}"
+export HOLESKY_RPC_URL="${HOLESKY_RPC_URL:-http://127.0.0.1:8545}"
+export ARBITRUM_ONE_RPC_URL="${ARBITRUM_ONE_RPC_URL:-http://127.0.0.1:8545}"
+export OPTIMISM_MAINNET_RPC_URL="${OPTIMISM_MAINNET_RPC_URL:-http://127.0.0.1:8545}"
+export BASE_MAINNET_RPC_URL="${BASE_MAINNET_RPC_URL:-http://127.0.0.1:8545}"
+export SCROLL_MAINNET_RPC_URL="${SCROLL_MAINNET_RPC_URL:-http://127.0.0.1:8545}"
+export LINEA_MAINNET_RPC_URL="${LINEA_MAINNET_RPC_URL:-http://127.0.0.1:8545}"
+export SOPHON_MAINNET_RPC_URL="${SOPHON_MAINNET_RPC_URL:-http://127.0.0.1:8545}"
+export AVALANCHE_C_CHAIN_RPC_URL="${AVALANCHE_C_CHAIN_RPC_URL:-http://127.0.0.1:8545}"
+export HYPERLIQUID_RPC_URL="${HYPERLIQUID_RPC_URL:-http://127.0.0.1:8545}"
+export KAIA_MAINNET_RPC_URL="${KAIA_MAINNET_RPC_URL:-http://127.0.0.1:8545}"
+export BNB_SMART_CHAIN_MAINNET_RPC_URL="${BNB_SMART_CHAIN_MAINNET_RPC_URL:-http://127.0.0.1:8545}"
+export CITREA_TESTNET_RPC_URL="${CITREA_TESTNET_RPC_URL:-http://127.0.0.1:8545}"
+export MONAD_MAINNET_RPC_URL="${MONAD_MAINNET_RPC_URL:-http://127.0.0.1:8545}"
+export CITREA_MAINNET_RPC_URL="${CITREA_MAINNET_RPC_URL:-http://127.0.0.1:8545}"
+export MEGA_ETH_RPC_URL="${MEGA_ETH_RPC_URL:-http://127.0.0.1:8545}"
+export BASE_SEPOLIA_RPC_URL="${BASE_SEPOLIA_RPC_URL:-http://127.0.0.1:8545}"
+export POLYGON_AMONY_RPC_URL="${POLYGON_AMONY_RPC_URL:-http://127.0.0.1:8545}"
+export SEPOLIA="${SEPOLIA:-http://127.0.0.1:8545}"
+
+if [[ -n "$TEST_PATH" ]]; then
+  npm test -- "$TEST_PATH"
+else
+  npm test
+fi
