@@ -1,10 +1,30 @@
 node_modules
 .env
+.env.*
+!.env.example
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Hardhat files
 /cache
 /artifacts
+deployments/hardhat/
+deployments/localhost/
 
 # TypeChain files
 /typechain
@@ -13,14 +33,66 @@ node_modules
 # solidity-coverage files
 /coverage
 /coverage.json
+lcov.info
 
-# Hardhat Ignition default folder for deployments against a local node
-ignition/deployments/chain-31337
+# Gas reporter
+.gas-report
+gasReporterOutput.json
+
+# Hardhat Ignition deployments
+ignition/deployments/
+!ignition/deployments/.gitkeep
 
 # In-Dev fuelVM
 fuelVM/vault/tests
-# fuelVM/vault/out
+fuelVM/vault/out
 
-#Forge files
+# Foundry files
 out/
 broadcast/
+cache_forge/
+lib/forge-std/cache/
+
+# Yarn
+.yarn/
+.pnp.cjs
+.pnp.loader.mjs
+yarn.lock
+
+# Package manager lock files (uncomment if needed)
+# package-lock.json
+# pnpm-lock.yaml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Build outputs
+dist/
+build/
+
+# Generated docs
+docs/
+abi/
+bytecode/
+
+# Generated deployment files
+proxy-addresses.json
+upgrades.json
+
+# Solc compiler binary
+soljson-latest.js
+
+# Gas report
+gas-report.json
+
+# Foundry lock
+foundry.lock
+
+# OpenCode/Agent files
+.sisyphus
+
+lib
+

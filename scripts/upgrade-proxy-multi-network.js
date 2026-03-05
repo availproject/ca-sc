@@ -11,11 +11,11 @@ const NETWORKS_TO_UPGRADE = [
   // "base_mainnet",
   // "scroll_mainnet",
   //   "tron_mainnet",
-  "base_sepolia",
-  "arb_sepolia",
-  "op_sepolia",
-  // "polygon_amony",
-  "sepolia",
+  // "base_sepolia",
+  // "arb_sepolia",
+  // "op_sepolia",
+  "polygon_amony",
+  // "sepolia",
   // "monad_testnet",
   // "citrea_testnet"
 ];
