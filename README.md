@@ -11,8 +11,6 @@ Nexus Vault enables secure handling of cross-chain intents with support for ERC2
 ### Core Components
 
 - **Vault.sol** - Main upgradeable contract handling deposits, fulfillments, and settlements
-- **ERC20Sweeper.sol** - Utility for sweeping stuck ERC20 tokens
-- **UUPS Proxy Pattern** - Enables contract upgrades with admin controls
 
 ### Key Features
 
@@ -75,7 +73,7 @@ npm run estimate-gas
 
 ## Contract Addresses
 
-*Mainnet and testnet addresses to be added post-deployment*
+_Mainnet and testnet addresses to be added post-deployment_
 
 ## Security
 
