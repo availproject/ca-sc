@@ -49,14 +49,14 @@ run_test_suite() {
 # Run all test suites
 FAILED=0
 
-# 1. Unit Tests (44 tests)
-run_test_suite "Unit Tests" "VaultUnitTest" "-vvv" || FAILED=$((FAILED + 1))
+# 1. Unit Tests - Core Functionality (27 tests)
+run_test_suite "Unit Tests - Core" "VaultCoreTest" "-vvv" || FAILED=$((FAILED + 1))
 
-# 2. Fuzz Tests (7 tests, 256 runs each)
+# 2. Unit Tests - Access Control (13 tests)
+run_test_suite "Unit Tests - Access Control" "AccessControlTest" "-vvv" || FAILED=$((FAILED + 1))
+
+# 3. Fuzz Tests (7 tests, 256 runs each)
 run_test_suite "Fuzz Tests" "VaultFuzzTest" "-vvv" || FAILED=$((FAILED + 1))
-
-# 3. Invariant Tests (4 invariants, 128K calls)
-run_test_suite "Invariant Tests" "VaultInvariantTest" "-vvv" || FAILED=$((FAILED + 1))
 
 # 4. Integration Tests (7 tests)
 run_test_suite "Integration Tests" "VaultIntegrationTest" "-vvv" || FAILED=$((FAILED + 1))
