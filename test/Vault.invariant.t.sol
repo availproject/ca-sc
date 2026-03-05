@@ -784,4 +784,45 @@ contract VaultInvariantTest is Test {
             assertLe(count, 1, "Nonce appears in multiple mappings");
         }
     }
+    
+    // Invariant 5: Request State Machine
+    
+    /// @notice Invariant: Request state machine must follow valid state transitions
+    /// @dev This invariant verifies that the Vault's requestState mapping correctly reflects
+    ///      the state machine progression: UNPROCESSED (0) -> DEPOSITED (1) -> FULFILLED (2).
+    ///      
+    ///      For all fulfilled requests tracked by the handler, the Vault's requestState must be FULFILLED.
+    ///      For all deposited requests tracked by the handler, the Vault's requestState must be >= DEPOSITED.
+    ///      
+    ///      This ensures that:
+    ///      1. The handler's ghost variables accurately track Vault state
+    ///      2. State transitions are monotonic (never go backwards)
+    ///      3. A fulfilled request must have been deposited first
+    function invariant_RequestStateMachine() public {
+        // Get all fulfilled request hashes from handler
+        bytes32[] memory fulfilled = handler.getFulfilledRequests();
+        
+        // For each fulfilled request, verify it's in FULFILLED state in Vault
+        for (uint256 i = 0; i < fulfilled.length; i++) {
+            Vault.RFFState state = vault.requestState(fulfilled[i]);
+            assertEq(
+                uint256(state),
+                uint256(Vault.RFFState.FULFILLED),
+                "Fulfilled request must be in FULFILLED state"
+            );
+        }
+        
+        // Get all deposited request hashes from handler
+        bytes32[] memory deposited = handler.getDepositedRequests();
+        
+        // For each deposited request, verify it's at least in DEPOSITED state
+        for (uint256 i = 0; i < deposited.length; i++) {
+            Vault.RFFState state = vault.requestState(deposited[i]);
+            assertGe(
+                uint256(state),
+                uint256(Vault.RFFState.DEPOSITED),
+                "Deposited request must be at least DEPOSITED"
+            );
+        }
+    }
 }
