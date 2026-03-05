@@ -5,32 +5,71 @@ import {Script, console} from "forge-std/Script.sol";
 import {Vault} from "../contracts/Vault.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-/// @notice Deploys Vault with UUPS proxy pattern
-/// @dev Usage: forge script script/DeployVault.s.sol --rpc-url $RPC_URL --broadcast --json
+interface ICreateX {
+    function deployCreate2(bytes32 salt, bytes memory initCode) external payable returns (address);
+    function computeCreate2Address(bytes32 salt, bytes32 initCodeHash) external view returns (address);
+}
+
 contract DeployVault is Script {
+    ICreateX public constant CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
+    bytes32 public constant DEFAULT_SALT = keccak256("nexus-vault-001");
+
     function run() external returns (address proxy) {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
+        bytes32 salt = _getSalt();
+        bytes32 proxySalt = keccak256(abi.encodePacked(salt, "proxy"));
+
+        console.log("Deployer:", deployer);
+        console.log("Salt (impl):", vm.toString(salt));
+        console.log("Salt (proxy):", vm.toString(proxySalt));
+
+        bytes memory vaultInitCode = type(Vault).creationCode;
+        bytes32 vaultInitCodeHash = keccak256(vaultInitCode);
+        address expectedImpl = CREATEX.computeCreate2Address(salt, vaultInitCodeHash);
+        console.log("Expected implementation:", expectedImpl);
+
+        bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, deployer);
+        bytes memory proxyInitCode =
+            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(expectedImpl, initData));
+        bytes32 proxyInitCodeHash = keccak256(proxyInitCode);
+        address expectedProxy = CREATEX.computeCreate2Address(proxySalt, proxyInitCodeHash);
+        console.log("Expected proxy:", expectedProxy);
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // 1. Deploy implementation
-        Vault implementation = new Vault();
-        console.log("Implementation:", address(implementation));
+        address implementation = CREATEX.deployCreate2(salt, vaultInitCode);
+        console.log("Implementation:", implementation);
+        require(implementation == expectedImpl, "Implementation address mismatch");
 
-        // 2. Deploy proxy with initialize calldata
-        bytes memory initData = abi.encodeWithSelector(
-            Vault.initialize.selector,
-            deployer // admin
-        );
-
-        ERC1967Proxy proxyContract = new ERC1967Proxy(address(implementation), initData);
-        proxy = address(proxyContract);
+        proxy = CREATEX.deployCreate2(proxySalt, proxyInitCode);
         console.log("Proxy:", proxy);
+        require(proxy == expectedProxy, "Proxy address mismatch");
 
         vm.stopBroadcast();
 
-        // Output JSON for parsing
         console.log("DEPLOYED_ADDRESS:", proxy);
+    }
+
+    function preview() external view returns (address impl, address proxy) {
+        bytes32 salt = _getSalt();
+        bytes32 proxySalt = keccak256(abi.encodePacked(salt, "proxy"));
+
+        impl = CREATEX.computeCreate2Address(salt, keccak256(type(Vault).creationCode));
+
+        bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, msg.sender);
+        bytes memory proxyInitCode = abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(impl, initData));
+        proxy = CREATEX.computeCreate2Address(proxySalt, keccak256(proxyInitCode));
+
+        console.log("Expected Implementation:", impl);
+        console.log("Expected Proxy:", proxy);
+    }
+
+    function _getSalt() internal view returns (bytes32) {
+        try vm.envBytes32("SALT") returns (bytes32 envSalt) {
+            return envSalt;
+        } catch {
+            return DEFAULT_SALT;
+        }
     }
 }
