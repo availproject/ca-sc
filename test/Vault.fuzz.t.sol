@@ -2,9 +2,9 @@
 pragma solidity ^0.8.29;
 
 // Imports
-import {BaseVaultTest} from "../BaseVaultTest.t.sol";
-import {SignatureHelper} from "../helpers/SignatureHelper.sol";
-import {Vault} from "../../contracts/Vault.sol";
+import {BaseVaultTest} from "./BaseVaultTest.t.sol";
+import {SignatureHelper} from "./helpers/SignatureHelper.sol";
+import {Vault} from "../contracts/Vault.sol";
 
 // VaultFuzzTest - Property-Based Fuzzing Tests for Vault.sol
 // @title VaultFuzzTest
