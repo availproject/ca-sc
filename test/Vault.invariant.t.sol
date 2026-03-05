@@ -750,4 +750,38 @@ contract VaultInvariantTest is Test {
             "Vault ERC20 balance should be consistent with operations"
         );
     }
+    
+    // Invariant 4: Cross-Nonce Uniqueness
+    
+    /// @notice Invariant: A nonce can only appear in one of the three Vault nonce mappings
+    /// @dev This invariant ensures that a nonce used in deposit can never appear in fillNonce or settleNonce.
+    ///      The Vault has three separate nonce mappings for replay protection:
+    ///      - depositNonce: tracks nonces used in deposit operations
+    ///      - fillNonce: tracks nonces used in fulfil operations
+    ///      - settleNonce: tracks nonces used in settle operations
+    ///      
+    ///      A nonce should only ever be used in ONE of these mappings. If a nonce appears in
+    ///      both depositNonce and fillNonce, that would indicate a critical bug in the nonce
+    ///      management system.
+    function invariant_CrossNonceUniqueness() public {
+        // Get all nonces that were attempted (both successful and failed)
+        uint256[] memory nonces = handler.getAllUsedNonces();
+        
+        // For each nonce, check Vault's actual state
+        for (uint256 i = 0; i < nonces.length; i++) {
+            uint256 nonce = nonces[i];
+            
+            // Check all three Vault nonce mappings
+            bool inDeposit = vault.depositNonce(nonce);
+            bool inFill = vault.fillNonce(nonce);
+            bool inSettle = vault.settleNonce(nonce);
+            
+            // Count how many mappings contain this nonce
+            uint256 count = (inDeposit ? 1 : 0) + (inFill ? 1 : 0) + (inSettle ? 1 : 0);
+            
+            // A nonce should appear in at most ONE mapping
+            // (0 if the operation failed, 1 if it succeeded)
+            assertLe(count, 1, "Nonce appears in multiple mappings");
+        }
+    }
 }
