@@ -338,22 +338,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         emit Fulfilment(request_hash, from, msg.sender);
     }
 
-    // @notice Verifies a request signature without executing any state changes
-    // @param request The signed request to verify
-    // @param signature The EIP-191 signature to validate
-    // @return success True if the signature is valid
-    // @return signedMessageHash The EIP-191 signed message hash used for verification
-    // @dev Pure function allowing off-chain signature validation
-    function verifyRequestSignature(Request calldata request, bytes calldata signature)
-        external
-        pure
-        returns (bool, bytes32)
-    {
-        address from = extractAddress(request.parties);
-
-        bytes32 request_hash = _hashRequest(request);
-        return _verify_request(signature, from, request_hash);
-    }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // Settlement Function
