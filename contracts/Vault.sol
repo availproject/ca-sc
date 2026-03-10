@@ -266,10 +266,17 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             IERC20 token = IERC20(bytes32ToAddress(request.sources[chainIndex].contractAddress));
 
             uint256 bal = token.balanceOf(address(this));
+            uint256 solverBal = token.balanceOf(msg.sender);
             token.safeTransferFrom(from, address(this), request.sources[chainIndex].value);
             // fee on transfer tokens
             if (token.balanceOf(address(this)) - bal != request.sources[chainIndex].value) {
                 revert("Vault: failed to transfer the source amount");
+            }
+
+            token.safeTransferFrom(from, msg.sender, request.sources[chainIndex].fee);
+            // fee on transfer tokens
+            if (token.balanceOf(msg.sender) - solverBal != request.sources[chainIndex].fee) {
+                revert("Vault: failed to transfer the fee amount");
             }
         }
 
