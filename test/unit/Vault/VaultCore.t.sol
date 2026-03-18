@@ -75,13 +75,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(userPrivateKey);
 
         Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(
-            Vault.Universe.ETHEREUM,
-            block.chainid,
-            sourceToken,
-            sourceValue,
-            0
-        );
+        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, 0);
 
         Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
         destinations[0] = _createDestinationPair(destToken, destValue);
@@ -207,14 +201,7 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 expiry = _futureTimestamp(1 hours);
 
         Vault.Request memory request = _createRequestForUser(
-            bytes32(0),
-            depositAmount,
-            bytes32(0),
-            depositAmount,
-            USER_PRIVATE_KEY,
-            solver,
-            nonce,
-            expiry
+            bytes32(0), depositAmount, bytes32(0), depositAmount, USER_PRIVATE_KEY, solver, nonce, expiry
         );
 
         // Sign with wrong key
@@ -315,14 +302,7 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 expiry = _futureTimestamp(1 hours);
 
         Vault.Request memory request = _createRequestForUser(
-            bytes32(0),
-            depositAmount,
-            bytes32(0),
-            depositAmount,
-            USER_PRIVATE_KEY,
-            solver,
-            nonce,
-            expiry
+            bytes32(0), depositAmount, bytes32(0), depositAmount, USER_PRIVATE_KEY, solver, nonce, expiry
         );
 
         bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
@@ -347,14 +327,7 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 expiry = block.timestamp - 1 hours; // Expired 1 hour ago
 
         Vault.Request memory request = _createRequestForUser(
-            bytes32(0),
-            depositAmount,
-            bytes32(0),
-            depositAmount,
-            USER_PRIVATE_KEY,
-            solver,
-            nonce,
-            expiry
+            bytes32(0), depositAmount, bytes32(0), depositAmount, USER_PRIVATE_KEY, solver, nonce, expiry
         );
 
         bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
@@ -371,14 +344,7 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 expiry = _futureTimestamp(1 hours);
 
         Vault.Request memory request = _createRequestForUser(
-            bytes32(0),
-            depositAmount,
-            bytes32(0),
-            depositAmount,
-            USER_PRIVATE_KEY,
-            solver,
-            nonce,
-            expiry
+            bytes32(0), depositAmount, bytes32(0), depositAmount, USER_PRIVATE_KEY, solver, nonce, expiry
         );
 
         bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
@@ -585,14 +551,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         Vault.Request memory request = _createRequestForUser(
-            bytes32(0),
-            depositAmount,
-            bytes32(0),
-            fulfilAmount,
-            USER_PRIVATE_KEY,
-            requester,
-            nonce,
-            expiry
+            bytes32(0), depositAmount, bytes32(0), fulfilAmount, USER_PRIVATE_KEY, requester, nonce, expiry
         );
 
         bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
@@ -623,14 +582,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         Vault.Request memory request = _createRequestForUser(
-            bytes32(0),
-            depositAmount,
-            bytes32(0),
-            fulfilAmount,
-            USER_PRIVATE_KEY,
-            requester,
-            nonce,
-            expiry
+            bytes32(0), depositAmount, bytes32(0), fulfilAmount, USER_PRIVATE_KEY, requester, nonce, expiry
         );
 
         bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
@@ -740,14 +692,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         Vault.Request memory request = _createRequestForUser(
-            bytes32(0),
-            depositAmount,
-            bytes32(0),
-            fulfilAmount,
-            USER_PRIVATE_KEY,
-            requester,
-            nonce,
-            expiry
+            bytes32(0), depositAmount, bytes32(0), fulfilAmount, USER_PRIVATE_KEY, requester, nonce, expiry
         );
 
         bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
@@ -778,14 +723,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         Vault.Request memory request = _createRequestForUser(
-            bytes32(0),
-            depositAmount,
-            bytes32(0),
-            fulfilAmount,
-            USER_PRIVATE_KEY,
-            requester,
-            nonce,
-            expiry
+            bytes32(0), depositAmount, bytes32(0), fulfilAmount, USER_PRIVATE_KEY, requester, nonce, expiry
         );
 
         bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
@@ -807,14 +745,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         Vault.Request memory request = _createRequestForUser(
-            bytes32(0),
-            depositAmount,
-            bytes32(0),
-            fulfilAmount,
-            USER_PRIVATE_KEY,
-            requester,
-            nonce,
-            expiry
+            bytes32(0), depositAmount, bytes32(0), fulfilAmount, USER_PRIVATE_KEY, requester, nonce, expiry
         );
 
         bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
@@ -943,14 +874,8 @@ contract VaultCoreTest is BaseVaultTest {
         amounts[0] = 0.5 ether;
         amounts[1] = 1000 * 10 ** 18;
 
-        Vault.SettleData memory settleData = _createSettleData(
-            Vault.Universe.ETHEREUM,
-            block.chainid,
-            solvers,
-            contractAddresses,
-            amounts,
-            nonce
-        );
+        Vault.SettleData memory settleData =
+            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, solvers, contractAddresses, amounts, nonce);
 
         // Sign with verifier key
         bytes32 structHash = keccak256(

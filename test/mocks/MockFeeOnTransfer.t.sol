@@ -16,10 +16,10 @@ contract MockFeeOnTransferTest is Test {
     /// @notice Test basic transfer without fee
     function test_TransferWithoutFee() public {
         uint256 balanceBefore = token.balanceOf(user);
-        
+
         vm.prank(user);
         token.transfer(address(this), 10 ether);
-        
+
         assertEq(token.balanceOf(user), balanceBefore - 10 ether);
         assertEq(token.balanceOf(address(this)), 10 ether);
     }
@@ -27,12 +27,12 @@ contract MockFeeOnTransferTest is Test {
     /// @notice Test transfer with 10% fee - fee goes to owner (test contract)
     function test_FeeOnTransfer_10Percent() public {
         token.setFeePercent(1000); // 10% fee
-        
+
         uint256 ownerBalanceBefore = token.balanceOf(address(this));
-        
+
         vm.prank(user);
         token.transfer(address(this), 100 ether);
-        
+
         // Owner (test contract) receives 100 ether total:
         assertEq(token.balanceOf(address(this)) - ownerBalanceBefore, 100 ether);
         // User sent 100 but only 90 reached the destination
@@ -43,13 +43,13 @@ contract MockFeeOnTransferTest is Test {
     function test_FeeOnTransfer_10Percent_DifferentRecipient() public {
         address recipient = makeAddr("recipient");
         token.setFeePercent(1000); // 10% fee
-        
+
         uint256 ownerBalanceBefore = token.balanceOf(address(this)); // owner = test contract
         uint256 recipientBalanceBefore = token.balanceOf(recipient);
-        
+
         vm.prank(user);
         token.transfer(recipient, 100 ether);
-        
+
         // Owner receives 10 ether fee
         assertEq(token.balanceOf(address(this)) - ownerBalanceBefore, 10 ether);
         // Recipient receives 90 ether net
@@ -62,18 +62,18 @@ contract MockFeeOnTransferTest is Test {
     function test_FeeOnTransfer_transferFrom() public {
         address spender = makeAddr("spender");
         token.setFeePercent(500); // 5% fee
-        
+
         token.mint(spender, 100 ether);
-        
+
         vm.prank(spender);
         token.approve(address(this), type(uint256).max);
-        
+
         uint256 ownerBalanceBefore = token.balanceOf(address(this));
-        
+
         // transferFrom from spender to this contract:
         // Total to address(this): 5 + 95 = 100
         token.transferFrom(spender, address(this), 100 ether);
-        
+
         // Owner receives 100 ether (5 fee + 95 net since recipient is same as owner)
         assertEq(token.balanceOf(address(this)) - ownerBalanceBefore, 100 ether);
     }
@@ -81,12 +81,12 @@ contract MockFeeOnTransferTest is Test {
     /// @notice Test 0% fee (disabled)
     function test_FeeOnTransfer_Disabled() public {
         token.setFeePercent(0);
-        
+
         uint256 balanceBefore = token.balanceOf(user);
-        
+
         vm.prank(user);
         token.transfer(address(this), 100 ether);
-        
+
         assertEq(token.balanceOf(address(this)), 100 ether);
         assertEq(token.balanceOf(user), balanceBefore - 100 ether);
     }
@@ -94,12 +94,12 @@ contract MockFeeOnTransferTest is Test {
     /// @notice Test maximum fee (99%)
     function test_FeeOnTransfer_MaxFee() public {
         token.setFeePercent(9900); // 99% fee
-        
+
         uint256 ownerBalanceBefore = token.balanceOf(address(this));
-        
+
         vm.prank(user);
         token.transfer(address(this), 100 ether);
-        
+
         // Owner receives 100 ether total (99 fee + 1 net)
         assertEq(token.balanceOf(address(this)) - ownerBalanceBefore, 100 ether);
     }

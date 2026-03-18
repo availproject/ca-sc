@@ -82,8 +82,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     // @notice Prefix added to signatures for consistent message formatting
     string private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
 
+    // @notice Current contract version for tracking upgrades
+    string public version;
+
     // Storage gap to reserve slots for future use
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // Structs
@@ -169,12 +172,21 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(UPGRADER_ROLE, admin);
+
+        version = "1.0.0";
     }
 
     // @notice Authorizes contract upgrades to new implementation
     // @param newImplementation Address of the new implementation contract
     // @dev Only callable by accounts with UPGRADER_ROLE
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+
+    // @notice Updates the contract version string
+    // @param newVersion New version string (e.g., "1.1.0")
+    // @dev Only callable by accounts with UPGRADER_ROLE. Call after upgrading or as data to upgradeToAndCall.
+    function upgradeVersion(string calldata newVersion) external onlyRole(UPGRADER_ROLE) {
+        version = newVersion;
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // Internal Utility Functions
@@ -344,7 +356,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         }
         emit Fulfilment(request_hash, from, msg.sender);
     }
-
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // Settlement Function

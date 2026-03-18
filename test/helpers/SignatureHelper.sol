@@ -88,13 +88,7 @@ contract SignatureHelper is Test {
      * Example: "\x19Ethereum Signed Message:\n95" + message (where 95 is the message length)
      */
     function toEthSignedMessageHash(bytes memory message) public pure returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(
-                "\x19Ethereum Signed Message:\n",
-                Strings.toString(message.length),
-                message
-            )
-        );
+        return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n", Strings.toString(message.length), message));
     }
 
     /**
@@ -121,11 +115,7 @@ contract SignatureHelper is Test {
      * - v: uint8 (last 1 byte)
      * Total: 65 bytes
      */
-    function signRequest(Vault.Request memory request, uint256 privateKey)
-        public
-        pure
-        returns (bytes memory)
-    {
+    function signRequest(Vault.Request memory request, uint256 privateKey) public pure returns (bytes memory) {
         bytes32 requestHash = hashRequest(request);
         bytes memory message = createEip191Message(requestHash);
         bytes32 ethHash = toEthSignedMessageHash(message);
