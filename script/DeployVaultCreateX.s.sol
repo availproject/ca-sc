@@ -15,28 +15,26 @@ contract DeployVault is Script {
     bytes32 public constant DEFAULT_SALT = keccak256("nexus-vault-001");
 
     function run() external returns (address proxy) {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(deployerPrivateKey);
+        address admin = _getAdmin();
+        vm.startBroadcast();
         bytes32 salt = _getSalt();
         bytes32 proxySalt = keccak256(abi.encodePacked(salt, "proxy"));
 
-        console.log("Deployer:", deployer);
+        console.log("Admin:", admin);
         console.log("Salt (impl):", vm.toString(salt));
         console.log("Salt (proxy):", vm.toString(proxySalt));
 
         bytes memory vaultInitCode = type(Vault).creationCode;
         bytes32 vaultInitCodeHash = keccak256(vaultInitCode);
-        address expectedImpl = CREATEX.computeCreate2Address(salt, vaultInitCodeHash);
+        address expectedImpl = CREATEX.computeCreate2Address(keccak256(abi.encode(salt)), vaultInitCodeHash);
         console.log("Expected implementation:", expectedImpl);
 
-        bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, deployer);
+        bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, admin);
         bytes memory proxyInitCode =
             abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(expectedImpl, initData));
         bytes32 proxyInitCodeHash = keccak256(proxyInitCode);
-        address expectedProxy = CREATEX.computeCreate2Address(proxySalt, proxyInitCodeHash);
+        address expectedProxy = CREATEX.computeCreate2Address(keccak256(abi.encode(proxySalt)), proxyInitCodeHash);
         console.log("Expected proxy:", expectedProxy);
-
-        vm.startBroadcast(deployerPrivateKey);
 
         address implementation = CREATEX.deployCreate2(salt, vaultInitCode);
         console.log("Implementation:", implementation);
@@ -51,16 +49,17 @@ contract DeployVault is Script {
         console.log("DEPLOYED_ADDRESS:", proxy);
     }
 
-    function preview() external view returns (address impl, address proxy) {
+    function preview(address admin) external view returns (address impl, address proxy) {
         bytes32 salt = _getSalt();
         bytes32 proxySalt = keccak256(abi.encodePacked(salt, "proxy"));
 
         impl = CREATEX.computeCreate2Address(salt, keccak256(type(Vault).creationCode));
 
-        bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, msg.sender);
+        bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, admin);
         bytes memory proxyInitCode = abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(impl, initData));
         proxy = CREATEX.computeCreate2Address(proxySalt, keccak256(proxyInitCode));
 
+        console.log("Admin:", admin);
         console.log("Expected Implementation:", impl);
         console.log("Expected Proxy:", proxy);
     }
@@ -70,6 +69,14 @@ contract DeployVault is Script {
             return envSalt;
         } catch {
             return DEFAULT_SALT;
+        }
+    }
+
+    function _getAdmin() internal view returns (address) {
+        try vm.envAddress("ADMIN") returns (address envAdmin) {
+            return envAdmin;
+        } catch {
+            return msg.sender;
         }
     }
 }

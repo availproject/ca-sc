@@ -35,16 +35,11 @@ contract SignatureHelperTest is BaseVaultTest {
         });
 
         Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
-        destinations[0] = Vault.DestinationPair({
-            contractAddress: bytes32(uint256(uint160(address(2)))),
-            value: 100 ether
-        });
+        destinations[0] =
+            Vault.DestinationPair({contractAddress: bytes32(uint256(uint160(address(2)))), value: 100 ether});
 
         Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = Vault.Party({
-            universe: Vault.Universe.ETHEREUM,
-            address_: bytes32(uint256(uint160(address(3))))
-        });
+        parties[0] = Vault.Party({universe: Vault.Universe.ETHEREUM, address_: bytes32(uint256(uint160(address(3))))});
 
         Vault.Request memory request1 = Vault.Request({
             sources: sources,
@@ -83,10 +78,7 @@ contract SignatureHelperTest is BaseVaultTest {
 
         // Message should contain the prefix
         string memory messageStr = string(message);
-        assertTrue(
-            contains(messageStr, "Sign this intent to proceed"),
-            "Message should contain prefix"
-        );
+        assertTrue(contains(messageStr, "Sign this intent to proceed"), "Message should contain prefix");
 
         // Message should contain 0x prefix for hex
         assertTrue(contains(messageStr, "0x"), "Message should contain 0x prefix");
@@ -94,7 +86,6 @@ contract SignatureHelperTest is BaseVaultTest {
         // Message length should be 95 bytes (29 prefix + 66 hex)
         assertEq(message.length, 95, "Message length should be 95 bytes");
     }
-
 
     // Helper Functions
 

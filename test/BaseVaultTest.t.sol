@@ -17,81 +17,78 @@ import {MockERC20} from "./mocks/MockERC20.sol";
 //      - Role constants and cheatcode shortcuts
 abstract contract BaseVaultTest is Test {
     // State Variables
-    
+
     /// @notice The vault contract instance (points to proxy)
     Vault public vault;
-    
+
     /// @notice The vault implementation contract
     Vault public vaultImpl;
-    
+
     /// @notice The ERC1967 proxy contract
     ERC1967Proxy public proxy;
-    
+
     /// @notice Admin address with DEFAULT_ADMIN_ROLE and UPGRADER_ROLE
     address public admin;
-    
+
     /// @notice Regular user address for testing user operations
     address public user;
-    
+
     /// @notice Solver address that fulfills intents
     address public solver;
-    
+
     /// @notice Verifier address with SETTLEMENT_VERIFIER_ROLE
     address public verifier;
-    
+
     /// @notice Mock ERC20 token for testing
     MockERC20 public token;
-    
+
     /// @notice Secondary mock token for multi-token tests
     MockERC20 public token2;
 
     // Role Constants
-    
+
     /// @notice Role identifier for contract upgrade authorization
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
-    
+
     /// @notice Role identifier for settlement verification authorization
     bytes32 public constant SETTLEMENT_VERIFIER_ROLE = keccak256("SETTLEMENT_VERIFIER_ROLE");
-    
+
     /// @notice Default admin role from OpenZeppelin AccessControl
     bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
 
     // Setup
-    
+
     /// @notice Sets up the test environment with proxy deployment
     /// @dev Deploys implementation, proxy, mock tokens, and configures roles
     function setUp() public virtual {
         // Deploy vault implementation
         vaultImpl = new Vault();
-        
+
         // Create test addresses using makeAddr
         admin = makeAddr("admin");
         user = makeAddr("user");
         solver = makeAddr("solver");
         verifier = makeAddr("verifier");
-        
+
         // Deploy proxy with initialization data
-        bytes memory initData = abi.encodeWithSelector(
-            vaultImpl.initialize.selector,
-            admin
-        );
+        bytes memory initData = abi.encodeWithSelector(vaultImpl.initialize.selector, admin);
         proxy = new ERC1967Proxy(address(vaultImpl), initData);
         vault = Vault(address(proxy));
-        
+
         // Grant SETTLEMENT_VERIFIER_ROLE to verifier
         vm.prank(admin);
         vault.grantRole(SETTLEMENT_VERIFIER_ROLE, verifier);
-        
+
         // Deploy mock tokens
         token = new MockERC20("Mock Token", "MOCK");
         token2 = new MockERC20("Mock Token 2", "MOCK2");
-        
+
         // Fund test accounts with tokens
         token.mint(user, 1_000_000 * 10 ** 18);
         token.mint(solver, 1_000_000 * 10 ** 18);
         token2.mint(user, 1_000_000 * 10 ** 18);
         token2.mint(solver, 1_000_000 * 10 ** 18);
-        
+
         // Fund accounts with ETH
         vm.deal(user, 100 ether);
         vm.deal(solver, 100 ether);
@@ -100,7 +97,7 @@ abstract contract BaseVaultTest is Test {
     }
 
     // Helper Functions - Request Data Structures
-    
+
     /// @notice Creates a SourcePair struct for testing
     /// @param universe The blockchain universe (ETHEREUM, FUEL, SOLANA, TRON)
     /// @param chainId The chain identifier
@@ -116,42 +113,30 @@ abstract contract BaseVaultTest is Test {
         uint256 fee
     ) internal pure returns (Vault.SourcePair memory) {
         return Vault.SourcePair({
-            universe: universe,
-            chainID: chainId,
-            contractAddress: contractAddress,
-            value: value,
-            fee: fee
+            universe: universe, chainID: chainId, contractAddress: contractAddress, value: value, fee: fee
         });
     }
-    
+
     /// @notice Creates a DestinationPair struct for testing
     /// @param contractAddress The destination token contract address as bytes32
     /// @param value The amount of tokens/ETH to receive
     /// @return DestinationPair The constructed DestinationPair struct
-    function _createDestinationPair(
-        bytes32 contractAddress,
-        uint256 value
-    ) internal pure returns (Vault.DestinationPair memory) {
-        return Vault.DestinationPair({
-            contractAddress: contractAddress,
-            value: value
-        });
+    function _createDestinationPair(bytes32 contractAddress, uint256 value)
+        internal
+        pure
+        returns (Vault.DestinationPair memory)
+    {
+        return Vault.DestinationPair({contractAddress: contractAddress, value: value});
     }
-    
+
     /// @notice Creates a Party struct for testing
     /// @param universe The blockchain universe of the party
     /// @param address_ The party address as bytes32
     /// @return Party The constructed Party struct
-    function _createParty(
-        Vault.Universe universe,
-        bytes32 address_
-    ) internal pure returns (Vault.Party memory) {
-        return Vault.Party({
-            universe: universe,
-            address_: address_
-        });
+    function _createParty(Vault.Universe universe, bytes32 address_) internal pure returns (Vault.Party memory) {
+        return Vault.Party({universe: universe, address_: address_});
     }
-    
+
     /// @notice Creates a complete Request struct for testing
     /// @param sources Array of source asset pairs
     /// @param destinationUniverse Target blockchain universe
@@ -183,7 +168,7 @@ abstract contract BaseVaultTest is Test {
             parties: parties
         });
     }
-    
+
     /// @notice Creates a simplified Request with single source and destination
     /// @param sourceToken Source token address (bytes32(0) for ETH)
     /// @param sourceValue Amount to deposit
@@ -206,22 +191,16 @@ abstract contract BaseVaultTest is Test {
     ) internal view returns (Vault.Request memory) {
         // Create source pair
         Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(
-            Vault.Universe.ETHEREUM,
-            block.chainid,
-            sourceToken,
-            sourceValue,
-            0
-        );
-        
+        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, 0);
+
         // Create destination pair
         Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
         destinations[0] = _createDestinationPair(destToken, destValue);
-        
+
         // Create parties array with requester
         Vault.Party[] memory parties = new Vault.Party[](1);
         parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
-        
+
         return _createRequest(
             sources,
             Vault.Universe.ETHEREUM,
@@ -233,7 +212,7 @@ abstract contract BaseVaultTest is Test {
             parties
         );
     }
-    
+
     /// @notice Creates a SettleData struct for testing
     /// @param universe Universe where settlement occurs
     /// @param chainId Chain where settlement occurs
@@ -259,47 +238,39 @@ abstract contract BaseVaultTest is Test {
             nonce: nonce
         });
     }
-    
+
     /// @notice Creates a simplified SettleData for single solver payment
     /// @param solver_ Address of solver to pay
     /// @param token_ Token address (address(0) for ETH)
     /// @param amount Amount to pay
     /// @param nonce Anti-replay nonce
     /// @return SettleData The constructed SettleData struct
-    function _createSimpleSettleData(
-        address solver_,
-        address token_,
-        uint256 amount,
-        uint256 nonce
-    ) internal view returns (Vault.SettleData memory) {
+    function _createSimpleSettleData(address solver_, address token_, uint256 amount, uint256 nonce)
+        internal
+        view
+        returns (Vault.SettleData memory)
+    {
         address[] memory solvers = new address[](1);
         solvers[0] = solver_;
-        
+
         address[] memory contractAddresses = new address[](1);
         contractAddresses[0] = token_;
-        
+
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amount;
-        
-        return _createSettleData(
-            Vault.Universe.ETHEREUM,
-            block.chainid,
-            solvers,
-            contractAddresses,
-            amounts,
-            nonce
-        );
+
+        return _createSettleData(Vault.Universe.ETHEREUM, block.chainid, solvers, contractAddresses, amounts, nonce);
     }
 
     // Helper Functions - Address Conversion
-    
+
     /// @notice Converts an address to bytes32
     /// @param addr The address to convert
     /// @return bytes32 The address as bytes32 (padded with zeros)
     function _addrToBytes32(address addr) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(addr)));
     }
-    
+
     /// @notice Converts bytes32 to address
     /// @param b The bytes32 to convert
     /// @return address The address (last 20 bytes of bytes32)
@@ -308,7 +279,7 @@ abstract contract BaseVaultTest is Test {
     }
 
     // Helper Functions - Token Operations
-    
+
     /// @notice Approves token spending and deals tokens if needed
     /// @param token_ The token to approve
     /// @param owner The token owner
@@ -318,7 +289,7 @@ abstract contract BaseVaultTest is Test {
         vm.prank(owner);
         token_.approve(spender, amount);
     }
-    
+
     /// @notice Mints tokens to an address
     /// @param token_ The token to mint
     /// @param to The address to mint to
@@ -328,14 +299,14 @@ abstract contract BaseVaultTest is Test {
     }
 
     // Helper Functions - Time Utilities
-    
+
     /// @notice Returns a timestamp in the future
     /// @param secondsFromNow Seconds from current block timestamp
     /// @return uint256 The future timestamp
     function _futureTimestamp(uint256 secondsFromNow) internal view returns (uint256) {
         return block.timestamp + secondsFromNow;
     }
-    
+
     /// @notice Returns a timestamp in the past (for expired requests)
     /// @param secondsAgo Seconds before current block timestamp
     /// @return uint256 The past timestamp
@@ -344,7 +315,7 @@ abstract contract BaseVaultTest is Test {
     }
 
     // Helper Functions - Array Builders
-    
+
     /// @notice Creates a single-element SourcePair array
     /// @param pair The SourcePair to wrap in an array
     /// @return SourcePair[] Array containing the single pair
@@ -353,16 +324,20 @@ abstract contract BaseVaultTest is Test {
         arr[0] = pair;
         return arr;
     }
-    
+
     /// @notice Creates a single-element DestinationPair array
     /// @param pair The DestinationPair to wrap in an array
     /// @return DestinationPair[] Array containing the single pair
-    function _toDestinationPairArray(Vault.DestinationPair memory pair) internal pure returns (Vault.DestinationPair[] memory) {
+    function _toDestinationPairArray(Vault.DestinationPair memory pair)
+        internal
+        pure
+        returns (Vault.DestinationPair[] memory)
+    {
         Vault.DestinationPair[] memory arr = new Vault.DestinationPair[](1);
         arr[0] = pair;
         return arr;
     }
-    
+
     /// @notice Creates a single-element Party array
     /// @param party The Party to wrap in an array
     /// @return Party[] Array containing the single party

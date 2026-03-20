@@ -176,6 +176,13 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     // @dev Only callable by accounts with UPGRADER_ROLE
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
+    // @notice Returns the contract version
+    // @return string The current implementation version
+    // @dev Pure function - version is baked into implementation bytecode
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // Internal Utility Functions
     // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -344,7 +351,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         }
         emit Fulfilment(request_hash, from, msg.sender);
     }
-
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // Settlement Function
