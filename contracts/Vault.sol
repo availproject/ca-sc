@@ -184,7 +184,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     // @notice Updates the contract version string
     // @param newVersion New version string (e.g., "1.1.0")
     // @dev Only callable by accounts with UPGRADER_ROLE. Call after upgrading or as data to upgradeToAndCall.
-    function upgradeVersion(string calldata newVersion) external onlyRole(UPGRADER_ROLE) {
+    function upgradeVersion(string calldata newVersion) public onlyRole(UPGRADER_ROLE) {
         version = newVersion;
     }
 

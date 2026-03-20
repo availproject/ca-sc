@@ -20,7 +20,6 @@ contract DeployVault is Script {
         bytes32 salt = _getSalt();
         bytes32 proxySalt = keccak256(abi.encodePacked(salt, "proxy"));
 
-        console.log("Deployer:", msg.sender);
         console.log("Admin:", admin);
         console.log("Salt (impl):", vm.toString(salt));
         console.log("Salt (proxy):", vm.toString(proxySalt));
