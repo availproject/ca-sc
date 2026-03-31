@@ -875,7 +875,7 @@ contract VaultCoreTest is BaseVaultTest {
         amounts[1] = 1000 * 10 ** 18;
 
         Vault.SettleData memory settleData =
-            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, solvers, contractAddresses, amounts, nonce);
+            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
 
         // Sign with verifier key
         bytes32 structHash = keccak256(
