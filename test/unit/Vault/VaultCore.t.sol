@@ -1073,6 +1073,192 @@ contract VaultCoreTest is BaseVaultTest {
         assertTrue(vault.settleNonce(nonce), "Zero amount settle should succeed");
     }
 
+    // deposit() Tests - from == msg.sender (self-deposit) Cases
+
+    /// @notice Helper to create a request with a fee in the source pair
+    function _createRequestForUserWithFee(
+        bytes32 sourceToken,
+        uint256 sourceValue,
+        uint256 fee,
+        bytes32 destToken,
+        uint256 destValue,
+        uint256 userPrivateKey,
+        address recipient,
+        uint256 nonce,
+        uint256 expiry
+    ) internal view returns (Vault.Request memory) {
+        address requester = _getAddress(userPrivateKey);
+
+        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
+        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, fee);
+
+        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        destinations[0] = _createDestinationPair(destToken, destValue);
+
+        Vault.Party[] memory parties = new Vault.Party[](1);
+        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+
+        return _createRequest(
+            sources,
+            Vault.Universe.ETHEREUM,
+            block.chainid,
+            bytes32(uint256(uint160(recipient))),
+            destinations,
+            nonce,
+            expiry,
+            parties
+        );
+    }
+
+    /// @notice Test self-deposit of ERC20 with no fee succeeds
+    function test_Deposit_ERC20_SelfDeposit_NoFee_Success() public {
+        uint256 depositAmount = 1000 * 10 ** 18;
+        uint256 nonce = 50;
+        uint256 expiry = _futureTimestamp(1 hours);
+
+        address requester = _getAddress(USER_PRIVATE_KEY);
+
+        Vault.Request memory request = _createRequestForUser(
+            bytes32(uint256(uint160(address(token)))),
+            depositAmount,
+            bytes32(uint256(uint160(address(token)))),
+            depositAmount,
+            USER_PRIVATE_KEY,
+            solver,
+            nonce,
+            expiry
+        );
+
+        bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
+
+        // Approve tokens
+        vm.prank(requester);
+        token.approve(address(vault), depositAmount);
+
+        bytes32 requestHash = sigHelper.hashRequest(request);
+
+        // Expect Deposit event
+        vm.expectEmit(true, true, false, false);
+        emit Vault.Deposit(requestHash, requester);
+
+        // Self-deposit: from == msg.sender
+        vm.prank(requester);
+        vault.deposit(request, signature, 0);
+
+        assertTrue(vault.depositNonce(nonce), "Nonce should be marked as used");
+        assertEq(token.balanceOf(address(vault)), depositAmount, "Vault should have deposited tokens");
+    }
+
+    /// @notice Test self-deposit of ERC20 with fee reverts
+    function test_Deposit_ERC20_SelfDeposit_WithFee_Reverts() public {
+        uint256 depositAmount = 1000 * 10 ** 18;
+        uint256 fee = 10 * 10 ** 18;
+        uint256 nonce = 51;
+        uint256 expiry = _futureTimestamp(1 hours);
+
+        address requester = _getAddress(USER_PRIVATE_KEY);
+
+        Vault.Request memory request = _createRequestForUserWithFee(
+            bytes32(uint256(uint160(address(token)))),
+            depositAmount,
+            fee,
+            bytes32(uint256(uint160(address(token)))),
+            depositAmount,
+            USER_PRIVATE_KEY,
+            solver,
+            nonce,
+            expiry
+        );
+
+        bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
+
+        // Approve tokens (value + fee)
+        vm.prank(requester);
+        token.approve(address(vault), depositAmount + fee);
+
+        // Self-deposit with fee should revert
+        vm.expectRevert("Vault: self-fee transfer not allowed");
+        vm.prank(requester);
+        vault.deposit(request, signature, 0);
+    }
+
+    /// @notice Test self-deposit of ETH succeeds (ETH path has no fee logic)
+    function test_Deposit_ETH_SelfDeposit_Success() public {
+        uint256 depositAmount = 1 ether;
+        uint256 nonce = 52;
+        uint256 expiry = _futureTimestamp(1 hours);
+
+        address requester = _getAddress(USER_PRIVATE_KEY);
+
+        Vault.Request memory request = _createRequestForUser(
+            bytes32(0),
+            depositAmount,
+            bytes32(0),
+            depositAmount,
+            USER_PRIVATE_KEY,
+            solver,
+            nonce,
+            expiry
+        );
+
+        bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
+
+        bytes32 requestHash = sigHelper.hashRequest(request);
+
+        vm.expectEmit(true, true, false, false);
+        emit Vault.Deposit(requestHash, requester);
+
+        // Self-deposit ETH: from == msg.sender
+        vm.prank(requester);
+        vault.deposit{value: depositAmount}(request, signature, 0);
+
+        assertTrue(vault.depositNonce(nonce), "Nonce should be marked as used");
+        assertEq(address(vault).balance, depositAmount, "Vault should have deposited ETH");
+    }
+
+    /// @notice Test deposit of ERC20 with fee by a different sender (solver) succeeds
+    function test_Deposit_ERC20_WithFee_DifferentSender_Success() public {
+        uint256 depositAmount = 1000 * 10 ** 18;
+        uint256 fee = 10 * 10 ** 18;
+        uint256 nonce = 53;
+        uint256 expiry = _futureTimestamp(1 hours);
+
+        address requester = _getAddress(USER_PRIVATE_KEY);
+
+        Vault.Request memory request = _createRequestForUserWithFee(
+            bytes32(uint256(uint160(address(token)))),
+            depositAmount,
+            fee,
+            bytes32(uint256(uint160(address(token)))),
+            depositAmount,
+            USER_PRIVATE_KEY,
+            solver,
+            nonce,
+            expiry
+        );
+
+        bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
+
+        // Approve tokens (value + fee) from requester to vault
+        vm.prank(requester);
+        token.approve(address(vault), depositAmount + fee);
+
+        bytes32 requestHash = sigHelper.hashRequest(request);
+
+        vm.expectEmit(true, true, false, false);
+        emit Vault.Deposit(requestHash, requester);
+
+        uint256 solverBalBefore = token.balanceOf(solver);
+
+        // Deposit by solver (different sender), fee goes to solver
+        vm.prank(solver);
+        vault.deposit(request, signature, 0);
+
+        assertTrue(vault.depositNonce(nonce), "Nonce should be marked as used");
+        assertEq(token.balanceOf(address(vault)), depositAmount, "Vault should have deposited tokens");
+        assertEq(token.balanceOf(solver) - solverBalBefore, fee, "Solver should have received fee");
+    }
+
     // Helper Functions for Arrays
 
     function _toAddressArray(address addr) internal pure returns (address[] memory) {
