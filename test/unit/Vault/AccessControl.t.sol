@@ -183,7 +183,7 @@ contract AccessControlTest is BaseVaultTest {
         amounts[1] = 0.5 ether;
 
         Vault.SettleData memory settleData =
-            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, solvers, contractAddresses, amounts, nonce);
+            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
 
         bytes32 structHash = keccak256(
             abi.encode(
@@ -221,7 +221,7 @@ contract AccessControlTest is BaseVaultTest {
         amounts[0] = 0.5 ether;
 
         Vault.SettleData memory settleData =
-            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, solvers, contractAddresses, amounts, nonce);
+            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
 
         bytes32 structHash = keccak256(
             abi.encode(
@@ -293,6 +293,7 @@ contract AccessControlTest is BaseVaultTest {
         Vault.SettleData memory settleData = _createSettleData(
             Vault.Universe.ETHEREUM,
             999999, // Wrong chainID
+            address(vault),
             solvers,
             contractAddresses,
             amounts,
@@ -326,6 +327,7 @@ contract AccessControlTest is BaseVaultTest {
         Vault.SettleData memory settleData = _createSettleData(
             Vault.Universe.SOLANA, // Wrong universe
             block.chainid,
+            address(vault),
             _toAddressArray(solver),
             _toAddressArray(address(0)),
             _toUintArray(settleAmount),

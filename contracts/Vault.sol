@@ -126,6 +126,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     struct SettleData {
         Universe universe; // Universe where settlement occurs
         uint256 chainID; // Chain where settlement occurs
+        address vaultAddress; // Vault address to call "settle()" on.
         address[] solvers; // Addresses of solvers to pay
         address[] contractAddresses; // Token contracts (address(0) for ETH)
         uint256[] amounts; // Payment amounts for each solver
@@ -388,6 +389,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(!settleNonce[settleData.nonce], "Vault: Nonce already used");
         require(settleData.chainID == block.chainid, "Vault: Chain ID mismatch");
         require(settleData.universe == Universe.ETHEREUM, "Vault: Universe mismatch");
+        require(settleData.vaultAddress == address(this), "Vault: Invalid vault address");
 
         settleNonce[settleData.nonce] = true;
         for (uint256 i = 0; i < settleData.solvers.length; ++i) {
