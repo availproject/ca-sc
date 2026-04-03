@@ -94,6 +94,7 @@ contract AccessControlTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
+                settleData.vaultAddress,
                 settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
@@ -149,6 +150,7 @@ contract AccessControlTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
+                settleData.vaultAddress,
                 settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
@@ -189,6 +191,7 @@ contract AccessControlTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
+                settleData.vaultAddress,
                 settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
@@ -227,6 +230,7 @@ contract AccessControlTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
+                settleData.vaultAddress,
                 settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
@@ -255,6 +259,7 @@ contract AccessControlTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
+                settleData.vaultAddress,
                 settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
@@ -304,6 +309,7 @@ contract AccessControlTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
+                settleData.vaultAddress,
                 settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
@@ -338,6 +344,7 @@ contract AccessControlTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
+                settleData.vaultAddress,
                 settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
@@ -369,6 +376,7 @@ contract AccessControlTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
+                settleData.vaultAddress,
                 settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
