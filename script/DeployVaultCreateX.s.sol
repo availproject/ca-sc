@@ -12,7 +12,7 @@ interface ICreateX {
 
 contract DeployVault is Script {
     ICreateX public constant CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
-    bytes32 public constant DEFAULT_SALT = keccak256("nexus-vault-1.0.0");
+    bytes32 public constant DEFAULT_SALT = keccak256("nexus-vault-1.0.1");
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     function run() external returns (address proxy) {
