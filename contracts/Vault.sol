@@ -374,8 +374,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
-                settleData.solvers,
                 settleData.vaultAddress,
+                settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
                 settleData.nonce

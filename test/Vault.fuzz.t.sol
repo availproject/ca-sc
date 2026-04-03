@@ -354,8 +354,8 @@ contract VaultFuzzTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
-                settleData.solvers,
                 settleData.vaultAddress,
+                settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
                 settleData.nonce
@@ -396,8 +396,8 @@ contract VaultFuzzTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
-                settleData.solvers,
                 settleData.vaultAddress,
+                settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
                 settleData.nonce
@@ -455,8 +455,8 @@ contract VaultFuzzTest is BaseVaultTest {
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
-                settleData.solvers,
                 settleData.vaultAddress,
+                settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
                 settleData.nonce
