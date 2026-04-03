@@ -216,6 +216,7 @@ abstract contract BaseVaultTest is Test {
     /// @notice Creates a SettleData struct for testing
     /// @param universe Universe where settlement occurs
     /// @param chainId Chain where settlement occurs
+    /// @param vaultAddress Address of the vault contract
     /// @param solvers Array of solver addresses to pay
     /// @param contractAddresses Array of token contract addresses (address(0) for ETH)
     /// @param amounts Array of payment amounts
@@ -224,6 +225,7 @@ abstract contract BaseVaultTest is Test {
     function _createSettleData(
         Vault.Universe universe,
         uint256 chainId,
+        address vaultAddress,
         address[] memory solvers,
         address[] memory contractAddresses,
         uint256[] memory amounts,
@@ -232,6 +234,7 @@ abstract contract BaseVaultTest is Test {
         return Vault.SettleData({
             universe: universe,
             chainID: chainId,
+            vaultAddress: vaultAddress,
             solvers: solvers,
             contractAddresses: contractAddresses,
             amounts: amounts,
@@ -259,7 +262,7 @@ abstract contract BaseVaultTest is Test {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amount;
 
-        return _createSettleData(Vault.Universe.ETHEREUM, block.chainid, solvers, contractAddresses, amounts, nonce);
+        return _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
     }
 
     // Helper Functions - Address Conversion
