@@ -375,6 +375,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 settleData.universe,
                 settleData.chainID,
                 settleData.solvers,
+                settleData.vaultAddress,
                 settleData.contractAddresses,
                 settleData.amounts,
                 settleData.nonce

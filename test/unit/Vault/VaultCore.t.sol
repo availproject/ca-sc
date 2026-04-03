@@ -827,6 +827,7 @@ contract VaultCoreTest is BaseVaultTest {
                 settleData.universe,
                 settleData.chainID,
                 settleData.solvers,
+                settleData.vaultAddress,
                 settleData.contractAddresses,
                 settleData.amounts,
                 settleData.nonce
@@ -883,6 +884,7 @@ contract VaultCoreTest is BaseVaultTest {
                 settleData.universe,
                 settleData.chainID,
                 settleData.solvers,
+                settleData.vaultAddress,
                 settleData.contractAddresses,
                 settleData.amounts,
                 settleData.nonce
@@ -1058,6 +1060,7 @@ contract VaultCoreTest is BaseVaultTest {
                 settleData.universe,
                 settleData.chainID,
                 settleData.solvers,
+                settleData.vaultAddress,
                 settleData.contractAddresses,
                 settleData.amounts,
                 settleData.nonce
