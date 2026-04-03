@@ -13,14 +13,17 @@ interface ICreateX {
 contract DeployVault is Script {
     ICreateX public constant CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
     bytes32 public constant DEFAULT_SALT = keccak256("nexus-vault-1.0.0");
+    bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     function run() external returns (address proxy) {
         address admin = _getAdmin();
+        address finalAdmin = _getFinalAdmin();
         vm.startBroadcast();
         bytes32 salt = _getSalt();
         bytes32 proxySalt = keccak256(abi.encodePacked(salt, "proxy"));
 
         console.log("Admin:", admin);
+        console.log("Final Admin:", finalAdmin);
         console.log("Salt (impl):", vm.toString(salt));
         console.log("Salt (proxy):", vm.toString(proxySalt));
 
@@ -47,6 +50,42 @@ contract DeployVault is Script {
         vm.stopBroadcast();
 
         console.log("DEPLOYED_ADDRESS:", proxy);
+
+        // Transfer ownership to finalAdmin if specified and different from admin
+        if (finalAdmin != address(0) && finalAdmin != admin) {
+            _transferOwnership(proxy, finalAdmin);
+        }
+    }
+
+    function _transferOwnership(address proxy, address finalAdmin) internal {
+        uint256 adminPrivateKey = _getAdminPrivateKey();
+        require(adminPrivateKey != 0, "DeployVault: ADMIN_PRIVATE_KEY required for ownership transfer");
+        address upgraderWallet = _getUpgraderWallet();
+
+        vm.startBroadcast(adminPrivateKey);
+
+        Vault vault = Vault(proxy);
+
+        // Grant DEFAULT_ADMIN_ROLE to finalAdmin
+        vault.grantRole(vault.DEFAULT_ADMIN_ROLE(), finalAdmin);
+        console.log("Granted DEFAULT_ADMIN_ROLE to:", finalAdmin);
+
+        // Grant UPGRADER_ROLE to upgrader wallet (or finalAdmin if not set)
+        address upgrader = upgraderWallet != address(0) ? upgraderWallet : finalAdmin;
+        vault.grantRole(UPGRADER_ROLE, upgrader);
+        console.log("Granted UPGRADER_ROLE to:", upgrader);
+
+        // Get the deployer address (current admin)
+        address deployer = vm.addr(adminPrivateKey);
+
+        // Renounce roles from deployer
+        vault.renounceRole(vault.DEFAULT_ADMIN_ROLE(), deployer);
+        vault.renounceRole(UPGRADER_ROLE, deployer);
+        console.log("Renounced roles from deployer:", deployer);
+
+        vm.stopBroadcast();
+
+        console.log("Ownership transferred to finalAdmin:", finalAdmin);
     }
 
     function preview(address admin) external view returns (address impl, address proxy) {
@@ -77,6 +116,30 @@ contract DeployVault is Script {
             return envAdmin;
         } catch {
             return msg.sender;
+        }
+    }
+
+    function _getFinalAdmin() internal view returns (address) {
+        try vm.envAddress("FINAL_ADMIN") returns (address envFinalAdmin) {
+            return envFinalAdmin;
+        } catch {
+            return address(0);
+        }
+    }
+
+    function _getAdminPrivateKey() internal view returns (uint256) {
+        try vm.envUint("ADMIN_PRIVATE_KEY") returns (uint256 envPrivateKey) {
+            return envPrivateKey;
+        } catch {
+            return 0;
+        }
+    }
+
+    function _getUpgraderWallet() internal view returns (address) {
+        try vm.envAddress("UPGRADER_WALLET") returns (address envUpgrader) {
+            return envUpgrader;
+        } catch {
+            return address(0);
         }
     }
 }

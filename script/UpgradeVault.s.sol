@@ -40,8 +40,17 @@ contract UpgradeVault is Script {
     }
 
     function _upgrade(address proxyAddress, bytes32 salt) internal {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(deployerPrivateKey);
+        address deployer;
+        
+        // Try to use PRIVATE_KEY from env, otherwise use AWS KMS (via --aws flag)
+        try vm.envUint("PRIVATE_KEY") returns (uint256 deployerPrivateKey) {
+            deployer = vm.addr(deployerPrivateKey);
+            vm.startBroadcast(deployerPrivateKey);
+        } catch {
+            // AWS mode: use vm.startBroadcast() without key
+            deployer = msg.sender;
+            vm.startBroadcast();
+        }
 
         console.log("Deployer:", deployer);
         console.log("Proxy:", proxyAddress);
@@ -54,8 +63,6 @@ contract UpgradeVault is Script {
         bytes32 vaultInitCodeHash = keccak256(vaultInitCode);
         address expectedImpl = CREATEX.computeCreate2Address(salt, vaultInitCodeHash);
         console.log("Expected New Implementation:", expectedImpl);
-
-        vm.startBroadcast(deployerPrivateKey);
 
         IVault proxy = IVault(proxyAddress);
         bool hasUpgraderRole = proxy.hasRole(UPGRADER_ROLE, deployer);
