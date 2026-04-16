@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {MockFeeOnTransfer} from "test/mocks/MockFeeOnTransfer.sol";
 
 contract MockFeeOnTransferTest is Test {

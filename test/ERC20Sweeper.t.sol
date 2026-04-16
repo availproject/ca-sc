@@ -17,7 +17,7 @@ contract ERC20SweeperTest is Test {
         recipient = makeAddr("recipient");
 
         sweeper = new ERC20Sweeper();
-        token = new MockERC20("Test Token", "TEST", 18);
+        token = new MockERC20("Test Token", "TEST");
 
         token.mint(user, 1000e18);
     }

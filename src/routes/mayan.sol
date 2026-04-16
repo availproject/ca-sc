@@ -164,7 +164,7 @@ contract MayanRouter is ICaRouter, Ownable {
             uint64 refundFee,
             uint64 deadline,
             bytes32 destAddr,
-            uint16 payloadDestChainId,
+            uint16 _payloadDestChainId,
             bytes32 referrerAddr,
             uint8 referrerBps,
             uint8 auctionMode,

@@ -62,7 +62,7 @@ contract MayanRouterTest is Test {
         vault.setRouter(address(router));
 
         // Deploy mock token for testing
-        token = new MockERC20("Test Token", "TEST", 18);
+        token = new MockERC20("Test Token", "TEST");
         token.mint(user, 1000e18);
 
         vm.deal(user, 100 ether);
