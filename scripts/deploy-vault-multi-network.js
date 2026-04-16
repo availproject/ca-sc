@@ -10,19 +10,12 @@ const NETWORKS_TO_DEPLOY = [
   // "base_mainnet",
   // "scroll_mainnet",
   // "linea_mainnet",
-  // "avalanche_c_chain",
-  // "hyperliquid",
-  // "kaia_mainnet",
+  "avalanche_c_chain",
+  "hyperliquid",
+  "kaia_mainnet",
   // "bnb_smart_chain_mainnet",
-  // "monad_mainnet",
-  // "ethereum",
-  "sepolia",
-  "arb_sepolia",
-  "op_sepolia",
-  "base_sepolia",
-  "polygon_amony",
-  "citrea_testnet"
-
+  "monad_mainnet",
+  "ethereum",
 ];
 
 // Native token names for each network

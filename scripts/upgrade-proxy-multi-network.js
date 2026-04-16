@@ -2,16 +2,21 @@ const { ethers, upgrades } = require("hardhat");
 const hre = require("hardhat");
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 
 // Networks to upgrade (modify as needed)
 const NETWORKS_TO_UPGRADE = [
   "polygon_mainnet",
   "arbitrum_one",
-  "optimism_mainnet",
   "base_mainnet",
-  "scroll_mainnet",
-  "bnb_smart_chain_mainnet",
-  //   "tron_mainnet",
+  "ethereum"
+  // "base_sepolia",
+  // "arb_sepolia",
+  // "op_sepolia",
+  // "polygon_amony",
+  // "sepolia",
+  // "monad_testnet",
+  // "citrea_testnet"
 ];
 
 // Native token names for each network
@@ -41,39 +46,29 @@ const upgradeResults = {
   },
 };
 
-async function upgradeProxyOnNetwork(networkName, proxyAddress) {
+async function upgradeSingleNetwork(proxyAddress) {
+  const networkName = hre.network.name;
   console.log(`\n${"=".repeat(60)}`);
   console.log(`Upgrading proxy on ${networkName}...`);
   console.log(`${"=".repeat(60)}`);
 
   try {
-    // Get network config from hardhat
-    const networkConfig = hre.config.networks[networkName];
-    if (!networkConfig || !networkConfig.url) {
-      throw new Error(`Network ${networkName} not found in hardhat.config.ts`);
-    }
-
-    // Create a new provider for this network
-    const provider = new ethers.JsonRpcProvider(networkConfig.url);
+    const [deployer] = await ethers.getSigners();
+    const provider = deployer.provider;
     const network = await provider.getNetwork();
     const feeData = await provider.getFeeData();
 
-    // Create a signer for this network
-    const wallet = new ethers.Wallet(networkConfig.accounts[0], provider);
-
     console.log(`Chain ID: ${network.chainId}`);
-    console.log(`Deployer: ${wallet.address}`);
+    console.log(`Deployer: ${deployer.address}`);
     console.log(
       `Gas Price: ${ethers.formatUnits(feeData.gasPrice || 0n, "gwei")} gwei`
     );
     console.log(`Proxy Address: ${proxyAddress}`);
 
     // Check balance
-    const balance = await provider.getBalance(wallet.address);
+    const balance = await provider.getBalance(deployer.address);
     console.log(
-      `Balance: ${ethers.formatEther(balance)} ${
-        NATIVE_TOKENS[networkName] || "ETH"
-      }`
+      `Balance: ${ethers.formatEther(balance)} ${NATIVE_TOKENS[networkName] || "ETH"}`
     );
 
     // Verify proxy exists and get current implementation
@@ -95,87 +90,75 @@ async function upgradeProxyOnNetwork(networkName, proxyAddress) {
     console.log(`Current Implementation: ${currentImplementation}`);
 
     const Vault = await ethers.getContractFactory("Vault");
-
-    // Connect factory to wallet for the upgrade
-    const VaultWithSigner = Vault.connect(wallet);
-    const proxy = VaultWithSigner.attach(proxyAddress);
-
-    // Get UPGRADER_ROLE hash (keccak256 of UTF-8 bytes)
+    const proxy = Vault.attach(proxyAddress);
     const upgraderRole = ethers.keccak256(ethers.toUtf8Bytes("UPGRADER_ROLE"));
-    console.log(`Upgrader role: ${upgraderRole}`);
-    const checkIfUpgraderRole = await proxy.hasRole(
-      upgraderRole,
-      wallet.address
-    );
-    console.log(`Has UPGRADER_ROLE: ${checkIfUpgraderRole}`);
-
+    const hasUpgraderRole = await proxy.hasRole(upgraderRole, deployer.address);
     const hasAdminRole = await proxy.hasRole(
       await proxy.DEFAULT_ADMIN_ROLE(),
-      wallet.address
+      deployer.address
     );
+
+    console.log(`Has UPGRADER_ROLE: ${hasUpgraderRole}`);
     console.log(`Has ADMIN_ROLE: ${hasAdminRole}`);
 
-    if (!checkIfUpgraderRole) {
+    if (!hasUpgraderRole && !hasAdminRole) {
       throw new Error(
-        `Wallet ${wallet.address} does not have UPGRADER_ROLE or ADMIN_ROLE on proxy ${proxyAddress}`
+        `Deployer ${deployer.address} does not have UPGRADER_ROLE or ADMIN_ROLE on proxy ${proxyAddress}`
       );
     }
-    console.log("Deploying new implementation...");
 
-    // Deploy the new implementation directly (since proxy is not registered with upgrades tooling)
-    const newImplementation = await VaultWithSigner.deploy();
-    await newImplementation.waitForDeployment();
-    const newImplementationAddress = await newImplementation.getAddress();
+    console.log("Upgrading proxy using Hardhat upgrades plugin...");
 
-    console.log(`New implementation deployed at: ${newImplementationAddress}`);
+    // Use Hardhat upgrades plugin to upgrade the proxy
+    // This deploys a new implementation and calls upgradeToAndCall automatically
+    const upgradedProxy = await upgrades.upgradeProxy(proxyAddress, Vault, {
+      kind: "uups",
+      timeout: 0,
+    });
 
-    // Now manually call upgradeTo on the proxy
-    console.log("Upgrading proxy to new implementation...");
-    const upgradeTx = await proxy.upgradeToAndCall(
-      newImplementationAddress,
-      "0x"
-    );
+    await upgradedProxy.waitForDeployment();
 
-    console.log(`Transaction Hash: ${upgradeTx.hash}`);
-    console.log("Waiting for confirmation...");
-
-    const receipt = await upgradeTx.wait();
-    console.log(`✅ Upgrade confirmed in block ${receipt.blockNumber}`);
-
-    // Verify the new implementation is set
-    const verifiedImplAddress = await upgrades.erc1967.getImplementationAddress(
+    const newImplementationAddress = await upgrades.erc1967.getImplementationAddress(
       proxyAddress
     );
-    console.log(`Verified implementation address: ${verifiedImplAddress}`);
+    console.log(`New implementation deployed at: ${newImplementationAddress}`);
 
+    // Verify the new implementation is set
     if (
-      verifiedImplAddress.toLowerCase() !==
-      newImplementationAddress.toLowerCase()
+      newImplementationAddress.toLowerCase() === currentImplementation.toLowerCase()
     ) {
       throw new Error(
-        `Implementation mismatch! Expected ${newImplementationAddress}, got ${verifiedImplAddress}`
+        `Implementation not changed! Still at ${currentImplementation}`
       );
+    }
+
+    console.log(`✅ Upgrade confirmed`);
+
+    const deployTx = upgradedProxy.deploymentTransaction();
+    let receipt = null;
+    if (deployTx) {
+      receipt = await deployTx.wait();
     }
 
     // Get actual gas used
-    const gasUsed = receipt.gasUsed;
+    const gasUsed = receipt ? receipt.gasUsed : null;
     const actualCost =
       receipt && feeData.gasPrice ? receipt.gasUsed * feeData.gasPrice : null;
 
-    // Store upgrade info
-    upgradeResults.upgrades[networkName] = {
+    const result = {
+      success: true,
       chainId: network.chainId.toString(),
       proxyAddress,
       oldImplementation: currentImplementation,
       newImplementation: newImplementationAddress,
-      gasUsed: gasUsed.toString(),
+      gasUsed: gasUsed ? gasUsed.toString() : "N/A",
       gasPrice: feeData.gasPrice
         ? ethers.formatUnits(feeData.gasPrice, "gwei")
         : "N/A",
       actualCost: actualCost ? ethers.formatEther(actualCost) : "N/A",
       nativeToken: NATIVE_TOKENS[networkName] || "ETH",
-      txHash: receipt.hash,
-      blockNumber: receipt.blockNumber.toString(),
+      txHash: receipt ? receipt.hash : "N/A",
+      blockNumber: receipt ? receipt.blockNumber.toString() : "N/A",
       status: "success",
       timestamp: new Date().toISOString(),
     };
@@ -186,35 +169,98 @@ async function upgradeProxyOnNetwork(networkName, proxyAddress) {
     }
     if (actualCost) {
       console.log(
-        `   Cost: ${ethers.formatEther(actualCost)} ${
-          NATIVE_TOKENS[networkName] || "ETH"
-        }`
+        `   Cost: ${ethers.formatEther(actualCost)} ${NATIVE_TOKENS[networkName] || "ETH"}`
       );
     }
 
-    return {
-      success: true,
-      network: networkName,
-      proxyAddress,
-      oldImplementation: currentImplementation,
-      newImplementation: newImplementationAddress,
-      gasUsed: gasUsed.toString(),
-      cost: actualCost ? ethers.formatEther(actualCost) : null,
-    };
+    console.log(`\n__UPGRADE_RESULT__${JSON.stringify(result)}__END_RESULT__`);
+    return result;
   } catch (error) {
     console.error(`❌ Failed to upgrade on ${networkName}:`, error.message);
-    upgradeResults.upgrades[networkName] = {
+    const result = {
+      success: false,
+      network: networkName,
       error: error.message,
       proxyAddress: proxyAddress || "N/A",
       status: "failed",
       timestamp: new Date().toISOString(),
     };
-    return {
-      success: false,
-      network: networkName,
-      error: error.message,
-    };
+    console.log(`\n__UPGRADE_RESULT__${JSON.stringify(result)}__END_RESULT__`);
+    return result;
   }
+}
+
+function runMultiNetworkUpgrade(proxyAddresses, networks) {
+  console.log("🚀 Starting multi-network proxy upgrade...");
+  console.log(
+    "   Using Hardhat upgrades plugin (upgrades.upgradeProxy)\n"
+  );
+  console.log(`Networks: ${networks.join(", ")}\n`);
+
+  const missingAddresses = networks.filter((n) => !proxyAddresses[n]);
+  if (missingAddresses.length > 0) {
+    console.error(
+      `❌ Error: Missing proxy addresses for networks: ${missingAddresses.join(", ")}`
+    );
+    console.error(
+      "Please provide proxy addresses via command line or proxy-addresses.json"
+    );
+    process.exit(1);
+  }
+
+  for (const networkName of networks) {
+    console.log(`\n${"=".repeat(60)}`);
+    console.log(`Upgrading ${networkName}...`);
+    console.log(`${"=".repeat(60)}`);
+
+    const proxyAddress = proxyAddresses[networkName];
+
+    try {
+      const cmd = `npx hardhat run scripts/upgrade-proxy-multi-network.js --network ${networkName}`;
+
+      const output = execSync(cmd, {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        env: { ...process.env, PROXY_ADDRESS: proxyAddress },
+      });
+
+      console.log(output);
+
+      const resultMatch = output.match(/__UPGRADE_RESULT__(.+?)__END_RESULT__/);
+      if (resultMatch) {
+        const result = JSON.parse(resultMatch[1]);
+        upgradeResults.upgrades[networkName] = result;
+        if (result.success) {
+          upgradeResults.summary.successful++;
+        } else {
+          upgradeResults.summary.failed++;
+        }
+      } else {
+        throw new Error("Could not parse upgrade result");
+      }
+    } catch (error) {
+      console.error(`❌ Failed to upgrade ${networkName}:`, error.message);
+      if (error.stderr) console.error(error.stderr);
+      upgradeResults.upgrades[networkName] = {
+        error: error.message,
+        proxyAddress: proxyAddress,
+        status: "failed",
+        timestamp: new Date().toISOString(),
+      };
+      upgradeResults.summary.failed++;
+    }
+
+    if (networks.indexOf(networkName) < networks.length - 1) {
+      console.log("\nWaiting 3 seconds before next upgrade...");
+      execSync("sleep 3");
+    }
+  }
+
+  const resultsPath = path.join(__dirname, "..", "upgrades.json");
+  fs.writeFileSync(resultsPath, JSON.stringify(upgradeResults, null, 2));
+  console.log(`\n📝 Upgrade results saved to: ${resultsPath}`);
+
+  printReport();
 }
 
 function printReport() {
@@ -275,8 +321,7 @@ function printReport() {
       );
       if (data.gasUsed) {
         console.log(
-          `   Gas: ${data.gasUsed} | Cost: ${data.actualCost || "N/A"} ${
-            data.nativeToken || "ETH"
+          `   Gas: ${data.gasUsed} | Cost: ${data.actualCost || "N/A"} ${data.nativeToken || "ETH"
           } | Tx: ${data.txHash || "N/A"}`
         );
       }
@@ -308,121 +353,72 @@ function printReport() {
 }
 
 async function main() {
-  console.log("🚀 Starting multi-network proxy upgrade...");
-  console.log(
-    "   Note: upgrades.upgradeProxy() will deploy a new implementation from the factory\n"
-  );
-
-  // Get networks from command line or use default list
-  const networksArg = process.argv[2];
-  const networksToUpgrade = networksArg
-    ? networksArg.split(",").map((n) => n.trim())
-    : NETWORKS_TO_UPGRADE;
-
-  // Get proxy addresses from command line or proxy-addresses.json
-  let proxyAddresses = {};
-  const proxyAddressesArg = process.argv[3];
-
-  if (proxyAddressesArg) {
-    // Parse proxy addresses (format: network1:address1,network2:address2)
-    proxyAddressesArg.split(",").forEach((pair) => {
-      const [network, address] = pair.split(":").map((s) => s.trim());
-      if (network && address) {
-        proxyAddresses[network] = address;
-      }
-    });
-    console.log(
-      `📝 Loaded ${
-        Object.keys(proxyAddresses).length
-      } proxy addresses from command line`
-    );
+  const args = process.argv.slice(2);
+  
+  if (hre.network.name !== "hardhat") {
+    const proxyAddress = process.env.PROXY_ADDRESS || args[0];
+    if (!proxyAddress) {
+      console.error("❌ Error: Proxy address required. Set PROXY_ADDRESS env var or pass as argument");
+      console.error("Usage: PROXY_ADDRESS=0x... npx hardhat run scripts/upgrade-proxy-multi-network.js --network <network>");
+      console.error("   or: npx hardhat run scripts/upgrade-proxy-multi-network.js --network <network> 0x...");
+      process.exit(1);
+    }
+    await upgradeSingleNetwork(proxyAddress);
   } else {
-    // Try to load from proxy-addresses.json
-    const proxyAddressesPath = path.join(
-      __dirname,
-      "..",
-      "proxy-addresses.json"
-    );
-    if (fs.existsSync(proxyAddressesPath)) {
-      try {
-        const proxyData = JSON.parse(
-          fs.readFileSync(proxyAddressesPath, "utf8")
-        );
-        // Support both formats: { "network": "address" } or { "proxies": { "network": "address" } }
-        const proxies = proxyData.proxies || proxyData.deployments || proxyData;
-        networksToUpgrade.forEach((network) => {
-          if (proxies[network]) {
-            // Support both string address or object with proxyAddress/address field
-            const proxyAddr =
-              typeof proxies[network] === "string"
-                ? proxies[network]
-                : proxies[network].proxyAddress ||
-                  proxies[network].address ||
-                  proxies[network].implementationAddress;
-            if (proxyAddr) {
-              proxyAddresses[network] = proxyAddr;
-            }
-          }
-        });
-        console.log(
-          `📝 Loaded ${
-            Object.keys(proxyAddresses).length
-          } proxy addresses from proxy-addresses.json`
-        );
-      } catch (e) {
-        console.log(`⚠️  Could not load proxy-addresses.json: ${e.message}`);
-      }
+    const networksArg = args[0];
+    const networksToUpgrade = networksArg
+      ? networksArg.split(",").map((n) => n.trim())
+      : NETWORKS_TO_UPGRADE;
+
+    let proxyAddresses = {};
+    const proxyAddressesArg = args[1];
+
+    if (proxyAddressesArg) {
+      proxyAddressesArg.split(",").forEach((pair) => {
+        const [network, address] = pair.split(":").map((s) => s.trim());
+        if (network && address) {
+          proxyAddresses[network] = address;
+        }
+      });
+      console.log(
+        `📝 Loaded ${Object.keys(proxyAddresses).length} proxy addresses from command line`
+      );
     } else {
-      console.log(`⚠️  proxy-addresses.json not found. Create it with format:`);
-      console.log(`   {`);
-      console.log(`     "polygon_mainnet": "0xProxyAddress",`);
-      console.log(`     "arbitrum_one": "0xProxyAddress"`);
-      console.log(`   }`);
+      const proxyAddressesPath = path.join(__dirname, "..", "proxy-addresses.json");
+      if (fs.existsSync(proxyAddressesPath)) {
+        try {
+          const proxyData = JSON.parse(fs.readFileSync(proxyAddressesPath, "utf8"));
+          const deployments = proxyData.proxies || proxyData.deployments || proxyData;
+          networksToUpgrade.forEach((network) => {
+            if (deployments[network]) {
+              const proxyAddr =
+                typeof deployments[network] === "string"
+                  ? deployments[network]
+                  : deployments[network].proxyAddress || deployments[network].address;
+              if (proxyAddr) {
+                proxyAddresses[network] = proxyAddr;
+              }
+            }
+          });
+          console.log(
+            `📝 Loaded ${Object.keys(proxyAddresses).length} proxy addresses from proxy-addresses.json`
+          );
+        } catch (e) {
+          console.log(`⚠️  Could not load proxy-addresses.json: ${e.message}`);
+        }
+      } else {
+        console.log(`⚠️  proxy-addresses.json not found. Create it with format:`);
+        console.log(`   {`);
+        console.log(`     "deployments": {`);
+        console.log(`       "polygon_mainnet": { "proxyAddress": "0x..." },`);
+        console.log(`       "arbitrum_one": { "proxyAddress": "0x..." }`);
+        console.log(`     }`);
+        console.log(`   }`);
+      }
     }
+
+    await runMultiNetworkUpgrade(proxyAddresses, networksToUpgrade);
   }
-
-  console.log(`Networks: ${networksToUpgrade.join(", ")}\n`);
-
-  // Check if we have proxy addresses for all networks
-  const missingAddresses = networksToUpgrade.filter((n) => !proxyAddresses[n]);
-  if (missingAddresses.length > 0) {
-    console.error(
-      `❌ Error: Missing proxy addresses for networks: ${missingAddresses.join(
-        ", "
-      )}`
-    );
-    console.error(
-      "Please provide proxy addresses via command line or proxy-addresses.json"
-    );
-    process.exit(1);
-  }
-
-  const results = [];
-
-  // Upgrade each network sequentially
-  for (const networkName of networksToUpgrade) {
-    const proxyAddress = proxyAddresses[networkName];
-    const result = await upgradeProxyOnNetwork(networkName, proxyAddress);
-    results.push(result);
-
-    // Small delay between upgrades
-    if (networksToUpgrade.indexOf(networkName) < networksToUpgrade.length - 1) {
-      console.log("\nWaiting 3 seconds before next upgrade...");
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-    }
-  }
-
-  // Update summary
-  upgradeResults.summary.successful = results.filter((r) => r.success).length;
-  upgradeResults.summary.failed = results.filter((r) => !r.success).length;
-
-  // Save upgrade results to file
-  const resultsPath = path.join(__dirname, "..", "upgrades.json");
-  fs.writeFileSync(resultsPath, JSON.stringify(upgradeResults, null, 2));
-  console.log(`\n📝 Upgrade results saved to: ${resultsPath}`);
-
-  // Print formatted report
-  printReport();
 }
 
 main()
