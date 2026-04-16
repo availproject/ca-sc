@@ -184,8 +184,9 @@ contract AccessControlTest is BaseVaultTest {
         amounts[0] = 0.5 ether;
         amounts[1] = 0.5 ether;
 
-        Vault.SettleData memory settleData =
-            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
+        Vault.SettleData memory settleData = _createSettleData(
+            Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
+        );
 
         bytes32 structHash = keccak256(
             abi.encode(
@@ -223,8 +224,9 @@ contract AccessControlTest is BaseVaultTest {
         uint256[] memory amounts = new uint256[](1); // Mismatched length
         amounts[0] = 0.5 ether;
 
-        Vault.SettleData memory settleData =
-            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
+        Vault.SettleData memory settleData = _createSettleData(
+            Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
+        );
 
         bytes32 structHash = keccak256(
             abi.encode(

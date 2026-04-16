@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import { Test } from "forge-std/Test.sol";
-import { ERC20Sweeper } from "../src/ERC20Sweeper.sol";
-import { MockERC20 } from "./mocks/MockERC20.sol";
+import {Test} from "forge-std/Test.sol";
+import {ERC20Sweeper} from "../src/ERC20Sweeper.sol";
+import {MockERC20} from "./mocks/MockERC20.sol";
 
 contract ERC20SweeperTest is Test {
     ERC20Sweeper public sweeper;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import { Script } from "forge-std/Script.sol";
-import { console } from "forge-std/console.sol";
-import { Router } from "../src/Router.sol";
+import {Script} from "forge-std/Script.sol";
+import {console} from "forge-std/console.sol";
+import {Router} from "../src/Router.sol";
 
 /// @title DeployRouter
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -33,10 +33,7 @@ contract DeployRouter is Script {
         vm.stopBroadcast();
 
         // Verify deployment
-        require(
-            routerContract.hasRole(routerContract.DEFAULT_ADMIN_ROLE(), admin),
-            "Admin role not granted"
-        );
+        require(routerContract.hasRole(routerContract.DEFAULT_ADMIN_ROLE(), admin), "Admin role not granted");
         console.log("Deployment verified successfully");
 
         return router;

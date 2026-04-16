@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Script, console} from "forge-std/Script.sol";
-import {Vault} from "../contracts/Vault.sol";
+
 
 interface IVault {
     function hasRole(bytes32 role, address account) external view returns (bool);

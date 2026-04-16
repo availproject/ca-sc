@@ -25,8 +25,6 @@ import {
     Universe,
     RFFState,
     SettleData,
-    Action,
-    RouterAction,
     Route
 } from "./types.sol";
 import { IRouter } from "./interfaces/IRouter.sol";
@@ -89,23 +87,6 @@ contract Vault is
         override
         onlyRole(UPGRADER_ROLE)
     { }
-
-    function _hashAction(Action calldata action) private pure returns (bytes32) {
-        return keccak256(abi.encode(action));
-    }
-
-    function _verifyAction(bytes calldata signature, address from, Action calldata action)
-        private
-        pure
-        returns (bool, bytes32)
-    {
-        bytes32 signedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", _hashAction(action))
-        );
-
-        address signer = signedMessageHash.recover(signature);
-        return (signer == from, signedMessageHash);
-    }
 
     function _hashRequest(Request calldata request) private pure returns (bytes32) {
         return keccak256(
@@ -178,67 +159,59 @@ contract Vault is
     }
 
     /// @notice Deposit funds and initiate cross-chain transfer via router
-    /// @param action Action struct for router containing cross-chain transfer details
+    /// @param request Request struct for router containing cross-chain transfer details
     /// @param signature User's signature authorizing the deposit
-    /// @param chainIndex Index of the source chain in the action.sources array
+    /// @param chainIndex Index of the source chain in the request.sources array
+    /// @param destinationChainIndex Index of the destination in the request.destinations array
     /// @param route Route to use (NATIVE or MAYAN)
     /// @param routeData Additional route-specific encoded parameters
     function depositRouter(
-        Action calldata action,
+        Request calldata request,
         bytes calldata signature,
         uint256 chainIndex,
+        uint256 destinationChainIndex,
         Route route,
         bytes calldata routeData
     ) external payable nonReentrant {
         require(address(router) != address(0), "Vault: Router not set");
+        require(destinationChainIndex < request.destinations.length, "Vault: Invalid destination index");
 
-        address from = extractAddress(action.parties);
-        (bool success, bytes32 actionHash) = _verifyAction(signature, from, action);
+        address from = extractAddress(request.parties);
+        (bool success, bytes32 requestHash) = _verify_request(signature, from, request);
         require(success, "Vault: Invalid signature or from");
-        require(action.sources[chainIndex].chainID == block.chainid, "Vault: Chain ID mismatch");
+        require(request.sources[chainIndex].chainID == block.chainid, "Vault: Chain ID mismatch");
         require(
-            action.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch"
+            request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch"
         );
-        require(!depositNonce[action.nonce], "Vault: Nonce already used");
-        require(action.deadline > block.timestamp, "Vault: Action expired");
+        require(!depositNonce[request.nonce], "Vault: Nonce already used");
+        require(request.expiry > block.timestamp, "Vault: Request expired");
 
-        depositNonce[action.nonce] = true;
-        requestState[actionHash] = RFFState.DEPOSITED;
+        depositNonce[request.nonce] = true;
+        requestState[requestHash] = RFFState.DEPOSITED;
 
         uint256 valueToRoute = 0;
 
-        if (action.sources[chainIndex].contractAddress == bytes32(0)) {
-            uint256 totalValue = action.sources[chainIndex].value;
+        if (request.sources[chainIndex].contractAddress == bytes32(0)) {
+            uint256 totalValue = request.sources[chainIndex].value;
             require(msg.value == totalValue, "Vault: Value mismatch");
             valueToRoute = totalValue;
         } else {
-            IERC20 token = IERC20(bytes32ToAddress(action.sources[chainIndex].contractAddress));
+            IERC20 token = IERC20(bytes32ToAddress(request.sources[chainIndex].contractAddress));
 
             uint256 bal = token.balanceOf(address(this));
-            token.safeTransferFrom(from, address(this), action.sources[chainIndex].value);
+            token.safeTransferFrom(from, address(this), request.sources[chainIndex].value);
 
-            if (token.balanceOf(address(this)) - bal != action.sources[chainIndex].value) {
+            if (token.balanceOf(address(this)) - bal != request.sources[chainIndex].value) {
                 revert("Vault: failed to transfer the source amount");
             }
 
-            token.safeTransfer(address(router), action.sources[chainIndex].value);
+            token.safeTransfer(address(router), request.sources[chainIndex].value);
         }
 
-        RouterAction memory routerAction = RouterAction({
-            tokenAddress: action.sources[chainIndex].contractAddress,
-            recipientAddress: action.recipientAddress,
-            destinationCaip2namespace: action.destinationCaip2namespace,
-            destinationContractAddress: action.destinationContractAddress,
-            destinationMinTokenAmount: action.destinationMinTokenAmount,
-            amountIn: action.sources[chainIndex].value,
-            destinationCaip2chainId: action.destinationCaip2chainId,
-            nonce: action.nonce,
-            deadline: action.deadline
-        });
+        bytes memory encodedRouteData = abi.encode(chainIndex, destinationChainIndex, routeData);
+        router.processTransfer{ value: valueToRoute }(request, route, encodedRouteData);
 
-        router.processTransfer{ value: valueToRoute }(routerAction, route, routeData);
-
-        emit DepositAndRoute(actionHash, from, route);
+        emit DepositAndRoute(requestHash, from, route);
     }
 
     function extractAddress(Party[] memory parties) internal pure returns (address user) {

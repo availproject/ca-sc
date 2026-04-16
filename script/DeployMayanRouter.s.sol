@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import { Script } from "forge-std/Script.sol";
-import { console } from "forge-std/console.sol";
-import { MayanRouter } from "../src/routes/mayan.sol";
-import { Router } from "../src/Router.sol";
-import { Route } from "../src/types.sol";
+import {Script} from "forge-std/Script.sol";
+import {console} from "forge-std/console.sol";
+import {MayanRouter} from "../src/routes/mayan.sol";
+import {Router} from "../src/Router.sol";
+import {Route} from "../src/types.sol";
 
 /// @title DeployMayanRouter
 /// @author Rachit Anand Srivastava (@privacy_prophet)

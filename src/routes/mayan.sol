@@ -1,7 +1,7 @@
 //  SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import { Request, RouterAction, Universe, SourcePair } from "../types.sol";
+import { Request, Universe, SourcePair } from "../types.sol";
 import { ICaRouter } from "../interfaces/ICaRouter.sol";
 import { IMayanSwiftV1 } from "../interfaces/IMayanSwiftV1.sol";
 import { IMayanForwarder } from "../interfaces/IMayanForwarder.sol";
@@ -28,6 +28,7 @@ contract MayanRouter is ICaRouter, Ownable {
     error InvalidSwiftVersion(uint8 version);
 
     mapping(bytes32 => mapping(uint256 => uint16)) public caip2ToWormholeChainId;
+    mapping(Universe => bytes32) public universeToCaip2Namespace;
 
     /// @notice Emitted when a Wormhole chain mapping is updated
     /// @param namespaceHash CAIP-2 namespace hash
@@ -47,26 +48,31 @@ contract MayanRouter is ICaRouter, Ownable {
         caip2ToWormholeChainId[eip155][43_114] = 6;
         caip2ToWormholeChainId[eip155][137] = 5;
         caip2ToWormholeChainId[eip155][56] = 4;
+
+        // Map Universe enum to CAIP-2 namespaces
+        universeToCaip2Namespace[Universe.ETHEREUM] = eip155;
     }
 
     /// @notice Process cross-chain token transfer via Mayan Swift V2 or V1
     /// @dev Only supports ETHEREUM universe sources. Destination chain must be configured.
     /// @param request Action struct containing source, destination, and recipient details
     /// @param data ABI-encoded (SwiftVersion, remaining data)
-    function processTransfer(RouterAction calldata request, bytes calldata data)
+    function processTransfer(Request calldata request, bytes calldata data)
         external
         payable
         override
     {
-        address tokenIn = address(uint160(uint256(request.tokenAddress)));
-        uint256 amountIn = request.amountIn;
+        (uint256 chainIndex, uint256 destinationChainIndex, bytes memory actualData) =
+            abi.decode(data, (uint256, uint256, bytes));
+        address tokenIn = address(uint160(uint256(request.sources[chainIndex].contractAddress)));
+        uint256 amountIn = request.sources[chainIndex].value;
 
-        (SwiftVersion version, bytes memory remainingData) = abi.decode(data, (SwiftVersion, bytes));
+        (SwiftVersion version, bytes memory remainingData) = abi.decode(actualData, (SwiftVersion, bytes));
 
         if (version == SwiftVersion.V2) {
-            _processTransferV2(request, tokenIn, amountIn, remainingData);
+            _processTransferV2(request, chainIndex, destinationChainIndex, tokenIn, amountIn, remainingData);
         } else if (version == SwiftVersion.V1) {
-            _processTransferV1(request, tokenIn, amountIn, remainingData);
+            _processTransferV1(request, chainIndex, destinationChainIndex, tokenIn, amountIn, remainingData);
         } else {
             revert InvalidSwiftVersion(uint8(version));
         }
@@ -78,7 +84,9 @@ contract MayanRouter is ICaRouter, Ownable {
     /// @param amountIn Amount to transfer
     /// @param data ABI-encoded V2 payload
     function _processTransferV2(
-        RouterAction calldata request,
+        Request calldata request,
+        uint256 chainIndex,
+        uint256 destinationChainIndex,
         address tokenIn,
         uint256 amountIn,
         bytes memory data
@@ -98,8 +106,8 @@ contract MayanRouter is ICaRouter, Ownable {
         );
 
         uint16 wormholeChainId = caip2ToWormholeChainId[
-            request.destinationCaip2namespace
-        ][request.destinationCaip2chainId];
+            universeToCaip2Namespace[request.destinationUniverse]
+        ][request.destinationChainID];
         require(wormholeChainId != 0, "Unsupported destination chain");
 
         IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2.OrderParams({
@@ -108,12 +116,12 @@ contract MayanRouter is ICaRouter, Ownable {
             destAddr: destAddr,
             destChainId: wormholeChainId,
             referrerAddr: referrerAddr,
-            tokenOut: request.destinationContractAddress,
-            minAmountOut: uint64(request.destinationMinTokenAmount),
+            tokenOut: request.destinations[destinationChainIndex].contractAddress,
+            minAmountOut: uint64(request.destinations[destinationChainIndex].value),
             gasDrop: gasDrop,
             cancelFee: cancelFee,
             refundFee: refundFee,
-            deadline: request.deadline,
+            deadline: uint64(request.expiry),
             referrerBps: referrerBps,
             auctionMode: auctionMode,
             random: random
@@ -150,7 +158,9 @@ contract MayanRouter is ICaRouter, Ownable {
     /// @param amountIn Amount to transfer
     /// @param data ABI-encoded V1 payload
     function _processTransferV1(
-        RouterAction calldata request,
+        Request calldata request,
+        uint256 chainIndex,
+        uint256 destinationChainIndex,
         address tokenIn,
         uint256 amountIn,
         bytes memory data
@@ -189,8 +199,8 @@ contract MayanRouter is ICaRouter, Ownable {
         );
 
         uint16 wormholeChainId = caip2ToWormholeChainId[
-            request.destinationCaip2namespace
-        ][request.destinationCaip2chainId];
+            universeToCaip2Namespace[request.destinationUniverse]
+        ][request.destinationChainID];
         require(wormholeChainId != 0, "Unsupported destination chain");
 
         IMayanSwiftV1.OrderParams memory orderParams = IMayanSwiftV1.OrderParams({

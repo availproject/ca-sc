@@ -41,7 +41,7 @@ contract UpgradeVault is Script {
 
     function _upgrade(address proxyAddress, bytes32 salt) internal {
         address deployer;
-        
+
         // Try to use PRIVATE_KEY from env, otherwise use AWS KMS (via --aws flag)
         try vm.envUint("PRIVATE_KEY") returns (uint256 deployerPrivateKey) {
             deployer = vm.addr(deployerPrivateKey);

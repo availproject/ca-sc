@@ -1,19 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import { Test } from "forge-std/Test.sol";
-import { MayanRouter } from "../src/routes/mayan.sol";
-import { Router } from "../src/Router.sol";
-import { Vault } from "../src/Vault.sol";
-import { MockERC20 } from "./mocks/MockERC20.sol";
-import { Action, RouterAction, SourcePair, Party, Universe, Route } from "../src/types.sol";
-import { console } from "forge-std/console.sol";
-import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IMayanForwarder } from "../src/interfaces/IMayanForwarder.sol";
-import { IMayanSwiftV2 } from "../src/interfaces/IMayanSwiftV2.sol";
-import { IMayanSwiftV1 } from "../src/interfaces/IMayanSwiftV1.sol";
-import { SwiftVersion } from "../src/routes/mayan.sol";
+import {Test} from "forge-std/Test.sol";
+import {MayanRouter} from "../src/routes/mayan.sol";
+import {Router} from "../src/Router.sol";
+import {Vault} from "../src/Vault.sol";
+import {MockERC20} from "./mocks/MockERC20.sol";
+import {Request, SourcePair, Party, Universe, Route, DestinationPair} from "../src/types.sol";
+import {SwiftVersion} from "../src/routes/mayan.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract MayanRouterTest is Test {
     MayanRouter public mayanRouter;
@@ -68,14 +63,20 @@ contract MayanRouterTest is Test {
         vm.deal(user, 100 ether);
     }
 
-    function _signAction(Action memory action, uint256 privateKey)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes32 actionHash = keccak256(abi.encode(action));
-        bytes32 messageHash =
-            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", actionHash));
+    function _signRequest(Request memory request, uint256 privateKey) internal pure returns (bytes memory) {
+        bytes32 requestHash = keccak256(
+            abi.encode(
+                request.sources,
+                request.destinationUniverse,
+                request.destinationChainID,
+                request.recipientAddress,
+                request.destinations,
+                request.nonce,
+                request.expiry,
+                request.parties
+            )
+        );
+        bytes32 messageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", requestHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, messageHash);
         return abi.encodePacked(r, s, v);
     }
@@ -99,22 +100,44 @@ contract MayanRouterTest is Test {
         );
         bytes memory data = abi.encode(SwiftVersion.V2, v2Payload);
 
-        // Create RouterAction object
-        RouterAction memory request = RouterAction({
-            tokenAddress: bytes32(uint256(uint160(address(token)))),
-            recipientAddress: bytes32(uint256(uint160(user))),
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(uint256(uint160(address(token)))),
-            destinationMinTokenAmount: 90e18,
-            amountIn: 100e18,
-            destinationCaip2chainId: 1,
-            nonce: 12_345,
-            deadline: uint64(block.timestamp + 3600)
+        // Create Request object
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: 8453,
+            contractAddress: bytes32(uint256(uint160(address(token)))),
+            value: 100e18
         });
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({
+            contractAddress: bytes32(uint256(uint160(address(token)))),
+            value: 90e18
+        });
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({
+            universe: Universe.ETHEREUM,
+            address_: bytes32(uint256(uint160(user)))
+        });
+
+        Request memory request = Request({
+            sources: sources,
+            destinationUniverse: Universe.ETHEREUM,
+            destinationChainID: 1,
+            recipientAddress: bytes32(uint256(uint160(user))),
+            destinations: destinations,
+            nonce: 12_345,
+            expiry: block.timestamp + 3600,
+            parties: parties
+        });
+
+        // Encode data with chain indices
+        bytes memory encodedData = abi.encode(uint256(0), uint256(0), data);
 
         uint256 userBalanceBefore = token.balanceOf(user);
         vm.prank(user);
-        mayanRouter.processTransfer(request, data);
+        mayanRouter.processTransfer(request, encodedData);
         uint256 userBalanceAfter = token.balanceOf(user);
 
         assertEq(userBalanceBefore - 100e18, userBalanceAfter);
@@ -135,25 +158,47 @@ contract MayanRouterTest is Test {
         );
         bytes memory data = abi.encode(SwiftVersion.V2, v2Payload);
 
-        // Create RouterAction object
-        RouterAction memory request = RouterAction({
-            tokenAddress: bytes32(0),
-            recipientAddress: bytes32(uint256(uint160(user))),
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(0),
-            destinationMinTokenAmount: 0.5 ether,
-            amountIn: 1 ether,
-            destinationCaip2chainId: 1,
-            nonce: 12_346,
-            deadline: uint64(block.timestamp + 3600)
+        // Create Request object
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: 8453,
+            contractAddress: bytes32(0),
+            value: 1 ether
         });
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({
+            contractAddress: bytes32(0),
+            value: 0.5 ether
+        });
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({
+            universe: Universe.ETHEREUM,
+            address_: bytes32(uint256(uint160(user)))
+        });
+
+        Request memory request = Request({
+            sources: sources,
+            destinationUniverse: Universe.ETHEREUM,
+            destinationChainID: 1,
+            recipientAddress: bytes32(uint256(uint160(user))),
+            destinations: destinations,
+            nonce: 12_346,
+            expiry: block.timestamp + 3600,
+            parties: parties
+        });
+
+        // Encode data with chain indices
+        bytes memory encodedData = abi.encode(uint256(0), uint256(0), data);
 
         uint256 userBalanceBefore = user.balance;
         uint256 swiftV2BalanceBefore = address(SWIFT_V2_BASE).balance;
 
         // Execute the transfer
         vm.prank(user);
-        mayanRouter.processTransfer{ value: 1 ether }(request, data);
+        mayanRouter.processTransfer{value: 1 ether}(request, encodedData);
 
         // Verify ETH was transferred to the swiftV2
         assertEq(address(SWIFT_V2_BASE).balance, swiftV2BalanceBefore + 1 ether);
@@ -180,7 +225,7 @@ contract MayanRouterTest is Test {
         );
         bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
-        // Create Action object
+        // Create Request object
         SourcePair[] memory sources = new SourcePair[](1);
         sources[0] = SourcePair({
             universe: Universe.ETHEREUM,
@@ -190,28 +235,29 @@ contract MayanRouterTest is Test {
         });
 
         Party[] memory parties = new Party[](1);
-        parties[0] =
-            Party({ universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user))) });
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
 
-        Action memory action = Action({
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(uint256(uint160(address(token)))), value: 90e18});
+
+        Request memory request = Request({
             sources: sources,
             recipientAddress: bytes32(uint256(uint160(recipient))),
             parties: parties,
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(uint256(uint160(address(token)))),
-            destinationCaip2chainId: 1,
-            destinationMinTokenAmount: 90e18,
+            destinationUniverse: Universe.ETHEREUM,
+            destinations: destinations,
+            destinationChainID: 1,
             nonce: 1001,
-            deadline: uint64(block.timestamp + 3600)
+            expiry: uint64(block.timestamp + 3600)
         });
 
-        bytes memory signature = _signAction(action, userPrivateKey);
+        bytes memory signature = _signRequest(request, userPrivateKey);
 
         uint256 userBalanceBefore = token.balanceOf(user);
         uint256 vaultBalanceBefore = token.balanceOf(address(vault));
 
         vm.prank(user);
-        vault.depositRouter(action, signature, 0, Route.MAYAN, routeData);
+        vault.depositRouter(request, signature, 0, 0, Route.MAYAN, routeData);
 
         uint256 userBalanceAfter = token.balanceOf(user);
         uint256 vaultBalanceAfter = token.balanceOf(address(vault));
@@ -237,7 +283,7 @@ contract MayanRouterTest is Test {
         );
         bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
-        // Create Action object for ETH transfer
+        // Create Request object for ETH transfer
         SourcePair[] memory sources = new SourcePair[](1);
         sources[0] = SourcePair({
             universe: Universe.ETHEREUM,
@@ -247,22 +293,26 @@ contract MayanRouterTest is Test {
         });
 
         Party[] memory parties = new Party[](1);
-        parties[0] =
-            Party({ universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user))) });
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
 
-        Action memory action = Action({
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({
+            contractAddress: bytes32(0), // ETH
+            value: 0.5 ether
+        });
+
+        Request memory request = Request({
             sources: sources,
             recipientAddress: bytes32(uint256(uint160(recipient))),
             parties: parties,
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(0), // ETH
-            destinationCaip2chainId: 1,
-            destinationMinTokenAmount: 0.5 ether,
+            destinationUniverse: Universe.ETHEREUM,
+            destinations: destinations,
+            destinationChainID: 1,
             nonce: 1002,
-            deadline: uint64(block.timestamp + 3600)
+            expiry: uint64(block.timestamp + 3600)
         });
 
-        bytes memory signature = _signAction(action, userPrivateKey);
+        bytes memory signature = _signRequest(request, userPrivateKey);
 
         uint256 userBalanceBefore = user.balance;
         uint256 vaultBalanceBefore = address(vault).balance;
@@ -270,7 +320,7 @@ contract MayanRouterTest is Test {
 
         // Execute the transfer
         vm.prank(user);
-        vault.depositRouter{ value: 1 ether }(action, signature, 0, Route.MAYAN, routeData);
+        vault.depositRouter{value: 1 ether}(request, signature, 0, 0, Route.MAYAN, routeData);
 
         // Verify ETH was transferred through vault to swiftV2
         assertEq(address(SWIFT_V2_BASE).balance, swiftV2BalanceBefore + 1 ether);
@@ -283,48 +333,38 @@ contract MayanRouterTest is Test {
     function test_VaultDepositRouter_RevertInvalidSignature() public {
         SourcePair[] memory sources = new SourcePair[](1);
         sources[0] = SourcePair({
-            universe: Universe.ETHEREUM,
-            chainID: block.chainid,
-            contractAddress: bytes32(0),
-            value: 1 ether
+            universe: Universe.ETHEREUM, chainID: block.chainid, contractAddress: bytes32(0), value: 1 ether
         });
 
         Party[] memory parties = new Party[](1);
-        parties[0] =
-            Party({ universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user))) });
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
 
-        Action memory action = Action({
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(0), value: 0.5 ether});
+
+        Request memory request = Request({
             sources: sources,
             recipientAddress: bytes32(uint256(uint160(recipient))),
             parties: parties,
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(0),
-            destinationCaip2chainId: 1,
-            destinationMinTokenAmount: 0.5 ether,
+            destinationUniverse: Universe.ETHEREUM,
+            destinations: destinations,
+            destinationChainID: 1,
             nonce: 1003,
-            deadline: uint64(block.timestamp + 3600)
+            expiry: uint64(block.timestamp + 3600)
         });
 
         // Sign with wrong private key
         uint256 wrongPrivateKey = 0xBAD;
-        bytes memory wrongSignature = _signAction(action, wrongPrivateKey);
+        bytes memory wrongSignature = _signRequest(request, wrongPrivateKey);
 
         bytes memory v2Payload = abi.encode(
-            uint64(0),
-            bytes32(0),
-            bytes32(0),
-            uint64(0),
-            uint64(0),
-            uint8(0),
-            uint8(0),
-            bytes32(0),
-            uint8(0)
+            uint64(0), bytes32(0), bytes32(0), uint64(0), uint64(0), uint8(0), uint8(0), bytes32(0), uint8(0)
         );
         bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
         vm.prank(user);
         vm.expectRevert("Vault: Invalid signature or from");
-        vault.depositRouter{ value: 1 ether }(action, wrongSignature, 0, Route.MAYAN, routeData);
+        vault.depositRouter{value: 1 ether}(request, wrongSignature, 0, 0, Route.MAYAN, routeData);
     }
 
     function test_VaultDepositRouter_RevertNonceReuse() public {
@@ -340,43 +380,36 @@ contract MayanRouterTest is Test {
         });
 
         Party[] memory parties = new Party[](1);
-        parties[0] =
-            Party({ universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user))) });
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
 
-        Action memory action = Action({
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(uint256(uint160(address(token)))), value: 90e18});
+
+        Request memory request = Request({
             sources: sources,
             recipientAddress: bytes32(uint256(uint160(recipient))),
             parties: parties,
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(uint256(uint160(address(token)))),
-            destinationCaip2chainId: 1,
-            destinationMinTokenAmount: 90e18,
+            destinationUniverse: Universe.ETHEREUM,
+            destinations: destinations,
+            destinationChainID: 1,
             nonce: 2001,
-            deadline: uint64(block.timestamp + 3600)
+            expiry: uint64(block.timestamp + 3600)
         });
 
-        bytes memory signature = _signAction(action, userPrivateKey);
+        bytes memory signature = _signRequest(request, userPrivateKey);
         bytes memory v2Payload = abi.encode(
-            uint64(0),
-            bytes32(0),
-            bytes32(0),
-            uint64(0),
-            uint64(0),
-            uint8(0),
-            uint8(0),
-            bytes32(0),
-            uint8(0)
+            uint64(0), bytes32(0), bytes32(0), uint64(0), uint64(0), uint8(0), uint8(0), bytes32(0), uint8(0)
         );
         bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
         // First deposit should succeed
         vm.prank(user);
-        vault.depositRouter(action, signature, 0, Route.MAYAN, routeData);
+        vault.depositRouter(request, signature, 0, 0, Route.MAYAN, routeData);
 
         // Second deposit with same nonce should revert
         vm.prank(user);
         vm.expectRevert("Vault: Nonce already used");
-        vault.depositRouter(action, signature, 0, Route.MAYAN, routeData);
+        vault.depositRouter(request, signature, 0, 0, Route.MAYAN, routeData);
     }
 
     function test_ProcessTransferV1_ERC20() public {
@@ -402,22 +435,44 @@ contract MayanRouterTest is Test {
         );
         bytes memory data = abi.encode(SwiftVersion.V1, v1Payload);
 
-        // Create RouterAction object
-        RouterAction memory request = RouterAction({
-            tokenAddress: bytes32(uint256(uint160(address(token)))),
-            recipientAddress: bytes32(uint256(uint160(user))),
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(uint256(uint160(address(token)))),
-            destinationMinTokenAmount: 90e18,
-            amountIn: 100e18,
-            destinationCaip2chainId: 1,
-            nonce: 12_347,
-            deadline: uint64(block.timestamp + 3600)
+        // Create Request object
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: 8453,
+            contractAddress: bytes32(uint256(uint160(address(token)))),
+            value: 100e18
         });
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({
+            contractAddress: bytes32(uint256(uint160(address(token)))),
+            value: 90e18
+        });
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({
+            universe: Universe.ETHEREUM,
+            address_: bytes32(uint256(uint160(user)))
+        });
+
+        Request memory request = Request({
+            sources: sources,
+            destinationUniverse: Universe.ETHEREUM,
+            destinationChainID: 1,
+            recipientAddress: bytes32(uint256(uint160(user))),
+            destinations: destinations,
+            nonce: 12_347,
+            expiry: block.timestamp + 3600,
+            parties: parties
+        });
+
+        // Encode data with chain indices
+        bytes memory encodedData = abi.encode(uint256(0), uint256(0), data);
 
         uint256 userBalanceBefore = token.balanceOf(user);
         vm.prank(user);
-        mayanRouter.processTransfer(request, data);
+        mayanRouter.processTransfer(request, encodedData);
         uint256 userBalanceAfter = token.balanceOf(user);
 
         assertEq(userBalanceBefore - 100e18, userBalanceAfter);
@@ -442,25 +497,47 @@ contract MayanRouterTest is Test {
         );
         bytes memory data = abi.encode(SwiftVersion.V1, v1Payload);
 
-        // Create RouterAction object
-        RouterAction memory request = RouterAction({
-            tokenAddress: bytes32(0),
-            recipientAddress: bytes32(uint256(uint160(user))),
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(0),
-            destinationMinTokenAmount: 0.5 ether,
-            amountIn: 1 ether,
-            destinationCaip2chainId: 1,
-            nonce: 12_348,
-            deadline: uint64(block.timestamp + 3600)
+        // Create Request object
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: 8453,
+            contractAddress: bytes32(0),
+            value: 1 ether
         });
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({
+            contractAddress: bytes32(0),
+            value: 0.5 ether
+        });
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({
+            universe: Universe.ETHEREUM,
+            address_: bytes32(uint256(uint160(user)))
+        });
+
+        Request memory request = Request({
+            sources: sources,
+            destinationUniverse: Universe.ETHEREUM,
+            destinationChainID: 1,
+            recipientAddress: bytes32(uint256(uint160(user))),
+            destinations: destinations,
+            nonce: 12_348,
+            expiry: block.timestamp + 3600,
+            parties: parties
+        });
+
+        // Encode data with chain indices
+        bytes memory encodedData = abi.encode(uint256(0), uint256(0), data);
 
         uint256 userBalanceBefore = user.balance;
         uint256 swiftV1BalanceBefore = address(SWIFT_V1_BASE).balance;
 
         // Execute the transfer
         vm.prank(user);
-        mayanRouter.processTransfer{ value: 1 ether }(request, data);
+        mayanRouter.processTransfer{value: 1 ether}(request, encodedData);
 
         // Verify ETH was transferred to the swiftV1
         assertEq(address(SWIFT_V1_BASE).balance, swiftV1BalanceBefore + 1 ether);
@@ -473,22 +550,44 @@ contract MayanRouterTest is Test {
         // This will cause the version check to fail
         bytes memory invalidData = abi.encode(uint8(2), bytes(""));
 
-        // Create RouterAction object
-        RouterAction memory request = RouterAction({
-            tokenAddress: bytes32(0),
-            recipientAddress: bytes32(uint256(uint160(user))),
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(0),
-            destinationMinTokenAmount: 0.5 ether,
-            amountIn: 1 ether,
-            destinationCaip2chainId: 1,
-            nonce: 12_349,
-            deadline: uint64(block.timestamp + 3600)
+        // Create Request object
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: 8453,
+            contractAddress: bytes32(0),
+            value: 1 ether
         });
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({
+            contractAddress: bytes32(0),
+            value: 0.5 ether
+        });
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({
+            universe: Universe.ETHEREUM,
+            address_: bytes32(uint256(uint160(user)))
+        });
+
+        Request memory request = Request({
+            sources: sources,
+            destinationUniverse: Universe.ETHEREUM,
+            destinationChainID: 1,
+            recipientAddress: bytes32(uint256(uint160(user))),
+            destinations: destinations,
+            nonce: 12_349,
+            expiry: block.timestamp + 3600,
+            parties: parties
+        });
+
+        // Encode data with chain indices
+        bytes memory encodedData = abi.encode(uint256(0), uint256(0), invalidData);
 
         vm.prank(user);
         vm.expectRevert();
-        mayanRouter.processTransfer{ value: 1 ether }(request, invalidData);
+        mayanRouter.processTransfer{value: 1 ether}(request, encodedData);
     }
 
     function test_VaultDepositRouter_V1_ERC20() public {
@@ -514,7 +613,7 @@ contract MayanRouterTest is Test {
         );
         bytes memory routeData = abi.encode(SwiftVersion.V1, v1Payload);
 
-        // Create Action object
+        // Create Request object
         SourcePair[] memory sources = new SourcePair[](1);
         sources[0] = SourcePair({
             universe: Universe.ETHEREUM,
@@ -524,28 +623,29 @@ contract MayanRouterTest is Test {
         });
 
         Party[] memory parties = new Party[](1);
-        parties[0] =
-            Party({ universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user))) });
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
 
-        Action memory action = Action({
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(uint256(uint160(address(token)))), value: 90e18});
+
+        Request memory request = Request({
             sources: sources,
             recipientAddress: bytes32(uint256(uint160(recipient))),
             parties: parties,
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(uint256(uint160(address(token)))),
-            destinationCaip2chainId: 1,
-            destinationMinTokenAmount: 90e18,
+            destinationUniverse: Universe.ETHEREUM,
+            destinations: destinations,
+            destinationChainID: 1,
             nonce: 1004,
-            deadline: uint64(block.timestamp + 3600)
+            expiry: uint64(block.timestamp + 3600)
         });
 
-        bytes memory signature = _signAction(action, userPrivateKey);
+        bytes memory signature = _signRequest(request, userPrivateKey);
 
         uint256 userBalanceBefore = token.balanceOf(user);
         uint256 vaultBalanceBefore = token.balanceOf(address(vault));
 
         vm.prank(user);
-        vault.depositRouter(action, signature, 0, Route.MAYAN, routeData);
+        vault.depositRouter(request, signature, 0, 0, Route.MAYAN, routeData);
 
         uint256 userBalanceAfter = token.balanceOf(user);
         uint256 vaultBalanceAfter = token.balanceOf(address(vault));
@@ -575,7 +675,7 @@ contract MayanRouterTest is Test {
         );
         bytes memory routeData = abi.encode(SwiftVersion.V1, v1Payload);
 
-        // Create Action object for ETH transfer
+        // Create Request object for ETH transfer
         SourcePair[] memory sources = new SourcePair[](1);
         sources[0] = SourcePair({
             universe: Universe.ETHEREUM,
@@ -585,22 +685,26 @@ contract MayanRouterTest is Test {
         });
 
         Party[] memory parties = new Party[](1);
-        parties[0] =
-            Party({ universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user))) });
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
 
-        Action memory action = Action({
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({
+            contractAddress: bytes32(0), // ETH
+            value: 0.5 ether
+        });
+
+        Request memory request = Request({
             sources: sources,
             recipientAddress: bytes32(uint256(uint160(recipient))),
             parties: parties,
-            destinationCaip2namespace: keccak256("eip155"),
-            destinationContractAddress: bytes32(0), // ETH
-            destinationCaip2chainId: 1,
-            destinationMinTokenAmount: 0.5 ether,
+            destinationUniverse: Universe.ETHEREUM,
+            destinations: destinations,
+            destinationChainID: 1,
             nonce: 1005,
-            deadline: uint64(block.timestamp + 3600)
+            expiry: uint64(block.timestamp + 3600)
         });
 
-        bytes memory signature = _signAction(action, userPrivateKey);
+        bytes memory signature = _signRequest(request, userPrivateKey);
 
         uint256 userBalanceBefore = user.balance;
         uint256 vaultBalanceBefore = address(vault).balance;
@@ -608,7 +712,7 @@ contract MayanRouterTest is Test {
 
         // Execute the transfer
         vm.prank(user);
-        vault.depositRouter{ value: 1 ether }(action, signature, 0, Route.MAYAN, routeData);
+        vault.depositRouter{value: 1 ether}(request, signature, 0, 0, Route.MAYAN, routeData);
 
         // Verify ETH was transferred through vault to swiftV1
         assertEq(address(SWIFT_V1_BASE).balance, swiftV1BalanceBefore + 1 ether);

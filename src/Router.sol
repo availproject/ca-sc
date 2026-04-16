@@ -6,7 +6,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
 
-import { RouterAction, Route } from "./types.sol";
+import { Request, Route } from "./types.sol";
 import { ICaRouter } from "./interfaces/ICaRouter.sol";
 
 /// @title Router
@@ -60,16 +60,19 @@ contract Router is AccessControl {
     /// @param request Action struct containing transfer details
     /// @param route Route to use (NATIVE or MAYAN)
     /// @param data Additional route-specific encoded parameters
-    function processTransfer(RouterAction calldata request, Route route, bytes calldata data)
+    function processTransfer(Request calldata request, Route route, bytes calldata data)
         external
         payable
     {
         address routerAddress = routers[route];
         if (routerAddress == address(0)) revert InvalidRoute();
 
-        address tokenAddress = address(uint160(uint256(request.tokenAddress)));
+        (uint256 chainIndex, uint256 destinationChainIndex, bytes memory actualRouteData) =
+            abi.decode(data, (uint256, uint256, bytes));
+
+        address tokenAddress = address(uint160(uint256(request.sources[chainIndex].contractAddress)));
         if (tokenAddress != address(0)) {
-            IERC20(tokenAddress).approve(routerAddress, request.amountIn);
+            IERC20(tokenAddress).approve(routerAddress, request.sources[chainIndex].value);
         }
 
         ICaRouter router = ICaRouter(routerAddress);
@@ -80,6 +83,8 @@ contract Router is AccessControl {
             revert InvalidRoute();
         }
 
-        router.processTransfer{ value: msg.value }(request, data);
+        // Re-encode data with chain indices for the route processor
+        bytes memory routeProcessorData = abi.encode(chainIndex, destinationChainIndex, actualRouteData);
+        router.processTransfer{ value: msg.value }(request, routeProcessorData);
     }
 }

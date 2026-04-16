@@ -262,7 +262,9 @@ abstract contract BaseVaultTest is Test {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amount;
 
-        return _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
+        return _createSettleData(
+            Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
+        );
     }
 
     // Helper Functions - Address Conversion

@@ -56,26 +56,4 @@ struct SettleData {
     uint256 nonce;
 }
 
-struct Action {
-    SourcePair[] sources;
-    Party[] parties;
-    bytes32 recipientAddress;
-    bytes32 destinationCaip2namespace;
-    bytes32 destinationContractAddress;
-    uint256 destinationMinTokenAmount;
-    uint256 destinationCaip2chainId;
-    uint64 nonce;
-    uint64 deadline;
-}
 
-struct RouterAction {
-    bytes32 tokenAddress;
-    bytes32 recipientAddress;
-    bytes32 destinationCaip2namespace;
-    bytes32 destinationContractAddress;
-    uint256 destinationMinTokenAmount;
-    uint256 amountIn;
-    uint256 destinationCaip2chainId;
-    uint64 nonce;
-    uint64 deadline;
-}
