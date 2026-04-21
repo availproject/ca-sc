@@ -19,8 +19,10 @@ contract DeployMayanRouter is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
+        address deployer = vm.addr(deployerPrivateKey);
+
         // Deploy MayanRouter
-        mayanRouter = address(new MayanRouter());
+        mayanRouter = address(new MayanRouter(deployer));
         console.log("MayanRouter deployed at:", mayanRouter);
 
         // Configure Router to use MayanRouter
@@ -29,7 +31,6 @@ contract DeployMayanRouter is Script {
         console.log("MayanRouter set in Router for Route.MAYAN");
 
         address admin = vm.envAddress("ADMIN_ADDRESS");
-        address deployer = vm.addr(deployerPrivateKey);
 
         MayanRouter mayanRouterContract = MayanRouter(mayanRouter);
         if (admin != deployer) {

@@ -39,7 +39,7 @@ contract MayanRouter is ICaRouter, Ownable {
     );
 
     /// @notice Initialize router with default EVM chain mappings
-    constructor() Ownable(msg.sender) {
+    constructor(address _owner) Ownable(_owner) {
         bytes32 eip155 = keccak256("eip155");
         caip2ToWormholeChainId[eip155][1] = 2;
         caip2ToWormholeChainId[eip155][8453] = 30;
@@ -70,9 +70,9 @@ contract MayanRouter is ICaRouter, Ownable {
         (SwiftVersion version, bytes memory remainingData) = abi.decode(actualData, (SwiftVersion, bytes));
 
         if (version == SwiftVersion.V2) {
-            _processTransferV2(request, chainIndex, destinationChainIndex, tokenIn, amountIn, remainingData);
+            _processTransferV2(request, destinationChainIndex, tokenIn, amountIn, remainingData);
         } else if (version == SwiftVersion.V1) {
-            _processTransferV1(request, chainIndex, destinationChainIndex, tokenIn, amountIn, remainingData);
+            _processTransferV1(request, tokenIn, amountIn, remainingData);
         } else {
             revert InvalidSwiftVersion(uint8(version));
         }
@@ -85,7 +85,6 @@ contract MayanRouter is ICaRouter, Ownable {
     /// @param data ABI-encoded V2 payload
     function _processTransferV2(
         Request calldata request,
-        uint256 chainIndex,
         uint256 destinationChainIndex,
         address tokenIn,
         uint256 amountIn,
@@ -97,12 +96,13 @@ contract MayanRouter is ICaRouter, Ownable {
             bytes32 referrerAddr,
             uint64 cancelFee,
             uint64 refundFee,
+            uint64 deadline,
             uint8 referrerBps,
             uint8 auctionMode,
             bytes32 random,
             uint8 payloadType
         ) = abi.decode(
-            data, (uint64, bytes32, bytes32, uint64, uint64, uint8, uint8, bytes32, uint8)
+            data, (uint64, bytes32, bytes32, uint64, uint64, uint64, uint8, uint8, bytes32, uint8)
         );
 
         uint16 wormholeChainId = caip2ToWormholeChainId[
@@ -121,7 +121,7 @@ contract MayanRouter is ICaRouter, Ownable {
             gasDrop: gasDrop,
             cancelFee: cancelFee,
             refundFee: refundFee,
-            deadline: uint64(request.expiry),
+            deadline: deadline,
             referrerBps: referrerBps,
             auctionMode: auctionMode,
             random: random
@@ -159,8 +159,6 @@ contract MayanRouter is ICaRouter, Ownable {
     /// @param data ABI-encoded V1 payload
     function _processTransferV1(
         Request calldata request,
-        uint256 chainIndex,
-        uint256 destinationChainIndex,
         address tokenIn,
         uint256 amountIn,
         bytes memory data
@@ -174,7 +172,7 @@ contract MayanRouter is ICaRouter, Ownable {
             uint64 refundFee,
             uint64 deadline,
             bytes32 destAddr,
-            uint16 _payloadDestChainId,
+            ,
             bytes32 referrerAddr,
             uint8 referrerBps,
             uint8 auctionMode,

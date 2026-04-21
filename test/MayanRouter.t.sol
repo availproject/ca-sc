@@ -37,7 +37,7 @@ contract MayanRouterTest is Test {
         recipient = makeAddr("recipient");
 
         // Deploy MayanRouter
-        mayanRouter = new MayanRouter();
+        mayanRouter = new MayanRouter(admin);
 
         // Deploy Router implementation and proxy
         router = new Router(admin);
@@ -86,13 +86,14 @@ contract MayanRouterTest is Test {
         vm.prank(user);
         token.approve(address(mayanRouter), 100e18);
 
-        // Prepare V2 transfer data (gasDrop, destAddr, referrerAddr, cancelFee, refundFee, referrerBps, auctionMode, random, payloadType)
+        // Prepare V2 transfer data (gasDrop, destAddr, referrerAddr, cancelFee, refundFee, deadline, referrerBps, auctionMode, random, payloadType)
         bytes memory v2Payload = abi.encode(
             uint64(0), // gasDrop
             bytes32(uint256(uint160(user))), // destAddr
             bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
+            uint64(block.timestamp + 3600), // deadline
             uint8(0), // referrerBps
             uint8(0), // auctionMode
             bytes32(0), // random
@@ -151,6 +152,7 @@ contract MayanRouterTest is Test {
             bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
+            uint64(block.timestamp + 3600), // deadline
             uint8(0), // referrerBps
             uint8(0), // auctionMode
             bytes32(0), // random
@@ -218,6 +220,7 @@ contract MayanRouterTest is Test {
             bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
+            uint64(block.timestamp + 3600), // deadline
             uint8(0), // referrerBps
             uint8(0), // auctionMode
             bytes32(0), // random
@@ -276,6 +279,7 @@ contract MayanRouterTest is Test {
             bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
+            uint64(block.timestamp + 3600), // deadline
             uint8(0), // referrerBps
             uint8(0), // auctionMode
             bytes32(0), // random
@@ -358,7 +362,7 @@ contract MayanRouterTest is Test {
         bytes memory wrongSignature = _signRequest(request, wrongPrivateKey);
 
         bytes memory v2Payload = abi.encode(
-            uint64(0), bytes32(0), bytes32(0), uint64(0), uint64(0), uint8(0), uint8(0), bytes32(0), uint8(0)
+            uint64(0), bytes32(0), bytes32(0), uint64(0), uint64(0), uint64(block.timestamp + 3600), uint8(0), uint8(0), bytes32(0), uint8(0)
         );
         bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
@@ -398,7 +402,7 @@ contract MayanRouterTest is Test {
 
         bytes memory signature = _signRequest(request, userPrivateKey);
         bytes memory v2Payload = abi.encode(
-            uint64(0), bytes32(0), bytes32(0), uint64(0), uint64(0), uint8(0), uint8(0), bytes32(0), uint8(0)
+            uint64(0), bytes32(0), bytes32(0), uint64(0), uint64(0), uint64(block.timestamp + 3600), uint8(0), uint8(0), bytes32(0), uint8(0)
         );
         bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
