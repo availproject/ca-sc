@@ -24,6 +24,7 @@ struct SourcePair {
     uint256 chainID;
     bytes32 contractAddress;
     uint256 value;
+    uint256 fee;
 }
 
 struct DestinationPair {
@@ -50,6 +51,7 @@ struct Request {
 struct SettleData {
     Universe universe;
     uint256 chainID;
+    address vaultAddress;
     address[] solvers;
     address[] contractAddresses;
     uint256[] amounts;

@@ -107,7 +107,8 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: 8453,
             contractAddress: bytes32(uint256(uint160(address(token)))),
-            value: 100e18
+            value: 100e18,
+            fee: 0
         });
 
         DestinationPair[] memory destinations = new DestinationPair[](1);
@@ -166,7 +167,8 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: 8453,
             contractAddress: bytes32(0),
-            value: 1 ether
+            value: 1 ether,
+            fee: 0
         });
 
         DestinationPair[] memory destinations = new DestinationPair[](1);
@@ -234,7 +236,8 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: block.chainid,
             contractAddress: bytes32(uint256(uint160(address(token)))),
-            value: 100e18
+            value: 100e18,
+            fee: 0
         });
 
         Party[] memory parties = new Party[](1);
@@ -293,7 +296,8 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: block.chainid,
             contractAddress: bytes32(0), // Native ETH
-            value: 1 ether
+            value: 1 ether,
+            fee: 0
         });
 
         Party[] memory parties = new Party[](1);
@@ -337,7 +341,8 @@ contract MayanRouterTest is Test {
     function test_VaultDepositRouter_RevertInvalidSignature() public {
         SourcePair[] memory sources = new SourcePair[](1);
         sources[0] = SourcePair({
-            universe: Universe.ETHEREUM, chainID: block.chainid, contractAddress: bytes32(0), value: 1 ether
+            universe: Universe.ETHEREUM, chainID: block.chainid, contractAddress: bytes32(0), value: 1 ether,
+            fee: 0
         });
 
         Party[] memory parties = new Party[](1);
@@ -380,7 +385,8 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: block.chainid,
             contractAddress: bytes32(uint256(uint160(address(token)))),
-            value: 100e18
+            value: 100e18,
+            fee: 0
         });
 
         Party[] memory parties = new Party[](1);
@@ -445,7 +451,8 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: 8453,
             contractAddress: bytes32(uint256(uint160(address(token)))),
-            value: 100e18
+            value: 100e18,
+            fee: 0
         });
 
         DestinationPair[] memory destinations = new DestinationPair[](1);
@@ -507,7 +514,8 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: 8453,
             contractAddress: bytes32(0),
-            value: 1 ether
+            value: 1 ether,
+            fee: 0
         });
 
         DestinationPair[] memory destinations = new DestinationPair[](1);
@@ -560,7 +568,8 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: 8453,
             contractAddress: bytes32(0),
-            value: 1 ether
+            value: 1 ether,
+            fee: 0
         });
 
         DestinationPair[] memory destinations = new DestinationPair[](1);
@@ -623,7 +632,8 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: block.chainid,
             contractAddress: bytes32(uint256(uint160(address(token)))),
-            value: 100e18
+            value: 100e18,
+            fee: 0
         });
 
         Party[] memory parties = new Party[](1);
@@ -685,7 +695,8 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: block.chainid,
             contractAddress: bytes32(0), // Native ETH
-            value: 1 ether
+            value: 1 ether,
+            fee: 0
         });
 
         Party[] memory parties = new Party[](1);

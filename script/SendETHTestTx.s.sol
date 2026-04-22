@@ -46,7 +46,8 @@ contract SendETHTestTx is Script {
             universe: Universe.ETHEREUM,
             chainID: currentChainId,
             contractAddress: bytes32(0), // 0x0 for Native ETH
-            value: amount
+            value: amount,
+            fee: 0
         });
 
         // Destinations

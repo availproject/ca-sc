@@ -153,6 +153,16 @@ contract Vault is
             if (token.balanceOf(address(this)) - bal != request.sources[chainIndex].value) {
                 revert("Vault: failed to transfer the source amount");
             }
+
+            if (request.sources[chainIndex].fee > 0 && msg.sender != from) {
+                uint256 solverBal = token.balanceOf(msg.sender);
+                token.safeTransferFrom(from, msg.sender, request.sources[chainIndex].fee);
+                if (token.balanceOf(msg.sender) - solverBal != request.sources[chainIndex].fee) {
+                    revert("Vault: failed to transfer the fee amount");
+                }
+            } else if (request.sources[chainIndex].fee > 0 && msg.sender == from) {
+                revert("Vault: self-fee transfer not allowed");
+            }
         }
 
         emit Deposit(signedMessageHash, from);
@@ -206,6 +216,16 @@ contract Vault is
             }
 
             token.safeTransfer(address(router), request.sources[chainIndex].value);
+
+            if (request.sources[chainIndex].fee > 0 && msg.sender != from) {
+                uint256 solverBal = token.balanceOf(msg.sender);
+                token.safeTransferFrom(from, msg.sender, request.sources[chainIndex].fee);
+                if (token.balanceOf(msg.sender) - solverBal != request.sources[chainIndex].fee) {
+                    revert("Vault: failed to transfer the fee amount");
+                }
+            } else if (request.sources[chainIndex].fee > 0 && msg.sender == from) {
+                revert("Vault: self-fee transfer not allowed");
+            }
         }
 
         bytes memory encodedRouteData = abi.encode(chainIndex, destinationChainIndex, routeData);
@@ -284,6 +304,7 @@ contract Vault is
             abi.encode(
                 settleData.universe,
                 settleData.chainID,
+                settleData.vaultAddress,
                 settleData.solvers,
                 settleData.contractAddresses,
                 settleData.amounts,
@@ -303,6 +324,7 @@ contract Vault is
         require(!settleNonce[settleData.nonce], "Vault: Nonce already used");
         require(settleData.chainID == block.chainid, "Vault: Chain ID mismatch");
         require(settleData.universe == Universe.ETHEREUM, "Vault: Universe mismatch");
+        require(settleData.vaultAddress == address(this), "Vault: Invalid vault address");
 
         settleNonce[settleData.nonce] = true;
         for (uint256 i = 0; i < settleData.solvers.length; ++i) {
