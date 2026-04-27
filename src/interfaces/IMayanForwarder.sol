@@ -31,4 +31,22 @@ interface IMayanForwarder {
     /// @param mayanProtocol Target Mayan protocol address
     /// @param protocolData Encoded protocol call data
     function forwardEth(address mayanProtocol, bytes calldata protocolData) external payable;
+
+    /// @notice Swap tokens and forward native ETH to Mayan protocol
+    /// @param amountIn Amount of ETH to swap
+    /// @param swapProtocol Address of the swap protocol
+    /// @param swapData Encoded swap data for the swap protocol
+    /// @param middleToken Address of the expected middle token
+    /// @param minMiddleAmount Minimum amount of middle token to receive
+    /// @param mayanProtocol Target Mayan protocol address
+    /// @param mayanData Encoded protocol call data for Mayan
+    function swapAndForwardEth(
+        uint256 amountIn,
+        address swapProtocol,
+        bytes calldata swapData,
+        address middleToken,
+        uint256 minMiddleAmount,
+        address mayanProtocol,
+        bytes calldata mayanData
+    ) external payable;
 }

@@ -129,11 +129,21 @@ contract MayanRouter is ICaRouter, Ownable {
 
         if (tokenIn == address(0)) {
             bytes memory protocolData = abi.encodeWithSelector(
-                IMayanSwiftV2.createOrderWithEth.selector, orderParams, bytes("")
+                IMayanSwiftV2.createOrderWithToken.selector,
+                address(0),
+                amountIn,
+                orderParams,
+                bytes("")
             );
 
-            IMayanForwarder(MAYAN_FORWARDER).forwardEth{ value: amountIn }(
-                SWIFT_V2_PROTOCOL, protocolData
+            IMayanForwarder(MAYAN_FORWARDER).swapAndForwardEth{ value: amountIn }(
+                amountIn,
+                address(0),
+                bytes(""),
+                address(0),
+                0,
+                SWIFT_V2_PROTOCOL,
+                protocolData
             );
         } else {
             bytes memory protocolData = abi.encodeWithSelector(

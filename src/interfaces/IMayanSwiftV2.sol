@@ -22,15 +22,6 @@ interface IMayanSwiftV2 {
         bytes32 random;
     }
 
-    /// @notice Create order with native ETH
-    /// @param params Order parameters
-    /// @param customPayload Additional payload data
-    /// @return orderHash Hash of the created order
-    function createOrderWithEth(OrderParams memory params, bytes memory customPayload)
-        external
-        payable
-        returns (bytes32 orderHash);
-
     /// @notice Create order with ERC20 token
     /// @param tokenIn Source token address
     /// @param amountIn Amount to swap
