@@ -4,6 +4,10 @@ pragma solidity ^0.8.29;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {
+    MessageHashUtils
+} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 import {
     AccessControlUpgradeable
@@ -53,6 +57,7 @@ contract Vault is
 
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 private constant SETTLEMENT_VERIFIER_ROLE = keccak256("SETTLEMENT_VERIFIER_ROLE");
+    string private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
     // Storage gap to reserve slots for future use
     uint256[50] private __gap;
 
@@ -88,6 +93,10 @@ contract Vault is
         onlyRole(UPGRADER_ROLE)
     { }
 
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
+
     function _hashRequest(Request calldata request) private pure returns (bytes32) {
         return keccak256(
             abi.encode(
@@ -108,17 +117,20 @@ contract Vault is
         return address(uint160(uint256(a)));
     }
 
-    function _verify_request(bytes calldata signature, address from, Request calldata request)
+    function _verify_request(bytes calldata signature, address from, bytes32 hash)
         private
         pure
         returns (bool, bytes32)
     {
-        // Prepend the Ethereum signed message prefix
-        bytes32 signedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", _hashRequest(request))
+        // Must match EXACT client string: "Sign this intent to proceed \n" + "0x...."
+        bytes memory msgBytes = abi.encodePacked(
+            SIGNATURE_PREFIX,
+            Strings.toHexString(uint256(hash), 32) // 0x + 64 hex chars
         );
 
-        // Recover the signer from the signature
+        // EIP-191 hash with dynamic decimal length (e.g. 95)
+        bytes32 signedMessageHash = MessageHashUtils.toEthSignedMessageHash(msgBytes);
+
         address signer = signedMessageHash.recover(signature);
         return (signer == from, signedMessageHash);
     }
@@ -129,7 +141,8 @@ contract Vault is
         nonReentrant
     {
         address from = extractAddress(request.parties);
-        (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request);
+        bytes32 request_hash = _hashRequest(request);
+        (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
         require(request.sources[chainIndex].chainID == block.chainid, "Vault: Chain ID mismatch");
         require(
@@ -165,7 +178,7 @@ contract Vault is
             }
         }
 
-        emit Deposit(signedMessageHash, from);
+        emit Deposit(request_hash, from);
     }
 
     /// @notice Deposit funds and initiate cross-chain transfer via router
@@ -187,7 +200,8 @@ contract Vault is
         require(destinationChainIndex < request.destinations.length, "Vault: Invalid destination index");
 
         address from = extractAddress(request.parties);
-        (bool success, bytes32 requestHash) = _verify_request(signature, from, request);
+        bytes32 request_hash = _hashRequest(request);
+        (bool success, bytes32 requestHash) = _verify_request(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
         require(request.sources[chainIndex].chainID == block.chainid, "Vault: Chain ID mismatch");
         require(
@@ -231,7 +245,7 @@ contract Vault is
         bytes memory encodedRouteData = abi.encode(chainIndex, destinationChainIndex, routeData);
         router.processTransfer{ value: valueToRoute }(request, route, encodedRouteData);
 
-        emit DepositAndRoute(requestHash, from, route);
+        emit DepositAndRoute(request_hash, from, route);
     }
 
     function extractAddress(Party[] memory parties) internal pure returns (address user) {
@@ -249,7 +263,8 @@ contract Vault is
         nonReentrant
     {
         address from = extractAddress(request.parties);
-        (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request);
+        bytes32 request_hash = _hashRequest(request);
+        (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
         require(uint256(request.destinationChainID) == block.chainid, "Vault: Chain ID mismatch");
         require(request.destinationUniverse == Universe.ETHEREUM, "Vault: Universe mismatch");
@@ -284,16 +299,7 @@ contract Vault is
             (bool sent,) = payable(msg.sender).call{ value: nativeBalance }("");
             require(sent, "Vault: Transfer failed");
         }
-        emit Fulfilment(signedMessageHash, from, msg.sender);
-    }
-
-    function verifyRequestSignature(Request calldata request, bytes calldata signature)
-        external
-        pure
-        returns (bool, bytes32)
-    {
-        address from = extractAddress(request.parties);
-        return _verify_request(signature, from, request);
+        emit Fulfilment(request_hash, from, msg.sender);
     }
 
     function settle(SettleData calldata settleData, bytes calldata signature)

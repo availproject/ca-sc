@@ -37,13 +37,13 @@ contract DeployAll is Script {
         address deployer = vm.addr(deployerPrivateKey);
 
         console.log("\n========== Deploying Router (createX) ==========");
-        bytes32 routerSalt = keccak256(abi.encodePacked("arcana-router-1.0.2"));
+        bytes32 routerSalt = keccak256(abi.encodePacked("nexus-mayan-router-1.0.1"));
         bytes memory routerInitCode = abi.encodePacked(type(Router).creationCode, abi.encode(deployer));
         addresses.router = CREATEX.deployCreate2(routerSalt, routerInitCode);
         console.log("Router deployed at:", addresses.router);
 
         console.log("\n========== Deploying Vault (createX) ==========");
-        bytes32 vaultSalt = keccak256(abi.encodePacked("arcana-vault-1.0.2"));
+        bytes32 vaultSalt = keccak256(abi.encodePacked("nexus-mayan-vault-1.0.1"));
         bytes32 proxySalt = keccak256(abi.encodePacked(vaultSalt, "proxy"));
 
         bytes memory vaultInitCode = type(Vault).creationCode;
@@ -77,7 +77,7 @@ contract DeployAll is Script {
         }
 
         console.log("\n========== Deploying MayanRouter (createX) ==========");
-        bytes32 mayanSalt = keccak256(abi.encodePacked("arcana-mayanrouter-1.0.2"));
+        bytes32 mayanSalt = keccak256(abi.encodePacked("nexus-mayan-mayanrouter-1.0.1"));
         bytes memory mayanInitCode = abi.encodePacked(type(MayanRouter).creationCode, abi.encode(deployer));
         addresses.mayanRouter = CREATEX.deployCreate2(mayanSalt, mayanInitCode);
         console.log("MayanRouter:", addresses.mayanRouter);

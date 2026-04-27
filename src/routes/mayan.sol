@@ -21,7 +21,7 @@ enum SwiftVersion {
 contract MayanRouter is ICaRouter, Ownable {
     address public constant MAYAN_FORWARDER = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
 
-    address public constant SWIFT_V2_PROTOCOL = 0xc05fb021704D4709c8C058da691fdf4070574685;
+    address public constant SWIFT_V2_PROTOCOL = 0x40fFE85A28DC9993541449464d7529a922142960;
 
     address public constant SWIFT_V1_PROTOCOL = 0xC38e4e6A15593f908255214653d3D947CA1c2338;
 
