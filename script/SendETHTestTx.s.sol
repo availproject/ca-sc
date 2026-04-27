@@ -5,6 +5,7 @@ import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {Vault} from "../src/Vault.sol";
 import {Request, SourcePair, DestinationPair, Party, Universe, Route} from "../src/types.sol";
+import {SwiftVersion} from "../src/routes/mayan.sol";
 
 /// @title SendETHTestTx
 /// @notice Replicates test_VaultDepositRouter_ETH logic for live network
@@ -25,17 +26,23 @@ contract SendETHTestTx is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         // 1. Prepare Data
-        bytes memory routeData = abi.encode(
+        bytes memory v2Payload = abi.encode(
             uint64(0), // gasDrop
             bytes32(uint256(uint160(deployer))), // destAddr
             bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
+            uint64(block.timestamp + 1 hours), // deadline
             uint8(0), // referrerBps
             uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0) // payloadType
+            uint8(0), // payloadType
+            address(0), // swapProtocol
+            bytes(""), // swapData
+            address(0), // middleToken
+            uint256(0) // minMiddleAmount
         );
+        bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
         // 2. Create Request
         Request memory request;

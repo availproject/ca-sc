@@ -100,9 +100,14 @@ contract MayanRouter is ICaRouter, Ownable {
             uint8 referrerBps,
             uint8 auctionMode,
             bytes32 random,
-            uint8 payloadType
+            uint8 payloadType,
+            address swapProtocol,
+            bytes memory swapData,
+            address middleToken,
+            uint256 minMiddleAmount
         ) = abi.decode(
-            data, (uint64, bytes32, bytes32, uint64, uint64, uint64, uint8, uint8, bytes32, uint8)
+            data,
+            (uint64, bytes32, bytes32, uint64, uint64, uint64, uint8, uint8, bytes32, uint8, address, bytes, address, uint256)
         );
 
         uint16 wormholeChainId = caip2ToWormholeChainId[
@@ -138,10 +143,10 @@ contract MayanRouter is ICaRouter, Ownable {
 
             IMayanForwarder(MAYAN_FORWARDER).swapAndForwardEth{ value: amountIn }(
                 amountIn,
-                address(0),
-                bytes(""),
-                address(0),
-                0,
+                swapProtocol,
+                swapData,
+                middleToken,
+                minMiddleAmount,
                 SWIFT_V2_PROTOCOL,
                 protocolData
             );

@@ -9,6 +9,8 @@ import {MockERC20} from "./mocks/MockERC20.sol";
 import {Request, SourcePair, Party, Universe, Route, DestinationPair} from "../src/types.sol";
 import {SwiftVersion} from "../src/routes/mayan.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract MayanRouterTest is Test {
     MayanRouter public mayanRouter;
@@ -76,8 +78,12 @@ contract MayanRouterTest is Test {
                 request.parties
             )
         );
-        bytes32 messageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", requestHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, messageHash);
+        bytes memory msgBytes = abi.encodePacked(
+            "Sign this intent to proceed \n",
+            Strings.toHexString(uint256(requestHash), 32)
+        );
+        bytes32 signedMessageHash = MessageHashUtils.toEthSignedMessageHash(msgBytes);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, signedMessageHash);
         return abi.encodePacked(r, s, v);
     }
 
@@ -97,7 +103,11 @@ contract MayanRouterTest is Test {
             uint8(0), // referrerBps
             uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0) // payloadType
+            uint8(0), // payloadType
+            address(0), // swapProtocol
+            bytes(""), // swapData
+            address(0), // middleToken
+            uint256(0) // minMiddleAmount
         );
         bytes memory data = abi.encode(SwiftVersion.V2, v2Payload);
 
@@ -157,7 +167,11 @@ contract MayanRouterTest is Test {
             uint8(0), // referrerBps
             uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0) // payloadType
+            uint8(0), // payloadType
+            address(0), // swapProtocol
+            bytes(""), // swapData
+            address(0), // middleToken
+            uint256(0) // minMiddleAmount
         );
         bytes memory data = abi.encode(SwiftVersion.V2, v2Payload);
 
@@ -226,7 +240,11 @@ contract MayanRouterTest is Test {
             uint8(0), // referrerBps
             uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0) // payloadType
+            uint8(0), // payloadType
+            address(0), // swapProtocol
+            bytes(""), // swapData
+            address(0), // middleToken
+            uint256(0) // minMiddleAmount
         );
         bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
@@ -286,7 +304,11 @@ contract MayanRouterTest is Test {
             uint8(0), // referrerBps
             uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0) // payloadType
+            uint8(0), // payloadType
+            address(0), // swapProtocol
+            bytes(""), // swapData
+            address(0), // middleToken
+            uint256(0) // minMiddleAmount
         );
         bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
@@ -367,7 +389,7 @@ contract MayanRouterTest is Test {
         bytes memory wrongSignature = _signRequest(request, wrongPrivateKey);
 
         bytes memory v2Payload = abi.encode(
-            uint64(0), bytes32(0), bytes32(0), uint64(0), uint64(0), uint64(block.timestamp + 3600), uint8(0), uint8(0), bytes32(0), uint8(0)
+            uint64(0), bytes32(0), bytes32(0), uint64(0), uint64(0), uint64(block.timestamp + 3600), uint8(0), uint8(0), bytes32(0), uint8(0), address(0), bytes(""), address(0), uint256(0)
         );
         bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
@@ -408,7 +430,7 @@ contract MayanRouterTest is Test {
 
         bytes memory signature = _signRequest(request, userPrivateKey);
         bytes memory v2Payload = abi.encode(
-            uint64(0), bytes32(0), bytes32(0), uint64(0), uint64(0), uint64(block.timestamp + 3600), uint8(0), uint8(0), bytes32(0), uint8(0)
+            uint64(0), bytes32(0), bytes32(0), uint64(0), uint64(0), uint64(block.timestamp + 3600), uint8(0), uint8(0), bytes32(0), uint8(0), address(0), bytes(""), address(0), uint256(0)
         );
         bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
