@@ -27,6 +27,7 @@ contract SendETHTestTx is Script {
 
         // 1. Prepare Data
         bytes memory v2Payload = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
             bytes32(uint256(uint160(deployer))), // destAddr
             bytes32(0), // referrerAddr

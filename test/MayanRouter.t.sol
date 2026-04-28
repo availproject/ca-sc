@@ -98,8 +98,9 @@ contract MayanRouterTest is Test {
         vm.prank(user);
         token.approve(address(mayanRouter), 100e18);
 
-        // Prepare V2 transfer data (gasDrop, destAddr, referrerAddr, cancelFee, refundFee, deadline, referrerBps, auctionMode, random, payloadType)
+        // Prepare V2 transfer data (tokenOutDecimals, gasDrop, destAddr, referrerAddr, cancelFee, refundFee, deadline, referrerBps, auctionMode, random, payloadType)
         bytes memory v2Payload = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
             bytes32(uint256(uint160(user))), // destAddr
             bytes32(0), // referrerAddr
@@ -160,6 +161,7 @@ contract MayanRouterTest is Test {
     function test_ProcessTransfer_ETH() public {
         // Prepare transfer data with real swap params from mainnet tx
         bytes memory v2Payload = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
             bytes32(uint256(uint160(user))), // destAddr
             bytes32(0), // referrerAddr
@@ -220,6 +222,7 @@ contract MayanRouterTest is Test {
 
         // Prepare route data
         bytes memory v2Payload = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
             bytes32(uint256(uint160(recipient))), // destAddr
             bytes32(0), // referrerAddr
@@ -284,6 +287,7 @@ contract MayanRouterTest is Test {
     function test_VaultDepositRouter_ETH() public {
         // Prepare route data with real swap params from mainnet tx
         bytes memory v2Payload = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
             bytes32(uint256(uint160(recipient))), // destAddr
             bytes32(0), // referrerAddr
@@ -374,6 +378,7 @@ contract MayanRouterTest is Test {
         bytes memory wrongSignature = _signRequest(request, wrongPrivateKey);
 
         bytes memory v2Payload = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0),
             bytes32(0),
             bytes32(0),
@@ -428,6 +433,7 @@ contract MayanRouterTest is Test {
 
         bytes memory signature = _signRequest(request, userPrivateKey);
         bytes memory v2Payload = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0),
             bytes32(0),
             bytes32(0),

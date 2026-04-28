@@ -1,14 +1,14 @@
 //  SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import { Request, Universe, SourcePair } from "../types.sol";
-import { ICaRouter } from "../interfaces/ICaRouter.sol";
-import { IMayanSwiftV1 } from "../interfaces/IMayanSwiftV1.sol";
-import { IMayanForwarder } from "../interfaces/IMayanForwarder.sol";
-import { IMayanSwiftV2 } from "../interfaces/IMayanSwiftV2.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import {Request, Universe, SourcePair} from "../types.sol";
+import {ICaRouter} from "../interfaces/ICaRouter.sol";
+import {IMayanSwiftV1} from "../interfaces/IMayanSwiftV1.sol";
+import {IMayanForwarder} from "../interfaces/IMayanForwarder.sol";
+import {IMayanSwiftV2} from "../interfaces/IMayanSwiftV2.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 enum SwiftVersion {
     V2,
@@ -35,9 +35,7 @@ contract MayanRouter is ICaRouter, Ownable {
     /// @param namespaceHash CAIP-2 namespace hash
     /// @param chainId Chain ID within the namespace
     /// @param wormholeChainId Corresponding Wormhole chain ID
-    event WormholeChainMappingSet(
-        bytes32 indexed namespaceHash, uint256 indexed chainId, uint16 wormholeChainId
-    );
+    event WormholeChainMappingSet(bytes32 indexed namespaceHash, uint256 indexed chainId, uint16 wormholeChainId);
 
     /// @notice Initialize router with default EVM chain mappings
     constructor(address _owner) Ownable(_owner) {
@@ -58,11 +56,7 @@ contract MayanRouter is ICaRouter, Ownable {
     /// @dev Only supports ETHEREUM universe sources. Destination chain must be configured.
     /// @param request Action struct containing source, destination, and recipient details
     /// @param data ABI-encoded (SwiftVersion, remaining data)
-    function processTransfer(Request calldata request, bytes calldata data)
-        external
-        payable
-        override
-    {
+    function processTransfer(Request calldata request, bytes calldata data) external payable override {
         (uint256 chainIndex, uint256 destinationChainIndex, bytes memory actualData) =
             abi.decode(data, (uint256, uint256, bytes));
         address tokenIn = address(uint160(uint256(request.sources[chainIndex].contractAddress)));
@@ -92,6 +86,7 @@ contract MayanRouter is ICaRouter, Ownable {
         bytes memory data
     ) internal {
         (
+            uint8 tokenOutDecimals,
             uint64 gasDrop,
             bytes32 destAddr,
             bytes32 referrerAddr,
@@ -108,25 +103,34 @@ contract MayanRouter is ICaRouter, Ownable {
             uint256 minMiddleAmount
         ) = abi.decode(
             data,
-            (uint64, bytes32, bytes32, uint64, uint64, uint64, uint8, uint8, bytes32, uint8, address, bytes, address, uint256)
+            (
+                uint8,
+                uint64,
+                bytes32,
+                bytes32,
+                uint64,
+                uint64,
+                uint64,
+                uint8,
+                uint8,
+                bytes32,
+                uint8,
+                address,
+                bytes,
+                address,
+                uint256
+            )
         );
 
-        uint16 wormholeChainId = caip2ToWormholeChainId[
-            universeToCaip2Namespace[request.destinationUniverse]
-        ][request.destinationChainID];
+        uint16 wormholeChainId =
+            caip2ToWormholeChainId[universeToCaip2Namespace[request.destinationUniverse]][request.destinationChainID];
         require(wormholeChainId != 0, "Unsupported destination chain");
 
-address tokenOutAddress =
-    address(uint160(uint256(request.destinations[destinationChainIndex].contractAddress)));
+        uint256 normalizedMinAmountOut = request.destinations[destinationChainIndex].value;
 
-uint8 tokenOutDecimals =
-    tokenOutAddress == address(0) ? 18 : IERC20Metadata(tokenOutAddress).decimals();
-
-uint256 normalizedMinAmountOut = request.destinations[destinationChainIndex].value;
-
-if (tokenOutDecimals > 8) {
-    normalizedMinAmountOut = normalizedMinAmountOut / (10 ** (tokenOutDecimals - 8));
-}
+        if (tokenOutDecimals > 8) {
+            normalizedMinAmountOut = normalizedMinAmountOut / (10 ** (tokenOutDecimals - 8));
+        }
 
         IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2.OrderParams({
             payloadType: payloadType,
@@ -147,29 +151,15 @@ if (tokenOutDecimals > 8) {
 
         if (tokenIn == address(0)) {
             bytes memory protocolData = abi.encodeWithSelector(
-                IMayanSwiftV2.createOrderWithToken.selector,
-                middleToken,
-                minMiddleAmount,
-                orderParams,
-                bytes("")
+                IMayanSwiftV2.createOrderWithToken.selector, middleToken, minMiddleAmount, orderParams, bytes("")
             );
 
-            IMayanForwarder(MAYAN_FORWARDER).swapAndForwardEth{ value: amountIn }(
-                amountIn,
-                swapProtocol,
-                swapData,
-                middleToken,
-                minMiddleAmount,
-                SWIFT_V2_PROTOCOL,
-                protocolData
+            IMayanForwarder(MAYAN_FORWARDER).swapAndForwardEth{value: amountIn}(
+                amountIn, swapProtocol, swapData, middleToken, minMiddleAmount, SWIFT_V2_PROTOCOL, protocolData
             );
         } else {
             bytes memory protocolData = abi.encodeWithSelector(
-                IMayanSwiftV2.createOrderWithToken.selector,
-                tokenIn,
-                amountIn,
-                orderParams,
-                bytes("")
+                IMayanSwiftV2.createOrderWithToken.selector, tokenIn, amountIn, orderParams, bytes("")
             );
             IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
             IERC20(tokenIn).approve(MAYAN_FORWARDER, amountIn);
@@ -185,12 +175,9 @@ if (tokenOutDecimals > 8) {
     /// @param tokenIn Source token address (address(0) for ETH)
     /// @param amountIn Amount to transfer
     /// @param data ABI-encoded V1 payload
-    function _processTransferV1(
-        Request calldata request,
-        address tokenIn,
-        uint256 amountIn,
-        bytes memory data
-    ) internal {
+    function _processTransferV1(Request calldata request, address tokenIn, uint256 amountIn, bytes memory data)
+        internal
+    {
         (
             bytes32 trader,
             bytes32 tokenOut,
@@ -199,34 +186,18 @@ if (tokenOutDecimals > 8) {
             uint64 cancelFee,
             uint64 refundFee,
             uint64 deadline,
-            bytes32 destAddr,
-            ,
+            bytes32 destAddr,,
             bytes32 referrerAddr,
             uint8 referrerBps,
             uint8 auctionMode,
             bytes32 random
         ) = abi.decode(
             data,
-            (
-                bytes32,
-                bytes32,
-                uint64,
-                uint64,
-                uint64,
-                uint64,
-                uint64,
-                bytes32,
-                uint16,
-                bytes32,
-                uint8,
-                uint8,
-                bytes32
-            )
+            (bytes32, bytes32, uint64, uint64, uint64, uint64, uint64, bytes32, uint16, bytes32, uint8, uint8, bytes32)
         );
 
-        uint16 wormholeChainId = caip2ToWormholeChainId[
-            universeToCaip2Namespace[request.destinationUniverse]
-        ][request.destinationChainID];
+        uint16 wormholeChainId =
+            caip2ToWormholeChainId[universeToCaip2Namespace[request.destinationUniverse]][request.destinationChainID];
         require(wormholeChainId != 0, "Unsupported destination chain");
 
         IMayanSwiftV1.OrderParams memory orderParams = IMayanSwiftV1.OrderParams({
@@ -246,16 +217,12 @@ if (tokenOutDecimals > 8) {
         });
 
         if (tokenIn == address(0)) {
-            bytes memory protocolData =
-                abi.encodeWithSelector(IMayanSwiftV1.createOrderWithEth.selector, orderParams);
+            bytes memory protocolData = abi.encodeWithSelector(IMayanSwiftV1.createOrderWithEth.selector, orderParams);
 
-            IMayanForwarder(MAYAN_FORWARDER).forwardEth{ value: amountIn }(
-                SWIFT_V1_PROTOCOL, protocolData
-            );
+            IMayanForwarder(MAYAN_FORWARDER).forwardEth{value: amountIn}(SWIFT_V1_PROTOCOL, protocolData);
         } else {
-            bytes memory protocolData = abi.encodeWithSelector(
-                IMayanSwiftV1.createOrderWithToken.selector, tokenIn, amountIn, orderParams
-            );
+            bytes memory protocolData =
+                abi.encodeWithSelector(IMayanSwiftV1.createOrderWithToken.selector, tokenIn, amountIn, orderParams);
             IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
             IERC20(tokenIn).approve(MAYAN_FORWARDER, amountIn);
 
@@ -270,11 +237,10 @@ if (tokenOutDecimals > 8) {
     /// @param namespaceHash CAIP-2 namespace hash (e.g., keccak256("eip155") for EVM)
     /// @param chainId Chain ID within the namespace (e.g., 1 for Ethereum, 8453 for Base)
     /// @param wormholeChainId Corresponding Wormhole chain ID
-    function setWormholeChainMapping(
-        bytes32 namespaceHash,
-        uint256 chainId,
-        uint16 wormholeChainId
-    ) external onlyOwner {
+    function setWormholeChainMapping(bytes32 namespaceHash, uint256 chainId, uint16 wormholeChainId)
+        external
+        onlyOwner
+    {
         caip2ToWormholeChainId[namespaceHash][chainId] = wormholeChainId;
         emit WormholeChainMappingSet(namespaceHash, chainId, wormholeChainId);
     }
