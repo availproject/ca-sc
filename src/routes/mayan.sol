@@ -7,6 +7,7 @@ import { IMayanSwiftV1 } from "../interfaces/IMayanSwiftV1.sol";
 import { IMayanForwarder } from "../interfaces/IMayanForwarder.sol";
 import { IMayanSwiftV2 } from "../interfaces/IMayanSwiftV2.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 enum SwiftVersion {
@@ -115,6 +116,18 @@ contract MayanRouter is ICaRouter, Ownable {
         ][request.destinationChainID];
         require(wormholeChainId != 0, "Unsupported destination chain");
 
+address tokenOutAddress =
+    address(uint160(uint256(request.destinations[destinationChainIndex].contractAddress)));
+
+uint8 tokenOutDecimals =
+    tokenOutAddress == address(0) ? 18 : IERC20Metadata(tokenOutAddress).decimals();
+
+uint256 normalizedMinAmountOut = request.destinations[destinationChainIndex].value;
+
+if (tokenOutDecimals > 8) {
+    normalizedMinAmountOut = normalizedMinAmountOut / (10 ** (tokenOutDecimals - 8));
+}
+
         IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2.OrderParams({
             payloadType: payloadType,
             trader: request.recipientAddress,
@@ -122,7 +135,7 @@ contract MayanRouter is ICaRouter, Ownable {
             destChainId: wormholeChainId,
             referrerAddr: referrerAddr,
             tokenOut: request.destinations[destinationChainIndex].contractAddress,
-            minAmountOut: uint64(request.destinations[destinationChainIndex].value),
+            minAmountOut: uint64(normalizedMinAmountOut),
             gasDrop: gasDrop,
             cancelFee: cancelFee,
             refundFee: refundFee,
@@ -135,8 +148,8 @@ contract MayanRouter is ICaRouter, Ownable {
         if (tokenIn == address(0)) {
             bytes memory protocolData = abi.encodeWithSelector(
                 IMayanSwiftV2.createOrderWithToken.selector,
-                address(0),
-                amountIn,
+                middleToken,
+                minMiddleAmount,
                 orderParams,
                 bytes("")
             );

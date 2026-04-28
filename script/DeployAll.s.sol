@@ -37,13 +37,13 @@ contract DeployAll is Script {
         address deployer = vm.addr(deployerPrivateKey);
 
         console.log("\n========== Deploying Router (createX) ==========");
-        bytes32 routerSalt = keccak256(abi.encodePacked("nexus-mayan-router-1.0.2"));
+        bytes32 routerSalt = keccak256(abi.encodePacked("nexus-mayan-router-1.0.3"));
         bytes memory routerInitCode = abi.encodePacked(type(Router).creationCode, abi.encode(deployer));
         addresses.router = CREATEX.deployCreate2(routerSalt, routerInitCode);
         console.log("Router deployed at:", addresses.router);
 
         console.log("\n========== Deploying Vault (createX) ==========");
-        bytes32 vaultSalt = keccak256(abi.encodePacked("nexus-mayan-vault-1.0.2"));
+        bytes32 vaultSalt = keccak256(abi.encodePacked("nexus-mayan-vault-1.0.3"));
         bytes32 proxySalt = keccak256(abi.encodePacked(vaultSalt, "proxy"));
 
         bytes memory vaultInitCode = type(Vault).creationCode;
@@ -52,7 +52,8 @@ contract DeployAll is Script {
         console.log("Expected implementation:", expectedImpl);
 
         bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, deployer);
-        bytes memory proxyInitCode = abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(expectedImpl, initData));
+        bytes memory proxyInitCode =
+            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(expectedImpl, initData));
         bytes32 proxyInitCodeHash = keccak256(proxyInitCode);
         address expectedProxy = CREATEX.computeCreate2Address(keccak256(abi.encode(proxySalt)), proxyInitCodeHash);
         console.log("Expected proxy:", expectedProxy);
@@ -77,7 +78,7 @@ contract DeployAll is Script {
         }
 
         console.log("\n========== Deploying MayanRouter (createX) ==========");
-        bytes32 mayanSalt = keccak256(abi.encodePacked("nexus-mayan-mayanrouter-1.0.2"));
+        bytes32 mayanSalt = keccak256(abi.encodePacked("nexus-mayan-mayanrouter-1.0.3"));
         bytes memory mayanInitCode = abi.encodePacked(type(MayanRouter).creationCode, abi.encode(deployer));
         addresses.mayanRouter = CREATEX.deployCreate2(mayanSalt, mayanInitCode);
         console.log("MayanRouter:", addresses.mayanRouter);

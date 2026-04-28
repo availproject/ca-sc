@@ -3,7 +3,6 @@ pragma solidity ^0.8.29;
 
 import {Script, console} from "forge-std/Script.sol";
 
-
 interface IVault {
     function hasRole(bytes32 role, address account) external view returns (bool);
     function grantRole(bytes32 role, address account) external;
