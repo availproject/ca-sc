@@ -447,8 +447,9 @@ contract VaultFuzzTest is BaseVaultTest {
         amounts[0] = amount1;
         amounts[1] = amount2;
 
-        Vault.SettleData memory settleData =
-            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
+        Vault.SettleData memory settleData = _createSettleData(
+            Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
+        );
 
         // Sign with verifier key
         bytes32 structHash = keccak256(

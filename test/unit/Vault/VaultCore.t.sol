@@ -6,7 +6,6 @@ import {BaseVaultTest} from "../../BaseVaultTest.t.sol";
 import {SignatureHelper} from "../../helpers/SignatureHelper.sol";
 import {Vault} from "../../../contracts/Vault.sol";
 import {MockFeeOnTransfer} from "../../mocks/MockFeeOnTransfer.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 // VaultCoreTest - Core Functionality Tests for Vault.sol
 // @title VaultCoreTest
@@ -875,8 +874,9 @@ contract VaultCoreTest is BaseVaultTest {
         amounts[0] = 0.5 ether;
         amounts[1] = 1000 * 10 ** 18;
 
-        Vault.SettleData memory settleData =
-            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
+        Vault.SettleData memory settleData = _createSettleData(
+            Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
+        );
 
         // Sign with verifier key
         bytes32 structHash = keccak256(
@@ -1194,14 +1194,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         Vault.Request memory request = _createRequestForUser(
-            bytes32(0),
-            depositAmount,
-            bytes32(0),
-            depositAmount,
-            USER_PRIVATE_KEY,
-            solver,
-            nonce,
-            expiry
+            bytes32(0), depositAmount, bytes32(0), depositAmount, USER_PRIVATE_KEY, solver, nonce, expiry
         );
 
         bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);

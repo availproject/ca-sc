@@ -32,6 +32,11 @@ const NATIVE_TOKENS = {
   kaia_mainnet: "KAI",
   bnb_smart_chain_mainnet: "BNB",
   monad_mainnet: "MONAD",
+  sepolia: "ETH",
+  "arb_sepolia": "ETH",
+  "op_sepolia": "ETH",
+  "base_sepolia": "ETH",
+  "polygon_amony": "MATIC",
 };
 
 // Deployment results storage

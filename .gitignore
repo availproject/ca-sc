@@ -20,13 +20,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Hardhat files
+# Hardhat files (legacy)
 /cache
 /artifacts
 deployments/hardhat/
 deployments/localhost/
 
-# TypeChain files
+# TypeChain files (legacy)
 /typechain
 /typechain-types
 
@@ -42,6 +42,11 @@ gasReporterOutput.json
 # Hardhat Ignition deployments
 ignition/deployments/
 !ignition/deployments/.gitkeep
+
+# Foundry files
+/out
+/cache_forge
+broadcast/
 
 # In-Dev fuelVM
 fuelVM/vault/tests

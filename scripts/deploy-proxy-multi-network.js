@@ -137,7 +137,6 @@ function runMultiNetwork(adminAddress, networks) {
     try {
       const adminArg = adminAddress ? `--admin ${adminAddress}` : "";
       const cmd = `npx hardhat run scripts/deploy-proxy-multi-network.js --network ${networkName} ${adminArg}`;
-
       const output = execSync(cmd, {
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],

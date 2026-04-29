@@ -1,3 +1,4 @@
+
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
@@ -112,6 +113,22 @@ const config: HardhatUserConfig = {
       url: process.env.SEPOLIA,
       accounts: [PK],
     },
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL!,
+      accounts: [PK],
+    },
+    base_sepolia: {
+      url: process.env.BASE_SEPOLIA_RPC_URL!,
+      accounts: [PK],
+    },
+    polygon_amony: {
+      url: process.env.POLYGON_AMOY_RPC_URL!,
+      accounts: [PK],
+    },
+    mega_eth: {
+      url: process.env.MEGA_ETH_RPC_URL!,
+      accounts: [PK],
+    }
   },
   gasReporter: {
     enabled: true,
@@ -119,6 +136,28 @@ const config: HardhatUserConfig = {
     coinmarketcap: process.env.COINMARKETCAP_API_KEY!,
     excludeContracts: [],
   },
+  paths: {
+    sources: "./src",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts"
+
+  },
+  etherscan: {
+    apiKey: {
+      'mega-mainnet': 'empty'
+    },
+    customChains: [
+      {
+        network: "mega-mainnet",
+        chainId: 4326,
+        urls: {
+          apiURL: "https://megaeth.blockscout.com/api",
+          browserURL: "https://megaeth.blockscout.com"
+        }
+      }
+    ]
+  }
 };
 
 export default config;

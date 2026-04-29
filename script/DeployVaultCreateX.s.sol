@@ -12,12 +12,12 @@ interface ICreateX {
 
 contract DeployVault is Script {
     ICreateX public constant CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
-    bytes32 public constant DEFAULT_SALT = keccak256("nexus-vault-1.0.1");
+    bytes32 public constant DEFAULT_SALT = keccak256("nexus-vault-1.0.5");
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     function run() external returns (address proxy) {
         address admin = _getAdmin();
-        address finalAdmin = _getFinalAdmin();
+        address finalAdmin = _getFinalAdmin(admin);
         vm.startBroadcast();
         bytes32 salt = _getSalt();
         bytes32 proxySalt = keccak256(abi.encodePacked(salt, "proxy"));
@@ -53,14 +53,14 @@ contract DeployVault is Script {
 
         // Transfer ownership to finalAdmin if specified and different from admin
         if (finalAdmin != address(0) && finalAdmin != admin) {
-            _transferOwnership(proxy, finalAdmin);
+            _transferOwnership(proxy, admin, finalAdmin);
         }
     }
 
-    function _transferOwnership(address proxy, address finalAdmin) internal {
+    function _transferOwnership(address proxy, address admin, address finalAdmin) internal {
         uint256 adminPrivateKey = _getAdminPrivateKey();
         require(adminPrivateKey != 0, "DeployVault: ADMIN_PRIVATE_KEY required for ownership transfer");
-        address upgraderWallet = _getUpgraderWallet();
+        address upgraderWallet = _getUpgraderWallet(admin);
 
         vm.startBroadcast(adminPrivateKey);
 
@@ -70,10 +70,9 @@ contract DeployVault is Script {
         vault.grantRole(vault.DEFAULT_ADMIN_ROLE(), finalAdmin);
         console.log("Granted DEFAULT_ADMIN_ROLE to:", finalAdmin);
 
-        // Grant UPGRADER_ROLE to upgrader wallet (or finalAdmin if not set)
-        address upgrader = upgraderWallet != address(0) ? upgraderWallet : finalAdmin;
-        vault.grantRole(UPGRADER_ROLE, upgrader);
-        console.log("Granted UPGRADER_ROLE to:", upgrader);
+        // Grant UPGRADER_ROLE to upgrader wallet (defaults to admin if not set)
+        vault.grantRole(UPGRADER_ROLE, upgraderWallet);
+        console.log("Granted UPGRADER_ROLE to:", upgraderWallet);
 
         // Get the deployer address (current admin)
         address deployer = vm.addr(adminPrivateKey);
@@ -119,11 +118,11 @@ contract DeployVault is Script {
         }
     }
 
-    function _getFinalAdmin() internal view returns (address) {
+    function _getFinalAdmin(address admin) internal view returns (address) {
         try vm.envAddress("FINAL_ADMIN") returns (address envFinalAdmin) {
             return envFinalAdmin;
         } catch {
-            return address(0);
+            return admin;
         }
     }
 
@@ -135,11 +134,11 @@ contract DeployVault is Script {
         }
     }
 
-    function _getUpgraderWallet() internal view returns (address) {
+    function _getUpgraderWallet(address admin) internal view returns (address) {
         try vm.envAddress("UPGRADER_WALLET") returns (address envUpgrader) {
             return envUpgrader;
         } catch {
-            return address(0);
+            return admin;
         }
     }
 }
