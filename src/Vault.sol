@@ -1,48 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {
-    MessageHashUtils
-} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-import {
-    AccessControlUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {
-    ReentrancyGuardTransient
-} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
-import {
-    AccessControlUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {
-    UUPSUpgradeable
-} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import {
-    Request,
-    Party,
-    Universe,
-    RFFState,
-    SettleData,
-    Route
-} from "./types.sol";
-import { IRouter } from "./interfaces/IRouter.sol";
+import {Request, Party, Universe, RFFState, SettleData, Route} from "./types.sol";
+import {IRouter} from "./interfaces/IRouter.sol";
 
 /// @title Vault
 /// @author Rachit Anand Srivastava (@privacy_prophet)
 /// @notice Vault contract for managing deposits, fulfillments, and settlements of cross-chain transfers
 /// @dev UUPS upgradeable contract with role-based access control
-contract Vault is
-    Initializable,
-    UUPSUpgradeable,
-    AccessControlUpgradeable,
-    ReentrancyGuardTransient
-{
+contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ReentrancyGuardTransient {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 
@@ -87,11 +65,7 @@ contract Vault is
         emit RouterSet(_router);
     }
 
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        override
-        onlyRole(UPGRADER_ROLE)
-    { }
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
     function version() external pure returns (string memory) {
         return "1.0.0";
@@ -145,9 +119,7 @@ contract Vault is
         (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
         require(request.sources[chainIndex].chainID == block.chainid, "Vault: Chain ID mismatch");
-        require(
-            request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch"
-        );
+        require(request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!depositNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
@@ -185,28 +157,24 @@ contract Vault is
     /// @param request Request struct for router containing cross-chain transfer details
     /// @param signature User's signature authorizing the deposit
     /// @param chainIndex Index of the source chain in the request.sources array
-    /// @param destinationChainIndex Index of the destination in the request.destinations array
     /// @param route Route to use (NATIVE or MAYAN)
     /// @param routeData Additional route-specific encoded parameters
     function depositRouter(
         Request calldata request,
         bytes calldata signature,
         uint256 chainIndex,
-        uint256 destinationChainIndex,
         Route route,
         bytes calldata routeData
     ) external payable nonReentrant {
         require(address(router) != address(0), "Vault: Router not set");
-        require(destinationChainIndex < request.destinations.length, "Vault: Invalid destination index");
+        require(chainIndex < request.destinations.length, "Vault: Invalid destination index");
 
         address from = extractAddress(request.parties);
         bytes32 request_hash = _hashRequest(request);
         (bool success, bytes32 requestHash) = _verify_request(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
         require(request.sources[chainIndex].chainID == block.chainid, "Vault: Chain ID mismatch");
-        require(
-            request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch"
-        );
+        require(request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!depositNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
@@ -242,8 +210,8 @@ contract Vault is
             }
         }
 
-        bytes memory encodedRouteData = abi.encode(chainIndex, destinationChainIndex, routeData);
-        router.processTransfer{ value: valueToRoute }(request, route, encodedRouteData);
+        bytes memory encodedRouteData = abi.encode(chainIndex, routeData);
+        router.processTransfer{value: valueToRoute}(request, route, encodedRouteData);
 
         emit DepositAndRoute(request_hash, from, route);
     }
@@ -257,11 +225,7 @@ contract Vault is
         revert("Vault: Party not found");
     }
 
-    function fulfil(Request calldata request, bytes calldata signature)
-        external
-        payable
-        nonReentrant
-    {
+    function fulfil(Request calldata request, bytes calldata signature) external payable nonReentrant {
         address from = extractAddress(request.parties);
         bytes32 request_hash = _hashRequest(request);
         (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request_hash);
@@ -282,7 +246,7 @@ contract Vault is
                 require(nativeBalance >= request.destinations[i].value, "Vault: Value mismatch");
                 require(request.destinations[i].value > 0, "Vault: Value mismatch");
                 nativeBalance -= request.destinations[i].value;
-                (bool sent,) = payable(recipient).call{ value: request.destinations[i].value }("");
+                (bool sent,) = payable(recipient).call{value: request.destinations[i].value}("");
                 require(sent, "Vault: Transfer failed");
             } else {
                 IERC20 token = IERC20(bytes32ToAddress(request.destinations[i].contractAddress));
@@ -296,16 +260,13 @@ contract Vault is
             }
         }
         if (nativeBalance > 0) {
-            (bool sent,) = payable(msg.sender).call{ value: nativeBalance }("");
+            (bool sent,) = payable(msg.sender).call{value: nativeBalance}("");
             require(sent, "Vault: Transfer failed");
         }
         emit Fulfilment(request_hash, from, msg.sender);
     }
 
-    function settle(SettleData calldata settleData, bytes calldata signature)
-        external
-        nonReentrant
-    {
+    function settle(SettleData calldata settleData, bytes calldata signature) external nonReentrant {
         bytes32 structHash = keccak256(
             abi.encode(
                 settleData.universe,
@@ -317,14 +278,10 @@ contract Vault is
                 settleData.nonce
             )
         );
-        bytes32 signatureHash =
-            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
+        bytes32 signatureHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
         address signer = signatureHash.recover(signature);
         require(hasRole(SETTLEMENT_VERIFIER_ROLE, signer), "Vault: Invalid signature");
-        require(
-            settleData.solvers.length == settleData.contractAddresses.length,
-            "tokens length mismatch"
-        );
+        require(settleData.solvers.length == settleData.contractAddresses.length, "tokens length mismatch");
 
         require(settleData.solvers.length == settleData.amounts.length, "amounts length mismatch");
         require(!settleNonce[settleData.nonce], "Vault: Nonce already used");
@@ -335,15 +292,13 @@ contract Vault is
         settleNonce[settleData.nonce] = true;
         for (uint256 i = 0; i < settleData.solvers.length; ++i) {
             if (settleData.contractAddresses[i] == address(0)) {
-                (bool sent,) = settleData.solvers[i].call{ value: settleData.amounts[i] }("");
+                (bool sent,) = settleData.solvers[i].call{value: settleData.amounts[i]}("");
                 require(sent, "Vault: Transfer failed");
             } else {
                 IERC20 token = IERC20(settleData.contractAddresses[i]);
                 token.safeTransfer(settleData.solvers[i], settleData.amounts[i]);
             }
         }
-        emit Settle(
-            settleData.nonce, settleData.solvers, settleData.contractAddresses, settleData.amounts
-        );
+        emit Settle(settleData.nonce, settleData.solvers, settleData.contractAddresses, settleData.amounts);
     }
 }

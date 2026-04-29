@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
-import { Request, Route } from "./types.sol";
-import { ICaRouter } from "./interfaces/ICaRouter.sol";
+import {Request, Route} from "./types.sol";
+import {ICaRouter} from "./interfaces/ICaRouter.sol";
 
 /// @title Router
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -60,15 +60,11 @@ contract Router is AccessControl {
     /// @param request Action struct containing transfer details
     /// @param route Route to use (NATIVE or MAYAN)
     /// @param data Additional route-specific encoded parameters
-    function processTransfer(Request calldata request, Route route, bytes calldata data)
-        external
-        payable
-    {
+    function processTransfer(Request calldata request, Route route, bytes calldata data) external payable {
         address routerAddress = routers[route];
         if (routerAddress == address(0)) revert InvalidRoute();
 
-        (uint256 chainIndex, uint256 destinationChainIndex, bytes memory actualRouteData) =
-            abi.decode(data, (uint256, uint256, bytes));
+        (uint256 chainIndex,) = abi.decode(data, (uint256, bytes));
 
         address tokenAddress = address(uint160(uint256(request.sources[chainIndex].contractAddress)));
         if (tokenAddress != address(0)) {
@@ -83,8 +79,6 @@ contract Router is AccessControl {
             revert InvalidRoute();
         }
 
-        // Re-encode data with chain indices for the route processor
-        bytes memory routeProcessorData = abi.encode(chainIndex, destinationChainIndex, actualRouteData);
-        router.processTransfer{ value: msg.value }(request, routeProcessorData);
+        router.processTransfer{value: msg.value}(request, data);
     }
 }

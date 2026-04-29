@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 interface IERC7914 {
-    function transferFromNative(address from, address recipient, uint256 amount)
-        external
-        returns (bool);
+    function transferFromNative(address from, address recipient, uint256 amount) external returns (bool);
 }
 
 contract ERC20Sweeper {

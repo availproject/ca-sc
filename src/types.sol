@@ -58,4 +58,3 @@ struct SettleData {
     uint256 nonce;
 }
 
-

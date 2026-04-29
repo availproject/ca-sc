@@ -7,7 +7,6 @@ import {Router} from "../src/Router.sol";
 import {Vault} from "../src/Vault.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {Request, SourcePair, Party, Universe, Route, DestinationPair} from "../src/types.sol";
-import {SwiftVersion} from "../src/routes/mayan.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -98,11 +97,10 @@ contract MayanRouterTest is Test {
         vm.prank(user);
         token.approve(address(mayanRouter), 100e18);
 
-        // Prepare V2 transfer data (tokenOutDecimals, gasDrop, destAddr, referrerAddr, cancelFee, refundFee, deadline, referrerBps, auctionMode, random, payloadType)
-        bytes memory v2Payload = abi.encode(
+        // Prepare V2 transfer data (14 params - direct V2 payload encoding, no SwiftVersion wrapper)
+        bytes memory data = abi.encode(
             uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(uint256(uint160(user))), // destAddr
             bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
@@ -116,7 +114,6 @@ contract MayanRouterTest is Test {
             address(0), // middleToken
             uint256(0) // minMiddleAmount
         );
-        bytes memory data = abi.encode(SwiftVersion.V2, v2Payload);
 
         // Create Request object
         SourcePair[] memory sources = new SourcePair[](1);
@@ -145,8 +142,8 @@ contract MayanRouterTest is Test {
             parties: parties
         });
 
-        // Encode data with chain indices
-        bytes memory encodedData = abi.encode(uint256(0), uint256(0), data);
+        // Encode data with chain index
+        bytes memory encodedData = abi.encode(uint256(0), data);
 
         uint256 userBalanceBefore = token.balanceOf(user);
         vm.prank(user);
@@ -159,11 +156,10 @@ contract MayanRouterTest is Test {
     uint256 constant SWAP_AMOUNT = 0.187 ether;
 
     function test_ProcessTransfer_ETH() public {
-        // Prepare transfer data with real swap params from mainnet tx
-        bytes memory v2Payload = abi.encode(
+        // Prepare transfer data with real swap params from mainnet tx (direct V2 payload)
+        bytes memory data = abi.encode(
             uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(uint256(uint160(user))), // destAddr
             bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
@@ -177,7 +173,6 @@ contract MayanRouterTest is Test {
             MIDDLE_TOKEN,
             MIN_MIDDLE_AMOUNT
         );
-        bytes memory data = abi.encode(SwiftVersion.V2, v2Payload);
 
         // Create Request object
         SourcePair[] memory sources = new SourcePair[](1);
@@ -202,8 +197,8 @@ contract MayanRouterTest is Test {
             parties: parties
         });
 
-        // Encode data with chain indices
-        bytes memory encodedData = abi.encode(uint256(0), uint256(0), data);
+        // Encode data with chain index
+        bytes memory encodedData = abi.encode(uint256(0), data);
 
         uint256 userBalanceBefore = user.balance;
 
@@ -220,11 +215,10 @@ contract MayanRouterTest is Test {
         vm.prank(user);
         token.approve(address(vault), 100e18);
 
-        // Prepare route data
-        bytes memory v2Payload = abi.encode(
+        // Prepare route data (direct V2 payload - 14 params, no SwiftVersion wrapper)
+        bytes memory routeData = abi.encode(
             uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(uint256(uint160(recipient))), // destAddr
             bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
@@ -238,7 +232,6 @@ contract MayanRouterTest is Test {
             address(0), // middleToken
             uint256(0) // minMiddleAmount
         );
-        bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
         // Create Request object
         SourcePair[] memory sources = new SourcePair[](1);
@@ -273,7 +266,7 @@ contract MayanRouterTest is Test {
         uint256 vaultBalanceBefore = token.balanceOf(address(vault));
 
         vm.prank(user);
-        vault.depositRouter(request, signature, 0, 0, Route.MAYAN, routeData);
+        vault.depositRouter(request, signature, 0, Route.MAYAN, routeData);
 
         uint256 userBalanceAfter = token.balanceOf(user);
         uint256 vaultBalanceAfter = token.balanceOf(address(vault));
@@ -285,11 +278,10 @@ contract MayanRouterTest is Test {
     }
 
     function test_VaultDepositRouter_ETH() public {
-        // Prepare route data with real swap params from mainnet tx
-        bytes memory v2Payload = abi.encode(
+        // Prepare route data with real swap params (direct V2 payload)
+        bytes memory routeData = abi.encode(
             uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(uint256(uint160(recipient))), // destAddr
             bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
@@ -303,7 +295,6 @@ contract MayanRouterTest is Test {
             MIDDLE_TOKEN,
             MIN_MIDDLE_AMOUNT
         );
-        bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
         // Create Request object for ETH transfer
         SourcePair[] memory sources = new SourcePair[](1);
@@ -342,7 +333,7 @@ contract MayanRouterTest is Test {
 
         // Execute the transfer - should not revert with real swap params
         vm.prank(user);
-        vault.depositRouter{value: SWAP_AMOUNT}(request, signature, 0, 0, Route.MAYAN, routeData);
+        vault.depositRouter{value: SWAP_AMOUNT}(request, signature, 0, Route.MAYAN, routeData);
 
         // User balance should decrease by swap amount
         assertEq(user.balance, userBalanceBefore - SWAP_AMOUNT);
@@ -377,10 +368,10 @@ contract MayanRouterTest is Test {
         uint256 wrongPrivateKey = 0xBAD;
         bytes memory wrongSignature = _signRequest(request, wrongPrivateKey);
 
-        bytes memory v2Payload = abi.encode(
+        // Prepare route data (direct V2 payload - 14 params)
+        bytes memory routeData = abi.encode(
             uint8(0), // tokenOutDecimals
             uint64(0),
-            bytes32(0),
             bytes32(0),
             uint64(0),
             uint64(0),
@@ -394,11 +385,10 @@ contract MayanRouterTest is Test {
             address(0),
             uint256(0)
         );
-        bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
         vm.prank(user);
         vm.expectRevert("Vault: Invalid signature or from");
-        vault.depositRouter{value: 1 ether}(request, wrongSignature, 0, 0, Route.MAYAN, routeData);
+        vault.depositRouter{value: 1 ether}(request, wrongSignature, 0, Route.MAYAN, routeData);
     }
 
     function test_VaultDepositRouter_RevertNonceReuse() public {
@@ -432,10 +422,9 @@ contract MayanRouterTest is Test {
         });
 
         bytes memory signature = _signRequest(request, userPrivateKey);
-        bytes memory v2Payload = abi.encode(
+        bytes memory routeData = abi.encode(
             uint8(0), // tokenOutDecimals
             uint64(0),
-            bytes32(0),
             bytes32(0),
             uint64(0),
             uint64(0),
@@ -449,40 +438,39 @@ contract MayanRouterTest is Test {
             address(0),
             uint256(0)
         );
-        bytes memory routeData = abi.encode(SwiftVersion.V2, v2Payload);
 
         // First deposit should succeed
         vm.prank(user);
-        vault.depositRouter(request, signature, 0, 0, Route.MAYAN, routeData);
+        vault.depositRouter(request, signature, 0, Route.MAYAN, routeData);
 
         // Second deposit with same nonce should revert
         vm.prank(user);
         vm.expectRevert("Vault: Nonce already used");
-        vault.depositRouter(request, signature, 0, 0, Route.MAYAN, routeData);
+        vault.depositRouter(request, signature, 0, Route.MAYAN, routeData);
     }
 
-    function test_ProcessTransferV1_ERC20() public {
+    function test_ProcessTransferV2_ERC20() public {
         // Approve router to spend tokens
         vm.prank(user);
         token.approve(address(mayanRouter), 100e18);
 
-        // Encode V1 data with SwiftVersion.V1 prepended
-        bytes memory v1Payload = abi.encode(
-            bytes32(uint256(uint160(user))), // trader
-            bytes32(uint256(uint160(address(token)))), // tokenOut
-            uint64(90), // minAmountOut
+        // Encode V2 data (direct V2 payload encoding - 14 params, no SwiftVersion wrapper)
+        bytes memory data = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
+            bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
             uint64(block.timestamp + 3600), // deadline
-            bytes32(uint256(uint160(user))), // destAddr
-            uint16(0), // destChainId
-            bytes32(0), // referrerAddr
             uint8(0), // referrerBps
             uint8(0), // auctionMode
-            bytes32(0) // random
+            bytes32(0), // random
+            uint8(0), // payloadType
+            address(0), // swapProtocol
+            bytes(""), // swapData
+            address(0), // middleToken
+            uint256(0) // minMiddleAmount
         );
-        bytes memory data = abi.encode(SwiftVersion.V1, v1Payload);
 
         // Create Request object
         SourcePair[] memory sources = new SourcePair[](1);
@@ -511,8 +499,8 @@ contract MayanRouterTest is Test {
             parties: parties
         });
 
-        // Encode data with chain indices
-        bytes memory encodedData = abi.encode(uint256(0), uint256(0), data);
+        // Encode data with chain index
+        bytes memory encodedData = abi.encode(uint256(0), data);
 
         uint256 userBalanceBefore = token.balanceOf(user);
         vm.prank(user);
@@ -522,29 +510,29 @@ contract MayanRouterTest is Test {
         assertEq(userBalanceBefore - 100e18, userBalanceAfter);
     }
 
-    function test_ProcessTransferV1_ETH() public {
-        // Encode V1 data with SwiftVersion.V1 prepended
-        bytes memory v1Payload = abi.encode(
-            bytes32(uint256(uint160(user))), // trader
-            bytes32(0), // tokenOut
-            uint64(50), // minAmountOut
+    function test_ProcessTransferV2_ETH() public {
+        // Encode V2 data with real swap params from mainnet tx
+        bytes memory data = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
+            bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
             uint64(block.timestamp + 3600), // deadline
-            bytes32(uint256(uint160(user))), // destAddr
-            uint16(0), // destChainId
-            bytes32(0), // referrerAddr
             uint8(0), // referrerBps
             uint8(0), // auctionMode
-            bytes32(0) // random
+            bytes32(0), // random
+            uint8(0), // payloadType
+            SWAP_PROTOCOL,
+            SWAP_DATA,
+            MIDDLE_TOKEN,
+            MIN_MIDDLE_AMOUNT
         );
-        bytes memory data = abi.encode(SwiftVersion.V1, v1Payload);
 
         // Create Request object
         SourcePair[] memory sources = new SourcePair[](1);
         sources[0] = SourcePair({
-            universe: Universe.ETHEREUM, chainID: 8453, contractAddress: bytes32(0), value: 1 ether, fee: 0
+            universe: Universe.ETHEREUM, chainID: 8453, contractAddress: bytes32(0), value: SWAP_AMOUNT, fee: 0
         });
 
         DestinationPair[] memory destinations = new DestinationPair[](1);
@@ -564,25 +552,21 @@ contract MayanRouterTest is Test {
             parties: parties
         });
 
-        // Encode data with chain indices
-        bytes memory encodedData = abi.encode(uint256(0), uint256(0), data);
+        // Encode data with chain index
+        bytes memory encodedData = abi.encode(uint256(0), data);
 
         uint256 userBalanceBefore = user.balance;
-        uint256 swiftV1BalanceBefore = address(SWIFT_V1_BASE).balance;
 
         // Execute the transfer
         vm.prank(user);
-        mayanRouter.processTransfer{value: 1 ether}(request, encodedData);
+        mayanRouter.processTransfer{value: SWAP_AMOUNT}(request, encodedData);
 
-        // Verify ETH was transferred to the swiftV1
-        assertEq(address(SWIFT_V1_BASE).balance, swiftV1BalanceBefore + 1 ether);
-        // User balance should decrease by 1 ether (sent to router)
-        assertEq(user.balance, userBalanceBefore - 1 ether);
+        // User balance should decrease by swap amount (sent to router)
+        assertEq(user.balance, userBalanceBefore - SWAP_AMOUNT);
     }
 
     function test_ProcessTransfer_InvalidVersion() public {
-        // Create invalid version by encoding a uint8 value > 1
-        // This will cause the version check to fail
+        // Create invalid data that will fail V2 decode
         bytes memory invalidData = abi.encode(uint8(2), bytes(""));
 
         // Create Request object
@@ -608,36 +592,36 @@ contract MayanRouterTest is Test {
             parties: parties
         });
 
-        // Encode data with chain indices
-        bytes memory encodedData = abi.encode(uint256(0), uint256(0), invalidData);
+        // Encode data with chain index
+        bytes memory encodedData = abi.encode(uint256(0), invalidData);
 
         vm.prank(user);
         vm.expectRevert();
         mayanRouter.processTransfer{value: 1 ether}(request, encodedData);
     }
 
-    function test_VaultDepositRouter_V1_ERC20() public {
+    function test_VaultDepositRouter_V2_ERC20() public {
         // Approve vault to spend tokens
         vm.prank(user);
         token.approve(address(vault), 100e18);
 
-        // Encode V1 data with SwiftVersion.V1 prepended
-        bytes memory v1Payload = abi.encode(
-            bytes32(uint256(uint160(recipient))), // trader
-            bytes32(uint256(uint160(address(token)))), // tokenOut
-            uint64(90), // minAmountOut
+        // Encode V2 data (direct V2 payload - 14 params, no SwiftVersion wrapper)
+        bytes memory routeData = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
+            bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
             uint64(block.timestamp + 3600), // deadline
-            bytes32(uint256(uint160(recipient))), // destAddr
-            uint16(0), // destChainId
-            bytes32(0), // referrerAddr
             uint8(0), // referrerBps
             uint8(0), // auctionMode
-            bytes32(0) // random
+            bytes32(0), // random
+            uint8(0), // payloadType
+            address(0), // swapProtocol
+            bytes(""), // swapData
+            address(0), // middleToken
+            uint256(0) // minMiddleAmount
         );
-        bytes memory routeData = abi.encode(SwiftVersion.V1, v1Payload);
 
         // Create Request object
         SourcePair[] memory sources = new SourcePair[](1);
@@ -672,7 +656,7 @@ contract MayanRouterTest is Test {
         uint256 vaultBalanceBefore = token.balanceOf(address(vault));
 
         vm.prank(user);
-        vault.depositRouter(request, signature, 0, 0, Route.MAYAN, routeData);
+        vault.depositRouter(request, signature, 0, Route.MAYAN, routeData);
 
         uint256 userBalanceAfter = token.balanceOf(user);
         uint256 vaultBalanceAfter = token.balanceOf(address(vault));
@@ -683,24 +667,24 @@ contract MayanRouterTest is Test {
         assertEq(vaultBalanceBefore, vaultBalanceAfter);
     }
 
-    function test_VaultDepositRouter_V1_ETH() public {
-        // Encode V1 data with SwiftVersion.V1 prepended
-        bytes memory v1Payload = abi.encode(
-            bytes32(uint256(uint160(recipient))), // trader
-            bytes32(0), // tokenOut
-            uint64(50), // minAmountOut
+    function test_VaultDepositRouter_V2_ETH() public {
+        // Encode V2 data with real swap params from mainnet tx
+        bytes memory routeData = abi.encode(
+            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
+            bytes32(0), // referrerAddr
             uint64(0), // cancelFee
             uint64(0), // refundFee
             uint64(block.timestamp + 3600), // deadline
-            bytes32(uint256(uint160(recipient))), // destAddr
-            uint16(0), // destChainId
-            bytes32(0), // referrerAddr
             uint8(0), // referrerBps
             uint8(0), // auctionMode
-            bytes32(0) // random
+            bytes32(0), // random
+            uint8(0), // payloadType
+            SWAP_PROTOCOL,
+            SWAP_DATA,
+            MIDDLE_TOKEN,
+            MIN_MIDDLE_AMOUNT
         );
-        bytes memory routeData = abi.encode(SwiftVersion.V1, v1Payload);
 
         // Create Request object for ETH transfer
         SourcePair[] memory sources = new SourcePair[](1);
@@ -708,7 +692,7 @@ contract MayanRouterTest is Test {
             universe: Universe.ETHEREUM,
             chainID: block.chainid,
             contractAddress: bytes32(0), // Native ETH
-            value: 1 ether,
+            value: SWAP_AMOUNT,
             fee: 0
         });
 
@@ -736,16 +720,13 @@ contract MayanRouterTest is Test {
 
         uint256 userBalanceBefore = user.balance;
         uint256 vaultBalanceBefore = address(vault).balance;
-        uint256 swiftV1BalanceBefore = address(SWIFT_V1_BASE).balance;
 
         // Execute the transfer
         vm.prank(user);
-        vault.depositRouter{value: 1 ether}(request, signature, 0, 0, Route.MAYAN, routeData);
+        vault.depositRouter{value: SWAP_AMOUNT}(request, signature, 0, Route.MAYAN, routeData);
 
-        // Verify ETH was transferred through vault to swiftV1
-        assertEq(address(SWIFT_V1_BASE).balance, swiftV1BalanceBefore + 1 ether);
-        // User balance should decrease by 1 ether
-        assertEq(user.balance, userBalanceBefore - 1 ether);
+        // User balance should decrease by swap amount
+        assertEq(user.balance, userBalanceBefore - SWAP_AMOUNT);
         // Vault should not hold ETH (forwarded to router/mayan)
         assertEq(address(vault).balance, vaultBalanceBefore);
     }
