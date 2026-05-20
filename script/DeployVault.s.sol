@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Script, console} from "forge-std/Script.sol";
-import {Vault} from "../contracts/Vault.sol";
+import {Vault} from "../src/Vault.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /// @notice Deploys Vault with UUPS proxy pattern

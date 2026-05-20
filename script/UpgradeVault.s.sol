@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Script, console} from "forge-std/Script.sol";
-import {Vault} from "../contracts/Vault.sol";
+import {Vault} from "../src/Vault.sol";
 
 interface ICreateX {
     function deployCreate2(bytes32 salt, bytes memory initCode) external payable returns (address);

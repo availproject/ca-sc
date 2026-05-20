@@ -4,7 +4,8 @@ pragma solidity ^0.8.29;
 // Imports
 import {BaseVaultTest} from "../../BaseVaultTest.t.sol";
 import {SignatureHelper} from "../../helpers/SignatureHelper.sol";
-import {Vault} from "../../../contracts/Vault.sol";
+import {Vault} from "../../../src/Vault.sol";
+import {DestinationPair, Party, Request, RFFState, SettleData, SourcePair, Universe} from "../../../src/types.sol";
 import {MockFeeOnTransfer} from "../../mocks/MockFeeOnTransfer.sol";
 
 // VaultCoreTest - Core Functionality Tests for Vault.sol
@@ -70,21 +71,21 @@ contract VaultCoreTest is BaseVaultTest {
         address recipient,
         uint256 nonce,
         uint256 expiry
-    ) internal view returns (Vault.Request memory) {
+    ) internal view returns (Request memory) {
         address requester = _getAddress(userPrivateKey);
 
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, 0);
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = _createSourcePair(Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, 0);
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(destToken, destValue);
 
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        Party[] memory parties = new Party[](1);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
 
         return _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             block.chainid,
             bytes32(uint256(uint160(recipient))),
             destinations,
@@ -103,7 +104,7 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 expiry = _futureTimestamp(1 hours);
 
         // Create request with user's derived address
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), // ETH
             depositAmount,
             bytes32(0), // ETH destination
@@ -134,7 +135,7 @@ contract VaultCoreTest is BaseVaultTest {
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
             uint256(vault.requestState(signedMessageHash)),
-            uint256(Vault.RFFState.DEPOSITED),
+            uint256(RFFState.DEPOSITED),
             "Request state should be DEPOSITED"
         );
     }
@@ -148,7 +149,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         // Create request
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(uint256(uint160(address(token)))), // ERC20 token
             depositAmount,
             bytes32(uint256(uint160(address(token)))), // Same token as destination
@@ -183,7 +184,7 @@ contract VaultCoreTest is BaseVaultTest {
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
             uint256(vault.requestState(signedMessageHash)),
-            uint256(Vault.RFFState.DEPOSITED),
+            uint256(RFFState.DEPOSITED),
             "Request state should be DEPOSITED"
         );
 
@@ -199,7 +200,7 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 nonce = 3;
         uint256 expiry = _futureTimestamp(1 hours);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), depositAmount, bytes32(0), depositAmount, USER_PRIVATE_KEY, solver, nonce, expiry
         );
 
@@ -219,25 +220,25 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 expiry = _futureTimestamp(1 hours);
 
         // Create request with wrong chainID
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
+        SourcePair[] memory sources = new SourcePair[](1);
         sources[0] = _createSourcePair(
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             999999, // Wrong chainID
             bytes32(0),
             depositAmount,
             0
         );
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(bytes32(0), depositAmount);
 
         address requester = _getAddress(USER_PRIVATE_KEY);
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        Party[] memory parties = new Party[](1);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
 
-        Vault.Request memory request = _createRequest(
+        Request memory request = _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             block.chainid,
             bytes32(uint256(uint160(solver))),
             destinations,
@@ -260,25 +261,25 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 expiry = _futureTimestamp(1 hours);
 
         // Create request with wrong universe
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = Vault.SourcePair({
-            universe: Vault.Universe.SOLANA, // Wrong universe
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.SOLANA, // Wrong universe
             chainID: block.chainid,
             contractAddress: bytes32(0),
             value: depositAmount,
             fee: 0
         });
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(bytes32(0), depositAmount);
 
         address requester = _getAddress(USER_PRIVATE_KEY);
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        Party[] memory parties = new Party[](1);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
 
-        Vault.Request memory request = _createRequest(
+        Request memory request = _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             block.chainid,
             bytes32(uint256(uint160(solver))),
             destinations,
@@ -300,7 +301,7 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 nonce = 6;
         uint256 expiry = _futureTimestamp(1 hours);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), depositAmount, bytes32(0), depositAmount, USER_PRIVATE_KEY, solver, nonce, expiry
         );
 
@@ -325,7 +326,7 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 nonce = 7;
         uint256 expiry = block.timestamp - 1 hours; // Expired 1 hour ago
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), depositAmount, bytes32(0), depositAmount, USER_PRIVATE_KEY, solver, nonce, expiry
         );
 
@@ -342,7 +343,7 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 nonce = 8;
         uint256 expiry = _futureTimestamp(1 hours);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), depositAmount, bytes32(0), depositAmount, USER_PRIVATE_KEY, solver, nonce, expiry
         );
 
@@ -362,7 +363,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(uint256(uint160(address(feeToken)))),
             depositAmount,
             bytes32(uint256(uint160(address(feeToken)))),
@@ -397,7 +398,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         // First deposit
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0),
             depositAmount,
             bytes32(0),
@@ -433,7 +434,7 @@ contract VaultCoreTest is BaseVaultTest {
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
             uint256(vault.requestState(signedMessageHash)),
-            uint256(Vault.RFFState.FULFILLED),
+            uint256(RFFState.FULFILLED),
             "Request state should be FULFILLED"
         );
         assertEq(vault.winningSolver(signedMessageHash), solver, "Winning solver should be recorded");
@@ -452,7 +453,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         // Create request
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(uint256(uint160(address(token)))),
             depositAmount,
             bytes32(uint256(uint160(address(token)))),
@@ -494,20 +495,20 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         // Create request with multiple destinations
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, bytes32(0), 2 ether, 0);
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = _createSourcePair(Universe.ETHEREUM, block.chainid, bytes32(0), 2 ether, 0);
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](2);
+        DestinationPair[] memory destinations = new DestinationPair[](2);
         destinations[0] = _createDestinationPair(bytes32(0), 0.5 ether);
         // Use actual token address for second destination
         destinations[1] = _createDestinationPair(bytes32(uint256(uint160(address(token)))), 0.5 ether);
 
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        Party[] memory parties = new Party[](1);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
 
-        Vault.Request memory request = _createRequest(
+        Request memory request = _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             block.chainid,
             bytes32(uint256(uint160(requester))), // Both destinations go to requester
             destinations,
@@ -549,7 +550,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), depositAmount, bytes32(0), fulfilAmount, USER_PRIVATE_KEY, requester, nonce, expiry
         );
 
@@ -580,7 +581,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), depositAmount, bytes32(0), fulfilAmount, USER_PRIVATE_KEY, requester, nonce, expiry
         );
 
@@ -609,18 +610,18 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         // Create request with wrong destination chainID
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, bytes32(0), depositAmount, 0);
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = _createSourcePair(Universe.ETHEREUM, block.chainid, bytes32(0), depositAmount, 0);
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(bytes32(0), fulfilAmount);
 
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        Party[] memory parties = new Party[](1);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
 
-        Vault.Request memory request = _createRequest(
+        Request memory request = _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             999999, // Wrong destination chainID
             bytes32(uint256(uint160(requester))),
             destinations,
@@ -649,19 +650,19 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, bytes32(0), depositAmount, 0);
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = _createSourcePair(Universe.ETHEREUM, block.chainid, bytes32(0), depositAmount, 0);
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(bytes32(0), fulfilAmount);
 
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        Party[] memory parties = new Party[](1);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
 
         // Wrong destination universe
-        Vault.Request memory request = _createRequest(
+        Request memory request = _createRequest(
             sources,
-            Vault.Universe.SOLANA, // Wrong universe
+            Universe.SOLANA, // Wrong universe
             block.chainid,
             bytes32(uint256(uint160(requester))),
             destinations,
@@ -690,7 +691,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), depositAmount, bytes32(0), fulfilAmount, USER_PRIVATE_KEY, requester, nonce, expiry
         );
 
@@ -721,7 +722,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), depositAmount, bytes32(0), fulfilAmount, USER_PRIVATE_KEY, requester, nonce, expiry
         );
 
@@ -743,7 +744,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), depositAmount, bytes32(0), fulfilAmount, USER_PRIVATE_KEY, requester, nonce, expiry
         );
 
@@ -769,7 +770,7 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         // Use regular token for source (deposit) and feeToken for destination (fulfil)
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(uint256(uint160(address(token)))), // Regular token for deposit
             depositAmount,
             bytes32(uint256(uint160(address(feeToken)))), // Fee token for fulfil
@@ -813,7 +814,7 @@ contract VaultCoreTest is BaseVaultTest {
         vm.deal(address(vault), 10 ether);
 
         // Create settle data
-        Vault.SettleData memory settleData = _createSimpleSettleData(
+        SettleData memory settleData = _createSimpleSettleData(
             solver,
             address(0), // ETH
             settleAmount,
@@ -874,8 +875,8 @@ contract VaultCoreTest is BaseVaultTest {
         amounts[0] = 0.5 ether;
         amounts[1] = 1000 * 10 ** 18;
 
-        Vault.SettleData memory settleData = _createSettleData(
-            Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
+        SettleData memory settleData = _createSettleData(
+            Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
         );
 
         // Sign with verifier key
@@ -916,21 +917,21 @@ contract VaultCoreTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         // Create request with multiple parties, first is ETHEREUM
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, bytes32(0), depositAmount, 0);
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = _createSourcePair(Universe.ETHEREUM, block.chainid, bytes32(0), depositAmount, 0);
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(bytes32(0), depositAmount);
 
         // Multiple parties, first is ETHEREUM
-        Vault.Party[] memory parties = new Vault.Party[](3);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
-        parties[1] = _createParty(Vault.Universe.SOLANA, bytes32(uint256(uint160(makeAddr("solana")))));
-        parties[2] = _createParty(Vault.Universe.FUEL, bytes32(uint256(uint160(makeAddr("fuel")))));
+        Party[] memory parties = new Party[](3);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        parties[1] = _createParty(Universe.SOLANA, bytes32(uint256(uint160(makeAddr("solana")))));
+        parties[2] = _createParty(Universe.FUEL, bytes32(uint256(uint160(makeAddr("fuel")))));
 
-        Vault.Request memory request = _createRequest(
+        Request memory request = _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             block.chainid,
             bytes32(uint256(uint160(solver))),
             destinations,
@@ -955,20 +956,20 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 nonce = 35;
         uint256 expiry = _futureTimestamp(1 hours);
 
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, bytes32(0), depositAmount, 0);
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = _createSourcePair(Universe.ETHEREUM, block.chainid, bytes32(0), depositAmount, 0);
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(bytes32(0), depositAmount);
 
         // Only non-ETHEREUM parties
-        Vault.Party[] memory parties = new Vault.Party[](2);
-        parties[0] = _createParty(Vault.Universe.SOLANA, bytes32(uint256(uint160(makeAddr("solana")))));
-        parties[1] = _createParty(Vault.Universe.FUEL, bytes32(uint256(uint160(makeAddr("fuel")))));
+        Party[] memory parties = new Party[](2);
+        parties[0] = _createParty(Universe.SOLANA, bytes32(uint256(uint160(makeAddr("solana")))));
+        parties[1] = _createParty(Universe.FUEL, bytes32(uint256(uint160(makeAddr("fuel")))));
 
-        Vault.Request memory request = _createRequest(
+        Request memory request = _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             block.chainid,
             bytes32(uint256(uint160(solver))),
             destinations,
@@ -992,7 +993,7 @@ contract VaultCoreTest is BaseVaultTest {
         uint256 nonce = 37;
         uint256 expiry = _futureTimestamp(1 hours);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0),
             0, // Zero value
             bytes32(0),
@@ -1019,7 +1020,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0),
             depositAmount,
             bytes32(0),
@@ -1048,7 +1049,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         vm.deal(address(vault), 10 ether);
 
-        Vault.SettleData memory settleData = _createSimpleSettleData(
+        SettleData memory settleData = _createSimpleSettleData(
             solver,
             address(0),
             0, // Zero amount
@@ -1089,21 +1090,21 @@ contract VaultCoreTest is BaseVaultTest {
         address recipient,
         uint256 nonce,
         uint256 expiry
-    ) internal view returns (Vault.Request memory) {
+    ) internal view returns (Request memory) {
         address requester = _getAddress(userPrivateKey);
 
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, fee);
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = _createSourcePair(Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, fee);
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(destToken, destValue);
 
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        Party[] memory parties = new Party[](1);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
 
         return _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             block.chainid,
             bytes32(uint256(uint160(recipient))),
             destinations,
@@ -1121,7 +1122,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(uint256(uint160(address(token)))),
             depositAmount,
             bytes32(uint256(uint160(address(token)))),
@@ -1161,7 +1162,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUserWithFee(
+        Request memory request = _createRequestForUserWithFee(
             bytes32(uint256(uint160(address(token)))),
             depositAmount,
             fee,
@@ -1193,7 +1194,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), depositAmount, bytes32(0), depositAmount, USER_PRIVATE_KEY, solver, nonce, expiry
         );
 
@@ -1221,7 +1222,7 @@ contract VaultCoreTest is BaseVaultTest {
 
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.Request memory request = _createRequestForUserWithFee(
+        Request memory request = _createRequestForUserWithFee(
             bytes32(uint256(uint160(address(token)))),
             depositAmount,
             fee,

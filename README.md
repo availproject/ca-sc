@@ -82,6 +82,14 @@ _Mainnet and testnet addresses to be added post-deployment_
 - **Reentrancy**: Transient reentrancy guards protect all state-changing functions
 - **Signature Replay Protection**: Nonce-based replay protection for all operations
 
+### Mayan Route Data Trust Boundary
+
+`Vault.depositMayan` verifies the user signature over the canonical `Request` fields only.
+The route-specific `routeData` is intentionally relayer-supplied and is not included in the
+Vault-level signed message. Safety for those route parameters is enforced by the Mayan
+contracts during execution. This means the Vault treats Mayan as the validation boundary for
+swap path, intermediate token, minimum middle amount, and related route execution parameters.
+
 ### Access Control Roles
 
 - `DEFAULT_ADMIN_ROLE` - Contract administration

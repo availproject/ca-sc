@@ -14,7 +14,6 @@ enum RFFState {
     FULFILLED
 }
 
-
 struct SourcePair {
     Universe universe;
     uint256 chainID;

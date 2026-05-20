@@ -3,7 +3,7 @@ pragma solidity ^0.8.29;
 
 // Imports
 import {Test} from "forge-std/Test.sol";
-import {Vault} from "../../contracts/Vault.sol";
+import {Request} from "../../src/types.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
@@ -46,7 +46,7 @@ contract SignatureHelper is Test {
      *     request.parties
      * ))
      */
-    function hashRequest(Vault.Request memory request) public pure returns (bytes32) {
+    function hashRequest(Request memory request) public pure returns (bytes32) {
         return keccak256(
             abi.encode(
                 request.sources,
@@ -115,7 +115,7 @@ contract SignatureHelper is Test {
      * - v: uint8 (last 1 byte)
      * Total: 65 bytes
      */
-    function signRequest(Vault.Request memory request, uint256 privateKey) public pure returns (bytes memory) {
+    function signRequest(Request memory request, uint256 privateKey) public pure returns (bytes memory) {
         bytes32 requestHash = hashRequest(request);
         bytes memory message = createEip191Message(requestHash);
         bytes32 ethHash = toEthSignedMessageHash(message);
@@ -160,7 +160,7 @@ contract SignatureHelper is Test {
      * @param expectedSigner The expected address of the signer
      * @return bool True if the signature is valid and matches the expected signer
      */
-    function verifyRequest(Vault.Request memory request, bytes memory signature, address expectedSigner)
+    function verifyRequest(Request memory request, bytes memory signature, address expectedSigner)
         public
         pure
         returns (bool)

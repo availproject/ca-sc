@@ -9,6 +9,7 @@ import {IMayanForwarder} from "../src/interfaces/IMayanForwarder.sol";
 import {IMayanSwiftV2} from "../src/interfaces/IMayanSwiftV2.sol";
 import {Request, SourcePair, Party, Universe, DestinationPair} from "../src/types.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
@@ -54,13 +55,18 @@ contract MayanRouterTest is Test {
         ERC1967Proxy vaultProxy = new ERC1967Proxy(address(vaultImpl), vaultInitData);
         vault = Vault(payable(address(vaultProxy)));
 
-        // Configure Vault with MayanRouter
-        vm.prank(admin);
+        // Configure Vault with MayanRouter and authorize it to call the router.
+        vm.startPrank(admin);
         vault.setRouter(address(mayanRouter));
+        mayanRouter.grantRole(mayanRouter.VAULT_ROLE(), address(vault));
+        vm.stopPrank();
 
         // Deploy mock token for testing
         token = new MockERC20("Test Token", "TEST");
         token.mint(user, 1000e18);
+
+        vm.prank(admin);
+        mayanRouter.setTokenOutDecimals(2, address(token), 18);
 
         vm.deal(user, 100 ether);
     }
@@ -85,7 +91,15 @@ contract MayanRouterTest is Test {
         return abi.encodePacked(r, s, v);
     }
 
+    function _grantVaultRole(address account) internal {
+        vm.startPrank(admin);
+        mayanRouter.grantRole(mayanRouter.VAULT_ROLE(), account);
+        vm.stopPrank();
+    }
+
     function test_ProcessTransfer_ERC20() public {
+        _grantVaultRole(user);
+
         // Approve router to spend tokens
         vm.prank(user);
         token.approve(address(mayanRouter), 100e18);
@@ -141,6 +155,8 @@ contract MayanRouterTest is Test {
     }
 
     function test_ProcessTransfer_ERC20_UsesFeePercentages() public {
+        _grantVaultRole(user);
+
         vm.startPrank(admin);
         mayanRouter.setTokenOutDecimals(2, address(token), 18);
         mayanRouter.setCancelFeeBps(100);
@@ -217,6 +233,8 @@ contract MayanRouterTest is Test {
     uint256 constant SWAP_AMOUNT = 0.187 ether;
 
     function test_ProcessTransfer_ETH() public {
+        _grantVaultRole(user);
+
         // Prepare transfer data with real swap params from mainnet tx (direct V2 payload)
         bytes memory data = abi.encode(
             uint16(0), // cancelFee
@@ -465,6 +483,8 @@ contract MayanRouterTest is Test {
     }
 
     function test_ProcessTransferV2_ERC20() public {
+        _grantVaultRole(user);
+
         // Approve router to spend tokens
         vm.prank(user);
         token.approve(address(mayanRouter), 100e18);
@@ -520,6 +540,8 @@ contract MayanRouterTest is Test {
     }
 
     function test_ProcessTransferV2_ETH() public {
+        _grantVaultRole(user);
+
         // Encode V2 data with real swap params from mainnet tx
         bytes memory data = abi.encode(
             uint16(0), // cancelFee
@@ -569,6 +591,8 @@ contract MayanRouterTest is Test {
     }
 
     function test_ProcessTransfer_InvalidVersion() public {
+        _grantVaultRole(user);
+
         // Create invalid data that will fail V2 decode
         bytes memory invalidData = abi.encode(uint8(2), bytes(""));
 
@@ -720,5 +744,108 @@ contract MayanRouterTest is Test {
         assertEq(user.balance, userBalanceBefore - SWAP_AMOUNT);
         // Vault should not hold ETH (forwarded to router/mayan)
         assertEq(address(vault).balance, vaultBalanceBefore);
+    }
+
+    function test_ProcessTransfer_RevertsWhenMinAmountOutExceedsUint64() public {
+        _grantVaultRole(address(this));
+
+        uint256 minAmountOut = uint256(type(uint64).max) + 1;
+        Request memory request = _createMinAmountRequest(minAmountOut);
+
+        vm.expectRevert(abi.encodeWithSelector(MayanRouter.MinAmountOutTooLarge.selector, minAmountOut));
+        mayanRouter.processTransfer(request, abi.encode(uint256(0), _emptyRouteData()));
+    }
+
+    function test_ProcessTransfer_AllowsMaxUint64MinAmountOut() public {
+        _grantVaultRole(address(this));
+
+        Request memory request = _createMinAmountRequest(type(uint64).max);
+
+        vm.mockCall(MAYAN_FORWARDER, abi.encodeWithSelector(IMayanForwarder.swapAndForwardEth.selector), bytes(""));
+        mayanRouter.processTransfer(request, abi.encode(uint256(0), _emptyRouteData()));
+    }
+
+    function test_ProcessTransfer_RevertsWhenNativeMsgValueDoesNotMatchAmountIn() public {
+        _grantVaultRole(address(this));
+
+        Request memory request = _createNativeRequest(1 ether);
+        vm.deal(address(mayanRouter), 1 ether);
+
+        vm.expectRevert(abi.encodeWithSelector(MayanRouter.InvalidNativeAmount.selector, 1 ether, 0));
+        mayanRouter.processTransfer(request, abi.encode(uint256(0), _emptyRouteData()));
+    }
+
+    function test_ProcessTransfer_AllowsMatchingNativeMsgValue() public {
+        _grantVaultRole(address(this));
+
+        Request memory request = _createNativeRequest(1 ether);
+
+        vm.mockCall(MAYAN_FORWARDER, abi.encodeWithSelector(IMayanForwarder.swapAndForwardEth.selector), bytes(""));
+        mayanRouter.processTransfer{value: 1 ether}(request, abi.encode(uint256(0), _emptyRouteData()));
+    }
+
+    function test_ProcessTransfer_RevertsWhenCallerLacksVaultRole() public {
+        Request memory request = _createNativeRequest(1 ether);
+        bytes memory encodedData = abi.encode(uint256(0), _emptyRouteData());
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, mayanRouter.VAULT_ROLE()
+            )
+        );
+        vm.prank(user);
+        mayanRouter.processTransfer{value: 1 ether}(request, encodedData);
+    }
+
+    function _createMinAmountRequest(uint256 minAmountOut) internal view returns (Request memory) {
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM, chainID: block.chainid, contractAddress: bytes32(0), value: 0, fee: 0
+        });
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(0), value: minAmountOut});
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
+
+        return Request({
+            sources: sources,
+            destinationUniverse: Universe.ETHEREUM,
+            destinationChainID: 1,
+            recipientAddress: bytes32(uint256(uint160(user))),
+            destinations: destinations,
+            nonce: 12_350,
+            expiry: block.timestamp + 3600,
+            parties: parties
+        });
+    }
+
+    function _createNativeRequest(uint256 amountIn) internal view returns (Request memory) {
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM, chainID: block.chainid, contractAddress: bytes32(0), value: amountIn, fee: 0
+        });
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(0), value: 1});
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
+
+        return Request({
+            sources: sources,
+            destinationUniverse: Universe.ETHEREUM,
+            destinationChainID: 1,
+            recipientAddress: bytes32(uint256(uint160(user))),
+            destinations: destinations,
+            nonce: 12_351,
+            expiry: block.timestamp + 3600,
+            parties: parties
+        });
+    }
+
+    function _emptyRouteData() internal pure returns (bytes memory) {
+        return abi.encode(uint16(0), uint16(0), uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
     }
 }

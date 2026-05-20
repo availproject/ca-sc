@@ -50,6 +50,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         _disableInitializers();
     }
 
+    /// @notice Initializes the Vault contract with admin roles
+    /// @param admin Address to grant DEFAULT_ADMIN_ROLE and UPGRADER_ROLE
     function initialize(address admin) public initializer {
         __AccessControl_init();
 
@@ -65,12 +67,21 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         emit RouterSet(_router);
     }
 
+    /// @notice Authorizes a contract upgrade
+    /// @dev Ensures only accounts with UPGRADER_ROLE can upgrade the implementation
+    /// @param newImplementation Address of the new implementation contract
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
+    /// @notice Returns the contract version
+    /// @return Version string semver format
     function version() external pure returns (string memory) {
         return "1.0.0";
     }
 
+    /// @notice Computes the hash of a request struct
+    /// @dev Encodes all relevant request fields into a canonical hash
+    /// @param request The Request struct to hash
+    /// @return Hash of the request struct
     function _hashRequest(Request calldata request) private pure returns (bytes32) {
         return keccak256(
             abi.encode(
@@ -86,11 +97,22 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         );
     }
 
+    /// @notice Converts a bytes32 value to an address
+    /// @dev Casts the last 20 bytes of the bytes32 to an address
+    /// @param a The bytes32 value to convert
+    /// @return The corresponding address
     function bytes32ToAddress(bytes32 a) internal pure returns (address) {
         // Cast the last 20 bytes of bytes32 into an address
         return address(uint160(uint256(a)));
     }
 
+    /// @notice Verifies an EIP-191 signature for a request
+    /// @dev Constructs message per EIP-191 and recovers signer via ECDSA
+    /// @param signature The signature bytes
+    /// @param from Expected signer address
+    /// @param hash The hash of the request data
+    /// @return success True if signer matches expected address
+    /// @return signedMessageHash The computed EIP-191 signed message hash
     function _verify_request(bytes calldata signature, address from, bytes32 hash)
         private
         pure
@@ -109,6 +131,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         return (signer == from, signedMessageHash);
     }
 
+    /// @notice Deposits funds into the vault for a cross-chain intent
+    /// @dev Validates signature, chain ID, universe, nonce and expiry before accepting deposit
+    /// @param request Request struct containing source chain and amount details
+    /// @param signature User's signature authorizing the deposit
+    /// @param chainIndex Index of the source chain in request.sources array
     function deposit(Request calldata request, bytes calldata signature, uint256 chainIndex)
         external
         payable
@@ -154,6 +181,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     }
 
     /// @notice Deposit funds and initiate cross-chain transfer via mayan
+    /// @dev The user signature covers the canonical Request only. routeData is relayer-supplied
+    /// and validated by Mayan contracts during execution.
     /// @param request Request struct for router containing cross-chain transfer details
     /// @param signature User's signature authorizing the deposit
     /// @param chainIndex Index of the source chain in the request.sources array
@@ -214,6 +243,10 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         emit DepositMayan(request_hash, from);
     }
 
+    /// @notice Extracts the Ethereum party address from a parties array
+    /// @dev Iterates through parties to find the ETHEREUM universe entry
+    /// @param parties Array of Party structs to search
+    /// @return user The ETHEREUM party address
     function extractAddress(Party[] memory parties) internal pure returns (address user) {
         for (uint256 i = 0; i < parties.length; ++i) {
             if (parties[i].universe == Universe.ETHEREUM) {
@@ -223,6 +256,10 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         revert("Vault: Party not found");
     }
 
+    /// @notice Fulfils a cross-chain intent by distributing funds to the recipient
+    /// @dev Validates signature, chain ID, universe, nonce and expiry, then transfers tokens/native ETH
+    /// @param request Request struct containing destination chain and amount details
+    /// @param signature User's signature authorizing the fulfilment
     function fulfil(Request calldata request, bytes calldata signature) external payable nonReentrant {
         address from = extractAddress(request.parties);
         bytes32 request_hash = _hashRequest(request);
@@ -264,6 +301,10 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         emit Fulfilment(request_hash, from, msg.sender);
     }
 
+    /// @notice Settles outstanding payments to solvers after Avail multisig verification
+    /// @dev Verifies signer has SETTLEMENT_VERIFIER_ROLE and processes token/native transfers
+    /// @param settleData SettleData struct containing solver addresses, tokens, amounts and nonce
+    /// @param signature Avail multisig signature authorizing the settlement
     function settle(SettleData calldata settleData, bytes calldata signature) external nonReentrant {
         bytes32 structHash = keccak256(
             abi.encode(

@@ -4,7 +4,8 @@ pragma solidity ^0.8.29;
 // Imports
 import {BaseVaultTest} from "./BaseVaultTest.t.sol";
 import {SignatureHelper} from "./helpers/SignatureHelper.sol";
-import {Vault} from "../contracts/Vault.sol";
+import {Vault} from "../src/Vault.sol";
+import {DestinationPair, Party, Request, RFFState, SettleData, SourcePair, Universe} from "../src/types.sol";
 
 // VaultFuzzTest - Property-Based Fuzzing Tests for Vault.sol
 // @title VaultFuzzTest
@@ -71,21 +72,21 @@ contract VaultFuzzTest is BaseVaultTest {
         uint256 destValue,
         uint256 nonce,
         uint256 expiry
-    ) internal view returns (Vault.Request memory) {
+    ) internal view returns (Request memory) {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, 0);
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = _createSourcePair(Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, 0);
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(destToken, destValue);
 
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        Party[] memory parties = new Party[](1);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
 
         return _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             block.chainid,
             bytes32(uint256(uint160(requester))),
             destinations,
@@ -116,7 +117,7 @@ contract VaultFuzzTest is BaseVaultTest {
         vm.assume(requester.balance >= depositAmount);
 
         // Create request
-        Vault.Request memory request = _createFuzzRequest(
+        Request memory request = _createFuzzRequest(
             bytes32(0), // ETH
             depositAmount,
             bytes32(0), // ETH destination
@@ -141,7 +142,7 @@ contract VaultFuzzTest is BaseVaultTest {
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
             uint256(vault.requestState(signedMessageHash)),
-            uint256(Vault.RFFState.DEPOSITED),
+            uint256(RFFState.DEPOSITED),
             "Request state should be DEPOSITED"
         );
     }
@@ -165,7 +166,7 @@ contract VaultFuzzTest is BaseVaultTest {
         vm.assume(token.balanceOf(requester) >= depositAmount);
 
         // Create request
-        Vault.Request memory request = _createFuzzRequest(
+        Request memory request = _createFuzzRequest(
             bytes32(uint256(uint160(address(token)))),
             depositAmount,
             bytes32(uint256(uint160(address(token)))),
@@ -194,7 +195,7 @@ contract VaultFuzzTest is BaseVaultTest {
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
             uint256(vault.requestState(signedMessageHash)),
-            uint256(Vault.RFFState.DEPOSITED),
+            uint256(RFFState.DEPOSITED),
             "Request state should be DEPOSITED"
         );
 
@@ -225,7 +226,7 @@ contract VaultFuzzTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         // Create request
-        Vault.Request memory request = _createFuzzRequest(
+        Request memory request = _createFuzzRequest(
             bytes32(0), // ETH
             depositAmount,
             bytes32(0), // ETH destination
@@ -254,7 +255,7 @@ contract VaultFuzzTest is BaseVaultTest {
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
             uint256(vault.requestState(signedMessageHash)),
-            uint256(Vault.RFFState.FULFILLED),
+            uint256(RFFState.FULFILLED),
             "Request state should be FULFILLED"
         );
 
@@ -283,7 +284,7 @@ contract VaultFuzzTest is BaseVaultTest {
         address requester = _getAddress(USER_PRIVATE_KEY);
 
         // Create request with token for deposit and fulfil
-        Vault.Request memory request = _createFuzzRequest(
+        Request memory request = _createFuzzRequest(
             bytes32(uint256(uint160(address(token)))),
             depositAmount,
             bytes32(uint256(uint160(address(token)))),
@@ -320,7 +321,7 @@ contract VaultFuzzTest is BaseVaultTest {
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
             uint256(vault.requestState(signedMessageHash)),
-            uint256(Vault.RFFState.FULFILLED),
+            uint256(RFFState.FULFILLED),
             "Request state should be FULFILLED"
         );
 
@@ -342,7 +343,7 @@ contract VaultFuzzTest is BaseVaultTest {
         vm.deal(address(vault), settleAmount * 2);
 
         // Create settle data
-        Vault.SettleData memory settleData = _createSimpleSettleData(
+        SettleData memory settleData = _createSimpleSettleData(
             solver,
             address(0), // ETH
             settleAmount,
@@ -389,7 +390,7 @@ contract VaultFuzzTest is BaseVaultTest {
         token.mint(address(vault), settleAmount * 2);
 
         // Create settle data
-        Vault.SettleData memory settleData = _createSimpleSettleData(solver, address(token), settleAmount, nonce);
+        SettleData memory settleData = _createSimpleSettleData(solver, address(token), settleAmount, nonce);
 
         // Sign with verifier key
         bytes32 structHash = keccak256(
@@ -447,8 +448,8 @@ contract VaultFuzzTest is BaseVaultTest {
         amounts[0] = amount1;
         amounts[1] = amount2;
 
-        Vault.SettleData memory settleData = _createSettleData(
-            Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
+        SettleData memory settleData = _createSettleData(
+            Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
         );
 
         // Sign with verifier key
