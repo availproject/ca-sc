@@ -24,6 +24,7 @@ contract MayanRouter is IRouter, Ownable, AccessControl {
     address public constant MAYAN_FORWARDER = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
 
     address public constant SWIFT_V2_PROTOCOL = 0x40fFE85A28DC9993541449464d7529a922142960;
+
     uint16 public constant FEE_BPS_DENOMINATOR = 10_000;
 
     error InvalidSwiftVersion(uint8 version);
