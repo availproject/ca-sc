@@ -14,10 +14,6 @@ enum RFFState {
     FULFILLED
 }
 
-enum Route {
-    NATIVE,
-    MAYAN
-}
 
 struct SourcePair {
     Universe universe;

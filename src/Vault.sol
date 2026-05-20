@@ -13,7 +13,7 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import {Request, Party, Universe, RFFState, SettleData, Route} from "./types.sol";
+import {Request, Party, Universe, RFFState, SettleData} from "./types.sol";
 import {IRouter} from "./interfaces/IRouter.sol";
 
 /// @title Vault
@@ -43,7 +43,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     event Fulfilment(bytes32 indexed requestHash, address from, address solver);
     event Settle(uint256 indexed nonce, address[] solver, address[] token, uint256[] amount);
     event RouterSet(address indexed newRouter);
-    event DepositAndRoute(bytes32 indexed requestHash, address from, Route route);
+    event DepositMayan(bytes32 indexed requestHash, address from);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -153,17 +153,15 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         emit Deposit(request_hash, from);
     }
 
-    /// @notice Deposit funds and initiate cross-chain transfer via router
+    /// @notice Deposit funds and initiate cross-chain transfer via mayan
     /// @param request Request struct for router containing cross-chain transfer details
     /// @param signature User's signature authorizing the deposit
     /// @param chainIndex Index of the source chain in the request.sources array
-    /// @param route Route to use (NATIVE or MAYAN)
     /// @param routeData Additional route-specific encoded parameters
-    function depositRouter(
+    function depositMayan(
         Request calldata request,
         bytes calldata signature,
         uint256 chainIndex,
-        Route route,
         bytes calldata routeData
     ) external payable nonReentrant {
         require(address(router) != address(0), "Vault: Router not set");
@@ -197,7 +195,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 revert("Vault: failed to transfer the source amount");
             }
 
-            token.safeTransfer(address(router), request.sources[chainIndex].value);
+            token.forceApprove(address(router), request.sources[chainIndex].value);
 
             if (request.sources[chainIndex].fee > 0 && msg.sender != from) {
                 uint256 solverBal = token.balanceOf(msg.sender);
@@ -211,9 +209,9 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         }
 
         bytes memory encodedRouteData = abi.encode(chainIndex, routeData);
-        router.processTransfer{value: valueToRoute}(request, route, encodedRouteData);
+        router.processTransfer{value: valueToRoute}(request, encodedRouteData);
 
-        emit DepositAndRoute(request_hash, from, route);
+        emit DepositMayan(request_hash, from);
     }
 
     function extractAddress(Party[] memory parties) internal pure returns (address user) {

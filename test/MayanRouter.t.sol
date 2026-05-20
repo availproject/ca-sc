@@ -3,17 +3,15 @@ pragma solidity ^0.8.29;
 
 import {Test} from "forge-std/Test.sol";
 import {MayanRouter} from "../src/routes/mayan.sol";
-import {Router} from "../src/Router.sol";
 import {Vault} from "../src/Vault.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
-import {Request, SourcePair, Party, Universe, Route, DestinationPair} from "../src/types.sol";
+import {Request, SourcePair, Party, Universe, DestinationPair} from "../src/types.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract MayanRouterTest is Test {
     MayanRouter public mayanRouter;
-    Router public router;
     Vault public vault;
     MockERC20 public token;
 
@@ -48,22 +46,15 @@ contract MayanRouterTest is Test {
         // Deploy MayanRouter
         mayanRouter = new MayanRouter(admin);
 
-        // Deploy Router implementation and proxy
-        router = new Router(admin);
-
         // Deploy Vault implementation and proxy
         Vault vaultImpl = new Vault();
         bytes memory vaultInitData = abi.encodeWithSelector(Vault.initialize.selector, admin);
         ERC1967Proxy vaultProxy = new ERC1967Proxy(address(vaultImpl), vaultInitData);
         vault = Vault(payable(address(vaultProxy)));
 
-        // Configure Router with MayanRouter
+        // Configure Vault with MayanRouter
         vm.prank(admin);
-        router.setRouter(Route.MAYAN, address(mayanRouter));
-
-        // Configure Vault with Router
-        vm.prank(admin);
-        vault.setRouter(address(router));
+        vault.setRouter(address(mayanRouter));
 
         // Deploy mock token for testing
         token = new MockERC20("Test Token", "TEST");
@@ -97,18 +88,10 @@ contract MayanRouterTest is Test {
         vm.prank(user);
         token.approve(address(mayanRouter), 100e18);
 
-        // Prepare V2 transfer data (14 params - direct V2 payload encoding, no SwiftVersion wrapper)
+        // Prepare V2 transfer data (direct V2 payload encoding, no SwiftVersion wrapper)
         bytes memory data = abi.encode(
-            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(0), // referrerAddr
-            uint64(0), // cancelFee
-            uint64(0), // refundFee
-            uint64(block.timestamp + 3600), // deadline
-            uint8(0), // referrerBps
-            uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0), // payloadType
             address(0), // swapProtocol
             bytes(""), // swapData
             address(0), // middleToken
@@ -158,16 +141,8 @@ contract MayanRouterTest is Test {
     function test_ProcessTransfer_ETH() public {
         // Prepare transfer data with real swap params from mainnet tx (direct V2 payload)
         bytes memory data = abi.encode(
-            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(0), // referrerAddr
-            uint64(0), // cancelFee
-            uint64(0), // refundFee
-            uint64(block.timestamp + 3600), // deadline
-            uint8(0), // referrerBps
-            uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0), // payloadType
             SWAP_PROTOCOL,
             SWAP_DATA,
             MIDDLE_TOKEN,
@@ -215,18 +190,10 @@ contract MayanRouterTest is Test {
         vm.prank(user);
         token.approve(address(vault), 100e18);
 
-        // Prepare route data (direct V2 payload - 14 params, no SwiftVersion wrapper)
+        // Prepare route data (direct V2 payload, no SwiftVersion wrapper)
         bytes memory routeData = abi.encode(
-            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(0), // referrerAddr
-            uint64(0), // cancelFee
-            uint64(0), // refundFee
-            uint64(block.timestamp + 3600), // deadline
-            uint8(0), // referrerBps
-            uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0), // payloadType
             address(0), // swapProtocol
             bytes(""), // swapData
             address(0), // middleToken
@@ -266,7 +233,7 @@ contract MayanRouterTest is Test {
         uint256 vaultBalanceBefore = token.balanceOf(address(vault));
 
         vm.prank(user);
-        vault.depositRouter(request, signature, 0, Route.MAYAN, routeData);
+        vault.depositMayan(request, signature, 0, routeData);
 
         uint256 userBalanceAfter = token.balanceOf(user);
         uint256 vaultBalanceAfter = token.balanceOf(address(vault));
@@ -280,16 +247,8 @@ contract MayanRouterTest is Test {
     function test_VaultDepositRouter_ETH() public {
         // Prepare route data with real swap params (direct V2 payload)
         bytes memory routeData = abi.encode(
-            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(0), // referrerAddr
-            uint64(0), // cancelFee
-            uint64(0), // refundFee
-            uint64(block.timestamp + 3600), // deadline
-            uint8(0), // referrerBps
-            uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0), // payloadType
             SWAP_PROTOCOL,
             SWAP_DATA,
             MIDDLE_TOKEN,
@@ -333,7 +292,7 @@ contract MayanRouterTest is Test {
 
         // Execute the transfer - should not revert with real swap params
         vm.prank(user);
-        vault.depositRouter{value: SWAP_AMOUNT}(request, signature, 0, Route.MAYAN, routeData);
+        vault.depositMayan{value: SWAP_AMOUNT}(request, signature, 0, routeData);
 
         // User balance should decrease by swap amount
         assertEq(user.balance, userBalanceBefore - SWAP_AMOUNT);
@@ -368,27 +327,12 @@ contract MayanRouterTest is Test {
         uint256 wrongPrivateKey = 0xBAD;
         bytes memory wrongSignature = _signRequest(request, wrongPrivateKey);
 
-        // Prepare route data (direct V2 payload - 14 params)
-        bytes memory routeData = abi.encode(
-            uint8(0), // tokenOutDecimals
-            uint64(0),
-            bytes32(0),
-            uint64(0),
-            uint64(0),
-            uint64(block.timestamp + 3600),
-            uint8(0),
-            uint8(0),
-            bytes32(0),
-            uint8(0),
-            address(0),
-            bytes(""),
-            address(0),
-            uint256(0)
-        );
+        // Prepare route data (direct V2 payload)
+        bytes memory routeData = abi.encode(uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
 
         vm.prank(user);
         vm.expectRevert("Vault: Invalid signature or from");
-        vault.depositRouter{value: 1 ether}(request, wrongSignature, 0, Route.MAYAN, routeData);
+        vault.depositMayan{value: 1 ether}(request, wrongSignature, 0, routeData);
     }
 
     function test_VaultDepositRouter_RevertNonceReuse() public {
@@ -422,31 +366,16 @@ contract MayanRouterTest is Test {
         });
 
         bytes memory signature = _signRequest(request, userPrivateKey);
-        bytes memory routeData = abi.encode(
-            uint8(0), // tokenOutDecimals
-            uint64(0),
-            bytes32(0),
-            uint64(0),
-            uint64(0),
-            uint64(block.timestamp + 3600),
-            uint8(0),
-            uint8(0),
-            bytes32(0),
-            uint8(0),
-            address(0),
-            bytes(""),
-            address(0),
-            uint256(0)
-        );
+        bytes memory routeData = abi.encode(uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
 
         // First deposit should succeed
         vm.prank(user);
-        vault.depositRouter(request, signature, 0, Route.MAYAN, routeData);
+        vault.depositMayan(request, signature, 0, routeData);
 
         // Second deposit with same nonce should revert
         vm.prank(user);
         vm.expectRevert("Vault: Nonce already used");
-        vault.depositRouter(request, signature, 0, Route.MAYAN, routeData);
+        vault.depositMayan(request, signature, 0, routeData);
     }
 
     function test_ProcessTransferV2_ERC20() public {
@@ -454,18 +383,10 @@ contract MayanRouterTest is Test {
         vm.prank(user);
         token.approve(address(mayanRouter), 100e18);
 
-        // Encode V2 data (direct V2 payload encoding - 14 params, no SwiftVersion wrapper)
+        // Encode V2 data (direct V2 payload encoding, no SwiftVersion wrapper)
         bytes memory data = abi.encode(
-            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(0), // referrerAddr
-            uint64(0), // cancelFee
-            uint64(0), // refundFee
-            uint64(block.timestamp + 3600), // deadline
-            uint8(0), // referrerBps
-            uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0), // payloadType
             address(0), // swapProtocol
             bytes(""), // swapData
             address(0), // middleToken
@@ -513,16 +434,8 @@ contract MayanRouterTest is Test {
     function test_ProcessTransferV2_ETH() public {
         // Encode V2 data with real swap params from mainnet tx
         bytes memory data = abi.encode(
-            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(0), // referrerAddr
-            uint64(0), // cancelFee
-            uint64(0), // refundFee
-            uint64(block.timestamp + 3600), // deadline
-            uint8(0), // referrerBps
-            uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0), // payloadType
             SWAP_PROTOCOL,
             SWAP_DATA,
             MIDDLE_TOKEN,
@@ -605,18 +518,10 @@ contract MayanRouterTest is Test {
         vm.prank(user);
         token.approve(address(vault), 100e18);
 
-        // Encode V2 data (direct V2 payload - 14 params, no SwiftVersion wrapper)
+        // Encode V2 data (direct V2 payload, no SwiftVersion wrapper)
         bytes memory routeData = abi.encode(
-            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(0), // referrerAddr
-            uint64(0), // cancelFee
-            uint64(0), // refundFee
-            uint64(block.timestamp + 3600), // deadline
-            uint8(0), // referrerBps
-            uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0), // payloadType
             address(0), // swapProtocol
             bytes(""), // swapData
             address(0), // middleToken
@@ -656,7 +561,7 @@ contract MayanRouterTest is Test {
         uint256 vaultBalanceBefore = token.balanceOf(address(vault));
 
         vm.prank(user);
-        vault.depositRouter(request, signature, 0, Route.MAYAN, routeData);
+        vault.depositMayan(request, signature, 0, routeData);
 
         uint256 userBalanceAfter = token.balanceOf(user);
         uint256 vaultBalanceAfter = token.balanceOf(address(vault));
@@ -670,16 +575,8 @@ contract MayanRouterTest is Test {
     function test_VaultDepositRouter_V2_ETH() public {
         // Encode V2 data with real swap params from mainnet tx
         bytes memory routeData = abi.encode(
-            uint8(0), // tokenOutDecimals
             uint64(0), // gasDrop
-            bytes32(0), // referrerAddr
-            uint64(0), // cancelFee
-            uint64(0), // refundFee
-            uint64(block.timestamp + 3600), // deadline
-            uint8(0), // referrerBps
-            uint8(0), // auctionMode
             bytes32(0), // random
-            uint8(0), // payloadType
             SWAP_PROTOCOL,
             SWAP_DATA,
             MIDDLE_TOKEN,
@@ -723,7 +620,7 @@ contract MayanRouterTest is Test {
 
         // Execute the transfer
         vm.prank(user);
-        vault.depositRouter{value: SWAP_AMOUNT}(request, signature, 0, Route.MAYAN, routeData);
+        vault.depositMayan{value: SWAP_AMOUNT}(request, signature, 0, routeData);
 
         // User balance should decrease by swap amount
         assertEq(user.balance, userBalanceBefore - SWAP_AMOUNT);
