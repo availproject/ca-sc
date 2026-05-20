@@ -10,11 +10,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-enum SwiftVersion {
-    V2,
-    V1
-}
-
 /// @title MayanRouter
 /// @author Rachit Anand Srivastava (@privacy_prophet)
 /// @notice Router contract for Mayan Swift V2 cross-chain swaps via Wormhole
@@ -24,32 +19,64 @@ contract MayanRouter is ICaRouter, Ownable {
 
     address public constant SWIFT_V2_PROTOCOL = 0x40fFE85A28DC9993541449464d7529a922142960;
 
-    address public constant SWIFT_V1_PROTOCOL = 0xC38e4e6A15593f908255214653d3D947CA1c2338;
-
     error InvalidSwiftVersion(uint8 version);
 
-    mapping(bytes32 => mapping(uint256 => uint16)) public caip2ToWormholeChainId;
-    mapping(Universe => bytes32) public universeToCaip2Namespace;
+    uint8 immutable payloadType = 1;
+    bytes32 referrerAddr;
+    uint64 cancelFee;
+    uint64 refundFee;
+    uint8 referrerBps;
+    uint8 auctionMode;
+    mapping(Universe => mapping(uint256 => uint16)) destinationChainID;
+    mapping(uint16 => mapping(address => uint8)) tokenOutDecimals;
 
     /// @notice Emitted when a Wormhole chain mapping is updated
-    /// @param namespaceHash CAIP-2 namespace hash
+    /// @param universe Destination universe
     /// @param chainId Chain ID within the namespace
     /// @param wormholeChainId Corresponding Wormhole chain ID
-    event WormholeChainMappingSet(bytes32 indexed namespaceHash, uint256 indexed chainId, uint16 wormholeChainId);
+    event WormholeChainMappingSet(Universe indexed universe, uint256 indexed chainId, uint16 wormholeChainId);
+
+    /// @notice Emitted when Mayan referrer address is updated
+    /// @param referrerAddr Referrer address encoded as bytes32 for Mayan order params
+    event ReferrerAddrSet(bytes32 referrerAddr);
+
+    /// @notice Emitted when Mayan cancellation fee is updated
+    /// @param cancelFee Fee paid to cancel an order
+    event CancelFeeSet(uint64 cancelFee);
+
+    /// @notice Emitted when Mayan refund fee is updated
+    /// @param refundFee Fee paid to refund an order
+    event RefundFeeSet(uint64 refundFee);
+
+    /// @notice Emitted when Mayan referral settings are updated
+    /// @param referrerBps Referrer basis points
+    event ReferrerBpsSet(uint8 referrerBps);
+
+    /// @notice Emitted when Mayan auction mode is updated
+    /// @param auctionMode Auction mode value used in Mayan order params
+    event AuctionModeSet(uint8 auctionMode);
+
+    /// @notice Emitted when destination token decimals are updated
+    /// @param wormholeChainId Wormhole destination chain ID
+    /// @param token Destination token address
+    /// @param decimals Destination token decimals
+    event TokenOutDecimalsSet(uint16 indexed wormholeChainId, address indexed token, uint8 decimals);
 
     /// @notice Initialize router with default EVM chain mappings
     constructor(address _owner) Ownable(_owner) {
-        bytes32 eip155 = keccak256("eip155");
-        caip2ToWormholeChainId[eip155][1] = 2;
-        caip2ToWormholeChainId[eip155][8453] = 30;
-        caip2ToWormholeChainId[eip155][42_161] = 23;
-        caip2ToWormholeChainId[eip155][10] = 24;
-        caip2ToWormholeChainId[eip155][43_114] = 6;
-        caip2ToWormholeChainId[eip155][137] = 5;
-        caip2ToWormholeChainId[eip155][56] = 4;
+        destinationChainID[Universe.ETHEREUM][1] = 2;
+        destinationChainID[Universe.ETHEREUM][8453] = 30;
+        destinationChainID[Universe.ETHEREUM][42_161] = 23;
+        destinationChainID[Universe.ETHEREUM][10] = 24;
+        destinationChainID[Universe.ETHEREUM][43_114] = 6;
+        destinationChainID[Universe.ETHEREUM][137] = 5;
+        destinationChainID[Universe.ETHEREUM][56] = 4;
 
-        // Map Universe enum to CAIP-2 namespaces
-        universeToCaip2Namespace[Universe.ETHEREUM] = eip155;
+        referrerAddr = bytes32(0);
+        cancelFee = 0;
+        refundFee = 0;
+        referrerBps = 0;
+        auctionMode = 0;
     }
 
     /// @notice Process cross-chain token transfer via Mayan Swift V2 or V1
@@ -71,48 +98,30 @@ contract MayanRouter is ICaRouter, Ownable {
         uint256 amountIn = request.sources[chainIndex].value;
 
         (
-            uint8 tokenOutDecimals,
             uint64 gasDrop,
-            bytes32 referrerAddr,
-            uint64 cancelFee,
-            uint64 refundFee,
-            uint64 deadline,
-            uint8 referrerBps,
-            uint8 auctionMode,
             bytes32 random,
-            uint8 payloadType,
             address swapProtocol,
             bytes memory swapData,
             address middleToken,
             uint256 minMiddleAmount
-        ) = abi.decode(
-            data,
-            (
-                uint8,
-                uint64,
-                bytes32,
-                uint64,
-                uint64,
-                uint64,
-                uint8,
-                uint8,
-                bytes32,
-                uint8,
-                address,
-                bytes,
-                address,
-                uint256
-            )
-        );
+        ) = abi.decode(data, (uint64, bytes32, address, bytes, address, uint256));
 
-        uint16 wormholeChainId =
-            caip2ToWormholeChainId[universeToCaip2Namespace[request.destinationUniverse]][request.destinationChainID];
+        uint16 wormholeChainId = destinationChainID[request.destinationUniverse][request.destinationChainID];
         require(wormholeChainId != 0, "Unsupported destination chain");
 
         uint256 normalizedMinAmountOut = request.destinations[chainIndex].value;
 
-        if (tokenOutDecimals > 8) {
-            normalizedMinAmountOut = normalizedMinAmountOut / (10 ** (tokenOutDecimals - 8));
+        if (
+            tokenOutDecimals[
+                    wormholeChainId
+                ][address(uint160(uint256(request.destinations[chainIndex].contractAddress)))] > 8
+        ) {
+            normalizedMinAmountOut = normalizedMinAmountOut
+                / (10
+                    ** (tokenOutDecimals[
+                            wormholeChainId
+                        ][address(uint160(uint256(request.destinations[chainIndex].contractAddress)))]
+                        - 8));
         }
 
         IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2.OrderParams({
@@ -126,7 +135,7 @@ contract MayanRouter is ICaRouter, Ownable {
             gasDrop: gasDrop,
             cancelFee: cancelFee,
             refundFee: refundFee,
-            deadline: deadline,
+            deadline: uint64(request.expiry),
             referrerBps: referrerBps,
             auctionMode: auctionMode,
             random: random
@@ -153,17 +162,64 @@ contract MayanRouter is ICaRouter, Ownable {
         }
     }
 
-    /// @notice Set or update CAIP-2 namespace and chain ID to Wormhole chain ID mapping
+    /// @notice Set or update universe and chain ID to Wormhole chain ID mapping
     /// @dev Only callable by contract owner
-    /// @param namespaceHash CAIP-2 namespace hash (e.g., keccak256("eip155") for EVM)
+    /// @param universe Destination universe
     /// @param chainId Chain ID within the namespace (e.g., 1 for Ethereum, 8453 for Base)
     /// @param wormholeChainId Corresponding Wormhole chain ID
-    function setWormholeChainMapping(bytes32 namespaceHash, uint256 chainId, uint16 wormholeChainId)
-        external
-        onlyOwner
-    {
-        caip2ToWormholeChainId[namespaceHash][chainId] = wormholeChainId;
-        emit WormholeChainMappingSet(namespaceHash, chainId, wormholeChainId);
+    function setWormholeChainMapping(Universe universe, uint256 chainId, uint16 wormholeChainId) external onlyOwner {
+        destinationChainID[universe][chainId] = wormholeChainId;
+        emit WormholeChainMappingSet(universe, chainId, wormholeChainId);
+    }
+
+    /// @notice Set Mayan referrer address
+    /// @dev Only callable by contract owner
+    /// @param _referrerAddr Referrer address encoded as bytes32 for Mayan order params
+    function setReferrerAddr(bytes32 _referrerAddr) external onlyOwner {
+        referrerAddr = _referrerAddr;
+        emit ReferrerAddrSet(_referrerAddr);
+    }
+
+    /// @notice Set Mayan order cancellation fee
+    /// @dev Only callable by contract owner
+    /// @param _cancelFee Fee paid to cancel an order
+    function setCancelFee(uint64 _cancelFee) external onlyOwner {
+        cancelFee = _cancelFee;
+        emit CancelFeeSet(_cancelFee);
+    }
+
+    /// @notice Set Mayan order refund fee
+    /// @dev Only callable by contract owner
+    /// @param _refundFee Fee paid to refund an order
+    function setRefundFee(uint64 _refundFee) external onlyOwner {
+        refundFee = _refundFee;
+        emit RefundFeeSet(_refundFee);
+    }
+
+    /// @notice Set Mayan referrer basis points
+    /// @dev Only callable by contract owner
+    /// @param _referrerBps Referrer basis points
+    function setReferrerBps(uint8 _referrerBps) external onlyOwner {
+        referrerBps = _referrerBps;
+        emit ReferrerBpsSet(_referrerBps);
+    }
+
+    /// @notice Set Mayan auction mode
+    /// @dev Only callable by contract owner
+    /// @param _auctionMode Auction mode value used in Mayan order params
+    function setAuctionMode(uint8 _auctionMode) external onlyOwner {
+        auctionMode = _auctionMode;
+        emit AuctionModeSet(_auctionMode);
+    }
+
+    /// @notice Set destination token decimals for Mayan amount normalization
+    /// @dev Only callable by contract owner
+    /// @param wormholeChainId Wormhole destination chain ID
+    /// @param token Destination token address
+    /// @param decimals Destination token decimals
+    function setTokenOutDecimals(uint16 wormholeChainId, address token, uint8 decimals) external onlyOwner {
+        tokenOutDecimals[wormholeChainId][token] = decimals;
+        emit TokenOutDecimalsSet(wormholeChainId, token, decimals);
     }
 
     function extractAddress(Party[] memory parties) internal pure returns (bytes32 user) {
