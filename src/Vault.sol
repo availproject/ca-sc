@@ -37,7 +37,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     bytes32 private constant SETTLEMENT_VERIFIER_ROLE = keccak256("SETTLEMENT_VERIFIER_ROLE");
     string private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
     // Storage gap to reserve slots for future use
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 
     event Deposit(bytes32 indexed requestHash, address from);
     event Fulfilment(bytes32 indexed requestHash, address from, address solver);
