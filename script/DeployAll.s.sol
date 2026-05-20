@@ -34,7 +34,7 @@ contract DeployAll is Script {
         address deployer = vm.addr(deployerPrivateKey);
 
         console.log("\n========== Deploying Vault (createX) ==========");
-        bytes32 vaultSalt = keccak256(abi.encodePacked("nexus-mayan-vault-1.0.5"));
+        bytes32 vaultSalt = keccak256(abi.encodePacked("nexus-mayan-vault-1.0.6"));
         bytes32 proxySalt = keccak256(abi.encodePacked(vaultSalt, "proxy"));
 
         bytes memory vaultInitCode = type(Vault).creationCode;

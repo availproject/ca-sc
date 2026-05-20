@@ -18,13 +18,15 @@ contract MayanRouter is ICaRouter, Ownable {
     address public constant MAYAN_FORWARDER = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
 
     address public constant SWIFT_V2_PROTOCOL = 0x40fFE85A28DC9993541449464d7529a922142960;
+    uint16 public constant FEE_BPS_DENOMINATOR = 10_000;
 
     error InvalidSwiftVersion(uint8 version);
+    error InvalidFeeBps(uint16 feeBps);
 
     uint8 immutable payloadType = 1;
     bytes32 referrerAddr;
-    uint64 cancelFee;
-    uint64 refundFee;
+    uint16 cancelFeeBps;
+    uint16 refundFeeBps;
     uint8 referrerBps;
     uint8 auctionMode;
     mapping(Universe => mapping(uint256 => uint16)) destinationChainID;
@@ -40,13 +42,13 @@ contract MayanRouter is ICaRouter, Ownable {
     /// @param referrerAddr Referrer address encoded as bytes32 for Mayan order params
     event ReferrerAddrSet(bytes32 referrerAddr);
 
-    /// @notice Emitted when Mayan cancellation fee is updated
-    /// @param cancelFee Fee paid to cancel an order
-    event CancelFeeSet(uint64 cancelFee);
+    /// @notice Emitted when Mayan cancellation fee percentage is updated
+    /// @param cancelFeeBps Fee paid to cancel an order, in basis points of minAmountOut
+    event CancelFeeBpsSet(uint16 cancelFeeBps);
 
-    /// @notice Emitted when Mayan refund fee is updated
-    /// @param refundFee Fee paid to refund an order
-    event RefundFeeSet(uint64 refundFee);
+    /// @notice Emitted when Mayan refund fee percentage is updated
+    /// @param refundFeeBps Fee paid to refund an order, in basis points of minAmountOut
+    event RefundFeeBpsSet(uint16 refundFeeBps);
 
     /// @notice Emitted when Mayan referral settings are updated
     /// @param referrerBps Referrer basis points
@@ -73,8 +75,8 @@ contract MayanRouter is ICaRouter, Ownable {
         destinationChainID[Universe.ETHEREUM][56] = 4;
 
         referrerAddr = bytes32(0);
-        cancelFee = 0;
-        refundFee = 0;
+        cancelFeeBps = 0;
+        refundFeeBps = 0;
         referrerBps = 0;
         auctionMode = 0;
     }
@@ -133,8 +135,8 @@ contract MayanRouter is ICaRouter, Ownable {
             tokenOut: request.destinations[chainIndex].contractAddress,
             minAmountOut: uint64(normalizedMinAmountOut),
             gasDrop: gasDrop,
-            cancelFee: cancelFee,
-            refundFee: refundFee,
+            cancelFee: _feeFromBps(normalizedMinAmountOut, cancelFeeBps),
+            refundFee: _feeFromBps(normalizedMinAmountOut, refundFeeBps),
             deadline: uint64(request.expiry),
             referrerBps: referrerBps,
             auctionMode: auctionMode,
@@ -180,20 +182,22 @@ contract MayanRouter is ICaRouter, Ownable {
         emit ReferrerAddrSet(_referrerAddr);
     }
 
-    /// @notice Set Mayan order cancellation fee
+    /// @notice Set Mayan order cancellation fee percentage
     /// @dev Only callable by contract owner
-    /// @param _cancelFee Fee paid to cancel an order
-    function setCancelFee(uint64 _cancelFee) external onlyOwner {
-        cancelFee = _cancelFee;
-        emit CancelFeeSet(_cancelFee);
+    /// @param _cancelFeeBps Fee paid to cancel an order, in basis points of minAmountOut
+    function setCancelFeeBps(uint16 _cancelFeeBps) external onlyOwner {
+        if (_cancelFeeBps > FEE_BPS_DENOMINATOR) revert InvalidFeeBps(_cancelFeeBps);
+        cancelFeeBps = _cancelFeeBps;
+        emit CancelFeeBpsSet(_cancelFeeBps);
     }
 
-    /// @notice Set Mayan order refund fee
+    /// @notice Set Mayan order refund fee percentage
     /// @dev Only callable by contract owner
-    /// @param _refundFee Fee paid to refund an order
-    function setRefundFee(uint64 _refundFee) external onlyOwner {
-        refundFee = _refundFee;
-        emit RefundFeeSet(_refundFee);
+    /// @param _refundFeeBps Fee paid to refund an order, in basis points of minAmountOut
+    function setRefundFeeBps(uint16 _refundFeeBps) external onlyOwner {
+        if (_refundFeeBps > FEE_BPS_DENOMINATOR) revert InvalidFeeBps(_refundFeeBps);
+        refundFeeBps = _refundFeeBps;
+        emit RefundFeeBpsSet(_refundFeeBps);
     }
 
     /// @notice Set Mayan referrer basis points
@@ -220,6 +224,10 @@ contract MayanRouter is ICaRouter, Ownable {
     function setTokenOutDecimals(uint16 wormholeChainId, address token, uint8 decimals) external onlyOwner {
         tokenOutDecimals[wormholeChainId][token] = decimals;
         emit TokenOutDecimalsSet(wormholeChainId, token, decimals);
+    }
+
+    function _feeFromBps(uint256 amount, uint16 feeBps) internal pure returns (uint64) {
+        return uint64((amount * feeBps) / FEE_BPS_DENOMINATOR);
     }
 
     function extractAddress(Party[] memory parties) internal pure returns (bytes32 user) {
