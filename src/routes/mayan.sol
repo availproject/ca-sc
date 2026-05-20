@@ -1,25 +1,26 @@
-//  SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Request, Universe, SourcePair, Party} from "../types.sol";
-import {IRouter} from "../interfaces/IRouter.sol";
-import {IMayanSwiftV1} from "../interfaces/IMayanSwiftV1.sol";
 import {IMayanForwarder} from "../interfaces/IMayanForwarder.sol";
 import {IMayanSwiftV2} from "../interfaces/IMayanSwiftV2.sol";
+import {IRouter} from "../interfaces/IRouter.sol";
+import {Party, Request, Universe} from "../types.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title MayanRouter
 /// @author Rachit Anand Srivastava (@privacy_prophet)
 /// @notice Router contract for Mayan Swift V2 cross-chain swaps via Wormhole
-/// @dev Implements ICaRouter for integration with Arcana Credit protocol
-contract MayanRouter is IRouter, Ownable, AccessControl {
+/// @dev UUPS upgradeable router for integration with Arcana Credit protocol
+contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradeable, AccessControlUpgradeable {
     using SafeERC20 for IERC20;
 
     bytes32 public constant VAULT_ROLE = keccak256("VAULT_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     address public constant MAYAN_FORWARDER = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
 
@@ -27,23 +28,17 @@ contract MayanRouter is IRouter, Ownable, AccessControl {
 
     uint16 public constant FEE_BPS_DENOMINATOR = 10_000;
 
-    error InvalidSwiftVersion(uint8 version);
-    error InvalidFeeBps(uint16 feeBps);
-    error FeeSlippageExceeded(uint64 fee, uint64 maxFee);
-    error InvalidRFF();
-    error UnsupportedDestinationChain();
-    error PartyNotFound();
-    error MinAmountOutTooLarge(uint256 minAmountOut);
-    error InvalidNativeAmount(uint256 expected, uint256 actual);
+    uint8 public constant PAYLOAD_TYPE = 1;
 
-    uint8 immutable payloadType = 1;
-    bytes32 referrerAddr;
-    uint16 cancelFeeBps;
-    uint16 refundFeeBps;
-    uint8 referrerBps;
-    uint8 auctionMode;
-    mapping(Universe => mapping(uint256 => uint16)) destinationChainID;
-    mapping(uint16 => mapping(address => uint8)) tokenOutDecimals;
+    bytes32 public referrerAddr;
+    uint16 public cancelFeeBps;
+    uint16 public refundFeeBps;
+    uint8 public referrerBps;
+    uint8 public auctionMode;
+    mapping(Universe => mapping(uint256 => uint16)) public destinationChainID;
+    mapping(uint16 => mapping(address => uint8)) public tokenOutDecimals;
+
+    uint256[50] private __gap;
 
     /// @notice Emitted when a Wormhole chain mapping is updated
     /// @param universe Destination universe
@@ -77,9 +72,28 @@ contract MayanRouter is IRouter, Ownable, AccessControl {
     /// @param decimals Destination token decimals
     event TokenOutDecimalsSet(uint16 indexed wormholeChainId, address indexed token, uint8 decimals);
 
+    error InvalidSwiftVersion(uint8 version);
+    error InvalidFeeBps(uint16 feeBps);
+    error FeeSlippageExceeded(uint64 fee, uint64 maxFee);
+    error InvalidRFF();
+    error UnsupportedDestinationChain();
+    error PartyNotFound();
+    error MinAmountOutTooLarge(uint256 minAmountOut);
+    error InvalidNativeAmount(uint256 expected, uint256 actual);
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice Initialize router with default EVM chain mappings
-    constructor(address _owner) Ownable(_owner) {
-        _grantRole(DEFAULT_ADMIN_ROLE, _owner);
+    /// @param owner_ Address to grant owner, admin, and upgrader permissions
+    function initialize(address owner_) public initializer {
+        __Ownable_init(owner_);
+        __AccessControl_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, owner_);
+        _grantRole(UPGRADER_ROLE, owner_);
 
         destinationChainID[Universe.ETHEREUM][1] = 2;
         destinationChainID[Universe.ETHEREUM][8453] = 30;
@@ -118,7 +132,8 @@ contract MayanRouter is IRouter, Ownable, AccessControl {
     /// @dev and forwards the order to MayanForwarder for execution
     /// @param request Action struct containing source, destination, and recipient details
     /// @param chainIndex Index of the source and destination pair to process
-    /// @param data ABI-encoded (cancelFee, refundFee, gasDrop, random, swapProtocol, swapData, middleToken, minMiddleAmount)
+    /// @param data ABI-encoded cancelFee, refundFee, gasDrop, random, swapProtocol,
+    /// swapData, middleToken, and minMiddleAmount
     function _processTransferV2(Request calldata request, uint256 chainIndex, bytes memory data) internal {
         address tokenIn = address(uint160(uint256(request.sources[chainIndex].contractAddress)));
         uint256 amountIn = request.sources[chainIndex].value;
@@ -139,17 +154,11 @@ contract MayanRouter is IRouter, Ownable, AccessControl {
 
         uint256 normalizedMinAmountOut = request.destinations[chainIndex].value;
 
-        if (
-            tokenOutDecimals[
-                    wormholeChainId
-                ][address(uint160(uint256(request.destinations[chainIndex].contractAddress)))] > 8
-        ) {
-            normalizedMinAmountOut = normalizedMinAmountOut
-                / (10
-                    ** (tokenOutDecimals[
-                            wormholeChainId
-                        ][address(uint160(uint256(request.destinations[chainIndex].contractAddress)))]
-                        - 8));
+        address tokenOut = address(uint160(uint256(request.destinations[chainIndex].contractAddress)));
+        uint8 decimals = tokenOutDecimals[wormholeChainId][tokenOut];
+
+        if (decimals > 8) {
+            normalizedMinAmountOut = normalizedMinAmountOut / (10 ** (decimals - 8));
         }
 
         if (normalizedMinAmountOut > type(uint64).max) {
@@ -162,7 +171,7 @@ contract MayanRouter is IRouter, Ownable, AccessControl {
         checkFeeSlippages(minAmountOut, cancelFee, refundFee);
 
         IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2.OrderParams({
-            payloadType: payloadType,
+            payloadType: PAYLOAD_TYPE,
             trader: extractAddress(request.parties),
             destAddr: request.recipientAddress,
             destChainId: wormholeChainId,
@@ -262,6 +271,11 @@ contract MayanRouter is IRouter, Ownable, AccessControl {
         tokenOutDecimals[wormholeChainId][token] = decimals;
         emit TokenOutDecimalsSet(wormholeChainId, token, decimals);
     }
+
+    /// @notice Authorizes a contract upgrade
+    /// @dev Ensures only accounts with UPGRADER_ROLE can upgrade the implementation
+    /// @param newImplementation Address of the new implementation contract
+    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
     /// @notice Calculate fee amount from basis points
     /// @param amount Base amount to calculate fee against

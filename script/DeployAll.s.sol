@@ -33,8 +33,11 @@ contract DeployAll is Script {
         vm.startBroadcast(deployerPrivateKey);
         address deployer = vm.addr(deployerPrivateKey);
 
+        // Base version used to derive all CREATE2 salts deterministically
+        string memory baseVersion = "1.0.8";
+
         console.log("\n========== Deploying Vault (createX) ==========");
-        bytes32 vaultSalt = keccak256(abi.encodePacked("nexus-mayan-vault-1.0.7"));
+        bytes32 vaultSalt = keccak256(abi.encodePacked("nexus-mayan-vault-", baseVersion));
         bytes32 proxySalt = keccak256(abi.encodePacked(vaultSalt, "proxy"));
 
         bytes memory vaultInitCode = type(Vault).creationCode;
@@ -67,18 +70,44 @@ contract DeployAll is Script {
         }
 
         console.log("\n========== Deploying MayanRouter (createX) ==========");
-        bytes32 mayanSalt = keccak256(abi.encodePacked("nexus-mayan-mayanrouter-1.0.5"));
-        bytes memory mayanInitCode = abi.encodePacked(type(MayanRouter).creationCode, abi.encode(deployer));
-        addresses.mayanRouter = CREATEX.deployCreate2(mayanSalt, mayanInitCode);
-        console.log("MayanRouter:", addresses.mayanRouter);
+        bytes32 mayanSalt = keccak256(abi.encodePacked("nexus-mayan-mayanrouter-", baseVersion));
+        bytes32 mayanProxySalt = keccak256(abi.encodePacked(mayanSalt, "proxy"));
+
+        bytes memory mayanInitCode = type(MayanRouter).creationCode;
+        bytes32 mayanInitCodeHash = keccak256(mayanInitCode);
+        address expectedMayanImpl = CREATEX.computeCreate2Address(keccak256(abi.encode(mayanSalt)), mayanInitCodeHash);
+        console.log("Expected MayanRouter implementation:", expectedMayanImpl);
+
+        bytes memory mayanRouterInitData = abi.encodeWithSelector(MayanRouter.initialize.selector, deployer);
+        bytes memory mayanProxyInitCode =
+            abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(expectedMayanImpl, mayanRouterInitData));
+        bytes32 mayanProxyInitCodeHash = keccak256(mayanProxyInitCode);
+        address expectedMayanProxy =
+            CREATEX.computeCreate2Address(keccak256(abi.encode(mayanProxySalt)), mayanProxyInitCodeHash);
+        console.log("Expected MayanRouter proxy:", expectedMayanProxy);
+
+        address mayanImplementation = CREATEX.deployCreate2(mayanSalt, mayanInitCode);
+        console.log("MayanRouter implementation:", mayanImplementation);
+        require(mayanImplementation == expectedMayanImpl, "MayanRouter implementation address mismatch");
+
+        addresses.mayanRouter = CREATEX.deployCreate2(mayanProxySalt, mayanProxyInitCode);
+        console.log("MayanRouter proxy:", addresses.mayanRouter);
+        require(addresses.mayanRouter == expectedMayanProxy, "MayanRouter proxy address mismatch");
 
         vault.setRouter(addresses.mayanRouter);
         console.log("MayanRouter set as Vault router");
 
         MayanRouter mayanRouter = MayanRouter(addresses.mayanRouter);
+        mayanRouter.grantRole(mayanRouter.VAULT_ROLE(), addresses.vaultProxy);
+        console.log("Vault granted MayanRouter VAULT_ROLE");
+
         if (addresses.admin != deployer) {
             mayanRouter.transferOwnership(addresses.admin);
-            console.log("Transferred MayanRouter ownership to:", addresses.admin);
+            mayanRouter.grantRole(mayanRouter.DEFAULT_ADMIN_ROLE(), addresses.admin);
+            mayanRouter.grantRole(mayanRouter.UPGRADER_ROLE(), addresses.admin);
+            mayanRouter.renounceRole(mayanRouter.UPGRADER_ROLE(), deployer);
+            mayanRouter.renounceRole(mayanRouter.DEFAULT_ADMIN_ROLE(), deployer);
+            console.log("Transferred MayanRouter ownership and admin rights to:", addresses.admin);
         }
 
         vm.stopBroadcast();
@@ -96,6 +125,11 @@ contract DeployAll is Script {
 
         require(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), addresses.admin), "Vault: Admin role not granted");
         require(address(vault.router()) == addresses.mayanRouter, "Vault: MayanRouter not set");
+        require(
+            MayanRouter(addresses.mayanRouter)
+                .hasRole(MayanRouter(addresses.mayanRouter).VAULT_ROLE(), addresses.vaultProxy),
+            "MayanRouter: Vault role not granted"
+        );
 
         console.log("All verifications passed");
     }

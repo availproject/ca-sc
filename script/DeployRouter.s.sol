@@ -4,6 +4,7 @@ pragma solidity ^0.8.29;
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {MayanRouter} from "../src/routes/mayan.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 /// @title DeployRouter
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -14,19 +15,16 @@ contract DeployRouter is Script {
         address admin = vm.envAddress("ADMIN_ADDRESS");
 
         vm.startBroadcast(deployerPrivateKey);
-        address deployer = vm.addr(deployerPrivateKey);
 
-        // Deploy MayanRouter directly
-        MayanRouter routerContract = new MayanRouter(deployer);
-        router = address(routerContract);
+        MayanRouter implementation = new MayanRouter();
+        bytes memory initData = abi.encodeWithSelector(MayanRouter.initialize.selector, admin);
+        ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
+        MayanRouter routerContract = MayanRouter(payable(address(proxy)));
+        router = address(proxy);
 
-        console.log("MayanRouter deployed at:", router);
+        console.log("MayanRouter implementation deployed at:", address(implementation));
+        console.log("MayanRouter proxy deployed at:", router);
         console.log("Admin address:", admin);
-
-        if (admin != deployer) {
-            routerContract.transferOwnership(admin);
-            console.log("Transferred MayanRouter ownership to:", admin);
-        }
 
         vm.stopBroadcast();
 

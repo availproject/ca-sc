@@ -46,8 +46,11 @@ contract MayanRouterTest is Test {
         user = vm.addr(userPrivateKey);
         recipient = makeAddr("recipient");
 
-        // Deploy MayanRouter
-        mayanRouter = new MayanRouter(admin);
+        // Deploy MayanRouter implementation and proxy
+        MayanRouter mayanRouterImpl = new MayanRouter();
+        bytes memory mayanRouterInitData = abi.encodeWithSelector(MayanRouter.initialize.selector, admin);
+        ERC1967Proxy mayanRouterProxy = new ERC1967Proxy(address(mayanRouterImpl), mayanRouterInitData);
+        mayanRouter = MayanRouter(payable(address(mayanRouterProxy)));
 
         // Deploy Vault implementation and proxy
         Vault vaultImpl = new Vault();
