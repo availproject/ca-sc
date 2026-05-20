@@ -5,6 +5,8 @@ import {Test} from "forge-std/Test.sol";
 import {MayanRouter} from "../src/routes/mayan.sol";
 import {Vault} from "../src/Vault.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
+import {IMayanForwarder} from "../src/interfaces/IMayanForwarder.sol";
+import {IMayanSwiftV2} from "../src/interfaces/IMayanSwiftV2.sol";
 import {Request, SourcePair, Party, Universe, DestinationPair} from "../src/types.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -90,6 +92,8 @@ contract MayanRouterTest is Test {
 
         // Prepare V2 transfer data (direct V2 payload encoding, no SwiftVersion wrapper)
         bytes memory data = abi.encode(
+            uint16(0), // cancelFee
+            uint16(0), // refundFee
             uint64(0), // gasDrop
             bytes32(0), // random
             address(0), // swapProtocol
@@ -136,11 +140,87 @@ contract MayanRouterTest is Test {
         assertEq(userBalanceBefore - 100e18, userBalanceAfter);
     }
 
+    function test_ProcessTransfer_ERC20_UsesFeePercentages() public {
+        vm.startPrank(admin);
+        mayanRouter.setTokenOutDecimals(2, address(token), 18);
+        mayanRouter.setCancelFeeBps(100);
+        mayanRouter.setRefundFeeBps(250);
+        vm.stopPrank();
+
+        vm.prank(user);
+        token.approve(address(mayanRouter), 100e18);
+
+        bytes memory data =
+            abi.encode(uint16(100), uint16(250), uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
+
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: 8453,
+            contractAddress: bytes32(uint256(uint160(address(token)))),
+            value: 100e18,
+            fee: 0
+        });
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(uint256(uint160(address(token)))), value: 90e18});
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
+
+        Request memory request = Request({
+            sources: sources,
+            destinationUniverse: Universe.ETHEREUM,
+            destinationChainID: 1,
+            recipientAddress: bytes32(uint256(uint160(user))),
+            destinations: destinations,
+            nonce: 12_345,
+            expiry: block.timestamp + 3600,
+            parties: parties
+        });
+
+        IMayanSwiftV2.OrderParams memory expectedOrderParams = IMayanSwiftV2.OrderParams({
+            payloadType: 1,
+            trader: bytes32(uint256(uint160(user))),
+            destAddr: bytes32(uint256(uint160(user))),
+            destChainId: 2,
+            referrerAddr: bytes32(0),
+            tokenOut: bytes32(uint256(uint160(address(token)))),
+            minAmountOut: 9_000_000_000,
+            gasDrop: 0,
+            cancelFee: 100,
+            refundFee: 250,
+            deadline: uint64(request.expiry),
+            referrerBps: 0,
+            auctionMode: 2,
+            random: bytes32(0)
+        });
+        bytes memory protocolData = abi.encodeWithSelector(
+            IMayanSwiftV2.createOrderWithToken.selector, address(token), uint256(100e18), expectedOrderParams, bytes("")
+        );
+        IMayanForwarder.PermitParams memory emptyPermit;
+        bytes memory expectedForwardCall = abi.encodeWithSelector(
+            IMayanForwarder.forwardERC20.selector,
+            address(token),
+            uint256(100e18),
+            emptyPermit,
+            mayanRouter.SWIFT_V2_PROTOCOL(),
+            protocolData
+        );
+
+        vm.expectCall(MAYAN_FORWARDER, expectedForwardCall);
+
+        vm.prank(user);
+        mayanRouter.processTransfer(request, abi.encode(uint256(0), data));
+    }
+
     uint256 constant SWAP_AMOUNT = 0.187 ether;
 
     function test_ProcessTransfer_ETH() public {
         // Prepare transfer data with real swap params from mainnet tx (direct V2 payload)
         bytes memory data = abi.encode(
+            uint16(0), // cancelFee
+            uint16(0), // refundFee
             uint64(0), // gasDrop
             bytes32(0), // random
             SWAP_PROTOCOL,
@@ -192,6 +272,8 @@ contract MayanRouterTest is Test {
 
         // Prepare route data (direct V2 payload, no SwiftVersion wrapper)
         bytes memory routeData = abi.encode(
+            uint16(0), // cancelFee
+            uint16(0), // refundFee
             uint64(0), // gasDrop
             bytes32(0), // random
             address(0), // swapProtocol
@@ -247,6 +329,8 @@ contract MayanRouterTest is Test {
     function test_VaultDepositRouter_ETH() public {
         // Prepare route data with real swap params (direct V2 payload)
         bytes memory routeData = abi.encode(
+            uint16(0), // cancelFee
+            uint16(0), // refundFee
             uint64(0), // gasDrop
             bytes32(0), // random
             SWAP_PROTOCOL,
@@ -328,7 +412,8 @@ contract MayanRouterTest is Test {
         bytes memory wrongSignature = _signRequest(request, wrongPrivateKey);
 
         // Prepare route data (direct V2 payload)
-        bytes memory routeData = abi.encode(uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
+        bytes memory routeData =
+            abi.encode(uint16(0), uint16(0), uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
 
         vm.prank(user);
         vm.expectRevert("Vault: Invalid signature or from");
@@ -366,7 +451,8 @@ contract MayanRouterTest is Test {
         });
 
         bytes memory signature = _signRequest(request, userPrivateKey);
-        bytes memory routeData = abi.encode(uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
+        bytes memory routeData =
+            abi.encode(uint16(0), uint16(0), uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
 
         // First deposit should succeed
         vm.prank(user);
@@ -385,6 +471,8 @@ contract MayanRouterTest is Test {
 
         // Encode V2 data (direct V2 payload encoding, no SwiftVersion wrapper)
         bytes memory data = abi.encode(
+            uint16(0), // cancelFee
+            uint16(0), // refundFee
             uint64(0), // gasDrop
             bytes32(0), // random
             address(0), // swapProtocol
@@ -434,6 +522,8 @@ contract MayanRouterTest is Test {
     function test_ProcessTransferV2_ETH() public {
         // Encode V2 data with real swap params from mainnet tx
         bytes memory data = abi.encode(
+            uint16(0), // cancelFee
+            uint16(0), // refundFee
             uint64(0), // gasDrop
             bytes32(0), // random
             SWAP_PROTOCOL,
@@ -520,6 +610,8 @@ contract MayanRouterTest is Test {
 
         // Encode V2 data (direct V2 payload, no SwiftVersion wrapper)
         bytes memory routeData = abi.encode(
+            uint16(0), // cancelFee
+            uint16(0), // refundFee
             uint64(0), // gasDrop
             bytes32(0), // random
             address(0), // swapProtocol
@@ -575,6 +667,8 @@ contract MayanRouterTest is Test {
     function test_VaultDepositRouter_V2_ETH() public {
         // Encode V2 data with real swap params from mainnet tx
         bytes memory routeData = abi.encode(
+            uint16(0), // cancelFee
+            uint16(0), // refundFee
             uint64(0), // gasDrop
             bytes32(0), // random
             SWAP_PROTOCOL,

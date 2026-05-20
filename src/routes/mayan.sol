@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {Request, Universe, SourcePair, Party} from "../types.sol";
-import {ICaRouter} from "../interfaces/ICaRouter.sol";
+import {IRouter} from "../interfaces/IRouter.sol";
 import {IMayanSwiftV1} from "../interfaces/IMayanSwiftV1.sol";
 import {IMayanForwarder} from "../interfaces/IMayanForwarder.sol";
 import {IMayanSwiftV2} from "../interfaces/IMayanSwiftV2.sol";
@@ -14,7 +14,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 /// @author Rachit Anand Srivastava (@privacy_prophet)
 /// @notice Router contract for Mayan Swift V2 cross-chain swaps via Wormhole
 /// @dev Implements ICaRouter for integration with Arcana Credit protocol
-contract MayanRouter is ICaRouter, Ownable {
+contract MayanRouter is IRouter, Ownable {
     address public constant MAYAN_FORWARDER = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
 
     address public constant SWIFT_V2_PROTOCOL = 0x40fFE85A28DC9993541449464d7529a922142960;
@@ -22,6 +22,7 @@ contract MayanRouter is ICaRouter, Ownable {
 
     error InvalidSwiftVersion(uint8 version);
     error InvalidFeeBps(uint16 feeBps);
+    error FeeSlippageExceeded(uint64 fee, uint64 maxFee);
 
     uint8 immutable payloadType = 1;
     bytes32 referrerAddr;
@@ -75,10 +76,10 @@ contract MayanRouter is ICaRouter, Ownable {
         destinationChainID[Universe.ETHEREUM][56] = 4;
 
         referrerAddr = bytes32(0);
-        cancelFeeBps = 0;
-        refundFeeBps = 0;
+        cancelFeeBps = 150;
+        refundFeeBps = 150;
         referrerBps = 0;
-        auctionMode = 0;
+        auctionMode = 2;
     }
 
     /// @notice Process cross-chain token transfer via Mayan Swift V2 or V1
@@ -100,13 +101,15 @@ contract MayanRouter is ICaRouter, Ownable {
         uint256 amountIn = request.sources[chainIndex].value;
 
         (
+            uint16 cancelFee,
+            uint16 refundFee,
             uint64 gasDrop,
             bytes32 random,
             address swapProtocol,
             bytes memory swapData,
             address middleToken,
             uint256 minMiddleAmount
-        ) = abi.decode(data, (uint64, bytes32, address, bytes, address, uint256));
+        ) = abi.decode(data, (uint16, uint16, uint64, bytes32, address, bytes, address, uint256));
 
         uint16 wormholeChainId = destinationChainID[request.destinationUniverse][request.destinationChainID];
         require(wormholeChainId != 0, "Unsupported destination chain");
@@ -126,6 +129,8 @@ contract MayanRouter is ICaRouter, Ownable {
                         - 8));
         }
 
+        checkFeeSlippages(uint64(normalizedMinAmountOut), cancelFee, refundFee);
+
         IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2.OrderParams({
             payloadType: payloadType,
             trader: extractAddress(request.parties),
@@ -135,8 +140,8 @@ contract MayanRouter is ICaRouter, Ownable {
             tokenOut: request.destinations[chainIndex].contractAddress,
             minAmountOut: uint64(normalizedMinAmountOut),
             gasDrop: gasDrop,
-            cancelFee: _feeFromBps(normalizedMinAmountOut, cancelFeeBps),
-            refundFee: _feeFromBps(normalizedMinAmountOut, refundFeeBps),
+            cancelFee: cancelFee, 
+            refundFee: refundFee,
             deadline: uint64(request.expiry),
             referrerBps: referrerBps,
             auctionMode: auctionMode,
@@ -228,6 +233,14 @@ contract MayanRouter is ICaRouter, Ownable {
 
     function _feeFromBps(uint256 amount, uint16 feeBps) internal pure returns (uint64) {
         return uint64((amount * feeBps) / FEE_BPS_DENOMINATOR);
+    }
+
+    function checkFeeSlippages(uint64 normalizedMinAmountOut, uint64 cancelFee, uint64 refundFee) internal view {
+        uint64 maxCancelFee = _feeFromBps(normalizedMinAmountOut, cancelFeeBps);
+        uint64 maxRefundFee = _feeFromBps(normalizedMinAmountOut, refundFeeBps);
+
+        if (cancelFee > maxCancelFee) revert FeeSlippageExceeded(cancelFee, maxCancelFee);
+        if (refundFee > maxRefundFee) revert FeeSlippageExceeded(refundFee, maxRefundFee);
     }
 
     function extractAddress(Party[] memory parties) internal pure returns (bytes32 user) {
