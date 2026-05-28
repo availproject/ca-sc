@@ -201,7 +201,13 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
             IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
             IERC20(tokenIn).forceApprove(MAYAN_FORWARDER, amountIn);
 
-            IMayanForwarder.PermitParams memory emptyPermit;
+            IMayanForwarder.PermitParams memory emptyPermit = IMayanForwarder.PermitParams({
+                value: 0,
+                deadline: 0,
+                v: 0,
+                r: bytes32(0),
+                s: bytes32(0)
+            });
             IMayanForwarder(MAYAN_FORWARDER)
                 .forwardERC20(tokenIn, amountIn, emptyPermit, SWIFT_V2_PROTOCOL, protocolData);
         }
@@ -279,7 +285,10 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     /// @param feeBps Fee percentage in basis points (e.g., 150 = 1.5%)
     /// @return Fee amount as uint64
     function _feeFromBps(uint256 amount, uint16 feeBps) internal pure returns (uint64) {
-        return uint64((amount * feeBps) / FEE_BPS_DENOMINATOR);
+        uint256 fee = (amount * feeBps) / FEE_BPS_DENOMINATOR;
+        if (fee > type(uint64).max) revert MinAmountOutTooLarge(fee);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        return uint64(fee);
     }
 
     /// @notice Validate that cancel and refund fees do not exceed maximum allowed based on basis points
