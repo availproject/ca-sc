@@ -16,11 +16,11 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {Request, Party, Universe, RFFState, SettleData} from "./types.sol";
 import {IRouter} from "./interfaces/IRouter.sol";
 
-/// @title Vault
+/// @title VaultOld
 /// @author Rachit Anand Srivastava (@privacy_prophet)
 /// @notice Vault contract for managing deposits, fulfillments, and settlements of cross-chain transfers
 /// @dev UUPS upgradeable contract with role-based access control
-contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ReentrancyGuardTransient {
+contract VaultOld is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ReentrancyGuardTransient {
     using ECDSA for bytes32;
     using SafeERC20 for IERC20;
 

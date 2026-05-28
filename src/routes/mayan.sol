@@ -72,17 +72,16 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     /// @param decimals Destination token decimals
     event TokenOutDecimalsSet(uint16 indexed wormholeChainId, address indexed token, uint8 decimals);
 
-    /// @notice Emitted when  tx is done with a token whose decimals are not configured
-    event TokenOutDecimalsNotConfigured();
-
-    error InvalidSwiftVersion(uint8 version);
-    error InvalidFeeBps(uint16 feeBps);
     error FeeSlippageExceeded(uint64 fee, uint64 maxFee);
-    error InvalidRFF();
-    error UnsupportedDestinationChain();
-    error PartyNotFound();
-    error MinAmountOutTooLarge(uint256 minAmountOut);
+    error InvalidFeeBps(uint16 feeBps);
     error InvalidNativeAmount(uint256 expected, uint256 actual);
+    error InvalidRFF();
+    error InvalidSwiftVersion(uint8 version);
+    error MinAmountOutTooLarge(uint256 minAmountOut);
+    error PartyNotFound();
+    /// @notice Reverts when a token's decimals are not configured for the destination chain
+    error TokenOutDecimalsNotConfigured();
+    error UnsupportedDestinationChain();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -155,27 +154,18 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
         uint16 wormholeChainId = destinationChainID[request.destinationUniverse][request.destinationChainID];
         if (wormholeChainId == 0) revert UnsupportedDestinationChain();
 
-        uint256 normalizedMinAmountOut = request.destinations[chainIndex].value;
-
         address tokenOut = address(uint160(uint256(request.destinations[chainIndex].contractAddress)));
-        uint8 decimals = tokenOutDecimals[wormholeChainId][tokenOut];
 
-        if (decimals == 0) {
-            revert TokenOutDecimalsNotConfigured();
-        }
+        checkFeeSlippages(
+            request.sources[chainIndex].value,
+            address(uint160(uint256(request.sources[chainIndex].contractAddress))),
+            wormholeChainId,
+            cancelFee,
+            refundFee
+        );
 
-        if (decimals > 8) {
-            normalizedMinAmountOut = normalizedMinAmountOut / (10 ** (decimals - 8));
-        }
-
-        if (normalizedMinAmountOut > type(uint64).max) {
-            revert MinAmountOutTooLarge(normalizedMinAmountOut);
-        }
-
-        // forge-lint: disable-next-line(unsafe-typecast)
-        uint64 minAmountOut = uint64(normalizedMinAmountOut);
-
-        checkFeeSlippages(minAmountOut, cancelFee, refundFee);
+        uint64 normalizedMinAmountOut =
+            normaliseAmount(request.destinations[chainIndex].value, tokenOut, wormholeChainId);
 
         IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2.OrderParams({
             payloadType: PAYLOAD_TYPE,
@@ -184,7 +174,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
             destChainId: wormholeChainId,
             referrerAddr: referrerAddr,
             tokenOut: request.destinations[chainIndex].contractAddress,
-            minAmountOut: minAmountOut,
+            minAmountOut: normalizedMinAmountOut,
             gasDrop: gasDrop,
             cancelFee: cancelFee,
             refundFee: refundFee,
@@ -294,10 +284,16 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
 
     /// @notice Validate that cancel and refund fees do not exceed maximum allowed based on basis points
     /// @dev Uses configured cancelFeeBps and refundFeeBps to calculate max fees from normalizedMinAmountOut
-    /// @param normalizedMinAmountOut Normalized minimum output amount for fee calculation
     /// @param cancelFee Actual cancellation fee to validate
     /// @param refundFee Actual refund fee to validate
-    function checkFeeSlippages(uint64 normalizedMinAmountOut, uint64 cancelFee, uint64 refundFee) internal view {
+    function checkFeeSlippages(
+        uint256 tokenIn,
+        address token,
+        uint16 wormholeChainId,
+        uint64 cancelFee,
+        uint64 refundFee
+    ) internal view {
+        uint256 normalizedMinAmountOut = normaliseAmount(tokenIn, token, wormholeChainId);
         uint64 maxCancelFee = _feeFromBps(normalizedMinAmountOut, cancelFeeBps);
         uint64 maxRefundFee = _feeFromBps(normalizedMinAmountOut, refundFeeBps);
 
@@ -316,5 +312,25 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
             }
         }
         revert PartyNotFound();
+    }
+
+    function normaliseAmount(uint256 amount, address token, uint16 wormholeChainId) private view returns (uint64) {
+        uint256 normalizedMinAmountOut = amount;
+        uint8 decimals = tokenOutDecimals[wormholeChainId][token];
+
+        if (decimals == 0) {
+            revert TokenOutDecimalsNotConfigured();
+        }
+
+        if (decimals > 8) {
+            normalizedMinAmountOut = normalizedMinAmountOut / (10 ** (decimals - 8));
+        }
+
+        if (normalizedMinAmountOut > type(uint64).max) {
+            revert MinAmountOutTooLarge(normalizedMinAmountOut);
+        }
+
+        // forge-lint: disable-next-line(unsafe-typecast)
+        return uint64(normalizedMinAmountOut);
     }
 }

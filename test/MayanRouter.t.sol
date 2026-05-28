@@ -70,6 +70,8 @@ contract MayanRouterTest is Test {
 
         vm.prank(admin);
         mayanRouter.setTokenOutDecimals(2, address(token), 18);
+        vm.prank(admin);
+        mayanRouter.setTokenOutDecimals(2, address(0), 18);
 
         vm.deal(user, 100 ether);
     }
