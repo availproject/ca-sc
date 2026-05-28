@@ -72,6 +72,9 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     /// @param decimals Destination token decimals
     event TokenOutDecimalsSet(uint16 indexed wormholeChainId, address indexed token, uint8 decimals);
 
+    /// @notice Emitted when  tx is done with a token whose decimals are not configured
+    event TokenOutDecimalsNotConfigured();
+
     error InvalidSwiftVersion(uint8 version);
     error InvalidFeeBps(uint16 feeBps);
     error FeeSlippageExceeded(uint64 fee, uint64 maxFee);
@@ -156,6 +159,10 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
 
         address tokenOut = address(uint160(uint256(request.destinations[chainIndex].contractAddress)));
         uint8 decimals = tokenOutDecimals[wormholeChainId][tokenOut];
+
+        if (decimals == 0) {
+            revert TokenOutDecimalsNotConfigured();
+        }
 
         if (decimals > 8) {
             normalizedMinAmountOut = normalizedMinAmountOut / (10 ** (decimals - 8));
