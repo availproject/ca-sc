@@ -72,6 +72,10 @@ contract MayanRouterTest is Test {
         mayanRouter.setTokenOutDecimals(2, address(token), 18);
         vm.prank(admin);
         mayanRouter.setTokenOutDecimals(2, address(0), 18);
+        vm.prank(admin);
+        mayanRouter.setTokenOutDecimals(30, address(token), 18);
+        vm.prank(admin);
+        mayanRouter.setTokenOutDecimals(30, address(0), 18);
 
         vm.deal(user, 100 ether);
     }
@@ -754,6 +758,9 @@ contract MayanRouterTest is Test {
     function test_ProcessTransfer_RevertsWhenMinAmountOutExceedsUint64() public {
         _grantVaultRole(address(this));
 
+        vm.prank(admin);
+        mayanRouter.setTokenOutDecimals(2, address(0), 8);
+
         uint256 minAmountOut = uint256(type(uint64).max) + 1;
         Request memory request = _createMinAmountRequest(minAmountOut);
 
@@ -763,6 +770,9 @@ contract MayanRouterTest is Test {
 
     function test_ProcessTransfer_AllowsMaxUint64MinAmountOut() public {
         _grantVaultRole(address(this));
+
+        vm.prank(admin);
+        mayanRouter.setTokenOutDecimals(2, address(0), 8);
 
         Request memory request = _createMinAmountRequest(type(uint64).max);
 

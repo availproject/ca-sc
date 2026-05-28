@@ -159,7 +159,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
         checkFeeSlippages(
             request.sources[chainIndex].value,
             address(uint160(uint256(request.sources[chainIndex].contractAddress))),
-            wormholeChainId,
+            destinationChainID[request.sources[chainIndex].universe][request.sources[chainIndex].chainID],
             cancelFee,
             refundFee
         );
