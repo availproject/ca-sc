@@ -227,7 +227,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
 
     /// @notice Set Mayan order cancellation fee percentage
     /// @dev Only callable by contract owner
-    /// @param _cancelFeeBps Fee paid to cancel an order, in basis points of minAmountOut
+    /// @param _cancelFeeBps Fee paid to cancel an order, in basis points of normalized source input
     function setCancelFeeBps(uint16 _cancelFeeBps) external onlyOwner {
         if (_cancelFeeBps > FEE_BPS_DENOMINATOR) revert InvalidFeeBps(_cancelFeeBps);
         cancelFeeBps = _cancelFeeBps;
@@ -236,7 +236,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
 
     /// @notice Set Mayan order refund fee percentage
     /// @dev Only callable by contract owner
-    /// @param _refundFeeBps Fee paid to refund an order, in basis points of minAmountOut
+    /// @param _refundFeeBps Fee paid to refund an order, in basis points of normalized source input
     function setRefundFeeBps(uint16 _refundFeeBps) external onlyOwner {
         if (_refundFeeBps > FEE_BPS_DENOMINATOR) revert InvalidFeeBps(_refundFeeBps);
         refundFeeBps = _refundFeeBps;
@@ -283,7 +283,8 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     }
 
     /// @notice Validate that cancel and refund fees do not exceed maximum allowed based on basis points
-    /// @dev Uses configured cancelFeeBps and refundFeeBps to calculate max fees from normalizedMinAmountOut
+    /// @dev Uses configured cancelFeeBps and refundFeeBps to calculate max source-chain fees
+    /// from the normalized input amount.
     /// @param cancelFee Actual cancellation fee to validate
     /// @param refundFee Actual refund fee to validate
     function checkFeeSlippages(
