@@ -141,15 +141,15 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
         uint256 amountIn = request.sources[chainIndex].value;
 
         (
-            uint16 cancelFee,
-            uint16 refundFee,
+            uint64 cancelFee,
+            uint64 refundFee,
             uint64 gasDrop,
             bytes32 random,
             address swapProtocol,
             bytes memory swapData,
             address middleToken,
             uint256 minMiddleAmount
-        ) = abi.decode(data, (uint16, uint16, uint64, bytes32, address, bytes, address, uint256));
+        ) = abi.decode(data, (uint64, uint64, uint64, bytes32, address, bytes, address, uint256));
 
         uint16 wormholeChainId = wormholeChainID[request.destinationUniverse][request.destinationChainID];
         if (wormholeChainId == 0) revert UnsupportedDestinationChain();
@@ -201,13 +201,8 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
             IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
             IERC20(tokenIn).forceApprove(MAYAN_FORWARDER, amountIn);
 
-            IMayanForwarder.PermitParams memory emptyPermit = IMayanForwarder.PermitParams({
-                value: 0,
-                deadline: 0,
-                v: 0,
-                r: bytes32(0),
-                s: bytes32(0)
-            });
+            IMayanForwarder.PermitParams memory emptyPermit =
+                IMayanForwarder.PermitParams({value: 0, deadline: 0, v: 0, r: bytes32(0), s: bytes32(0)});
             IMayanForwarder(MAYAN_FORWARDER)
                 .forwardERC20(tokenIn, amountIn, emptyPermit, SWIFT_V2_PROTOCOL, protocolData);
         }
