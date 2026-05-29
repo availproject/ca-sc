@@ -35,7 +35,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     uint16 public refundFeeBps;
     uint8 public referrerBps;
     uint8 public auctionMode;
-    mapping(Universe => mapping(uint256 => uint16)) public destinationChainID;
+    mapping(Universe => mapping(uint256 => uint16)) public wormholeChainID;
     mapping(uint16 => mapping(address => uint8)) public tokenOutDecimals;
 
     uint256[50] private __gap;
@@ -97,13 +97,13 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
         _grantRole(DEFAULT_ADMIN_ROLE, owner_);
         _grantRole(UPGRADER_ROLE, owner_);
 
-        destinationChainID[Universe.ETHEREUM][1] = 2;
-        destinationChainID[Universe.ETHEREUM][8453] = 30;
-        destinationChainID[Universe.ETHEREUM][42_161] = 23;
-        destinationChainID[Universe.ETHEREUM][10] = 24;
-        destinationChainID[Universe.ETHEREUM][43_114] = 6;
-        destinationChainID[Universe.ETHEREUM][137] = 5;
-        destinationChainID[Universe.ETHEREUM][56] = 4;
+        wormholeChainID[Universe.ETHEREUM][1] = 2;
+        wormholeChainID[Universe.ETHEREUM][8453] = 30;
+        wormholeChainID[Universe.ETHEREUM][42_161] = 23;
+        wormholeChainID[Universe.ETHEREUM][10] = 24;
+        wormholeChainID[Universe.ETHEREUM][43_114] = 6;
+        wormholeChainID[Universe.ETHEREUM][137] = 5;
+        wormholeChainID[Universe.ETHEREUM][56] = 4;
 
         referrerAddr = bytes32(0);
         cancelFeeBps = 150;
@@ -151,7 +151,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
             uint256 minMiddleAmount
         ) = abi.decode(data, (uint16, uint16, uint64, bytes32, address, bytes, address, uint256));
 
-        uint16 wormholeChainId = destinationChainID[request.destinationUniverse][request.destinationChainID];
+        uint16 wormholeChainId = wormholeChainID[request.destinationUniverse][request.destinationChainID];
         if (wormholeChainId == 0) revert UnsupportedDestinationChain();
 
         address tokenOut = address(uint160(uint256(request.destinations[chainIndex].contractAddress)));
@@ -159,7 +159,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
         checkFeeSlippages(
             request.sources[chainIndex].value,
             address(uint160(uint256(request.sources[chainIndex].contractAddress))),
-            destinationChainID[request.sources[chainIndex].universe][request.sources[chainIndex].chainID],
+            wormholeChainID[request.sources[chainIndex].universe][request.sources[chainIndex].chainID],
             cancelFee,
             refundFee
         );
@@ -219,7 +219,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     /// @param chainId Chain ID within the namespace (e.g., 1 for Ethereum, 8453 for Base)
     /// @param wormholeChainId Corresponding Wormhole chain ID
     function setWormholeChainMapping(Universe universe, uint256 chainId, uint16 wormholeChainId) external onlyOwner {
-        destinationChainID[universe][chainId] = wormholeChainId;
+        wormholeChainID[universe][chainId] = wormholeChainId;
         emit WormholeChainMappingSet(universe, chainId, wormholeChainId);
     }
 
