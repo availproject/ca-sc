@@ -4,7 +4,7 @@ pragma solidity ^0.8.29;
 // Imports
 import {BaseVaultTest} from "./BaseVaultTest.t.sol";
 import {SignatureHelper} from "./helpers/SignatureHelper.sol";
-import {Vault} from "../contracts/Vault.sol";
+import {DestinationPair, Party, Request, SourcePair, Universe} from "../src/types.sol";
 
 // SignatureHelperTest - Tests for SignatureHelper functionality
 // @title SignatureHelperTest
@@ -25,25 +25,24 @@ contract SignatureHelperTest is BaseVaultTest {
 
     /// @notice Test that different requests produce different hashes
     function test_HashRequest_DifferentRequests() public view {
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = Vault.SourcePair({
-            universe: Vault.Universe.ETHEREUM,
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
             chainID: 1,
             contractAddress: bytes32(uint256(uint160(address(1)))),
             value: 100 ether,
             fee: 0
         });
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
-        destinations[0] =
-            Vault.DestinationPair({contractAddress: bytes32(uint256(uint160(address(2)))), value: 100 ether});
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(uint256(uint160(address(2)))), value: 100 ether});
 
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = Vault.Party({universe: Vault.Universe.ETHEREUM, address_: bytes32(uint256(uint160(address(3))))});
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(address(3))))});
 
-        Vault.Request memory request1 = Vault.Request({
+        Request memory request1 = Request({
             sources: sources,
-            destinationUniverse: Vault.Universe.ETHEREUM,
+            destinationUniverse: Universe.ETHEREUM,
             destinationChainID: 1,
             recipientAddress: bytes32(uint256(uint160(address(4)))),
             destinations: destinations,
@@ -53,9 +52,9 @@ contract SignatureHelperTest is BaseVaultTest {
         });
 
         // Change nonce
-        Vault.Request memory request2 = Vault.Request({
+        Request memory request2 = Request({
             sources: sources,
-            destinationUniverse: Vault.Universe.ETHEREUM,
+            destinationUniverse: Universe.ETHEREUM,
             destinationChainID: 1,
             recipientAddress: bytes32(uint256(uint160(address(4)))),
             destinations: destinations,

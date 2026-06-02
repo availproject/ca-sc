@@ -3,7 +3,8 @@ pragma solidity ^0.8.29;
 
 // Imports
 import {BaseVaultTest} from "../../BaseVaultTest.t.sol";
-import {Vault} from "../../../contracts/Vault.sol";
+import {Vault} from "../../../src/Vault.sol";
+import {SettleData, Universe} from "../../../src/types.sol";
 
 // AccessControlTest - Access control tests for Vault.sol
 // @title AccessControlTest
@@ -86,7 +87,7 @@ contract AccessControlTest is BaseVaultTest {
         uint256 settleAmount = 0.5 ether;
         uint256 nonce = 36;
 
-        Vault.SettleData memory settleData = _createSimpleSettleData(solver, address(0), settleAmount, nonce);
+        SettleData memory settleData = _createSimpleSettleData(solver, address(0), settleAmount, nonce);
 
         // Sign with non-verifier key
         uint256 nonVerifierKey = 0x9999999999999999999999999999999999999999999999999999999999999999;
@@ -142,7 +143,7 @@ contract AccessControlTest is BaseVaultTest {
         uint256 settleAmount = 0.5 ether;
         uint256 nonce = 23;
 
-        Vault.SettleData memory settleData = _createSimpleSettleData(solver, address(0), settleAmount, nonce);
+        SettleData memory settleData = _createSimpleSettleData(solver, address(0), settleAmount, nonce);
 
         // Sign with wrong key (not verifier)
         uint256 wrongKey = 0x9999999999999999999999999999999999999999999999999999999999999999;
@@ -184,8 +185,9 @@ contract AccessControlTest is BaseVaultTest {
         amounts[0] = 0.5 ether;
         amounts[1] = 0.5 ether;
 
-        Vault.SettleData memory settleData =
-            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
+        SettleData memory settleData = _createSettleData(
+            Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
+        );
 
         bytes32 structHash = keccak256(
             abi.encode(
@@ -223,8 +225,9 @@ contract AccessControlTest is BaseVaultTest {
         uint256[] memory amounts = new uint256[](1); // Mismatched length
         amounts[0] = 0.5 ether;
 
-        Vault.SettleData memory settleData =
-            _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
+        SettleData memory settleData = _createSettleData(
+            Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
+        );
 
         bytes32 structHash = keccak256(
             abi.encode(
@@ -253,7 +256,7 @@ contract AccessControlTest is BaseVaultTest {
         uint256 settleAmount = 0.5 ether;
         uint256 nonce = 26;
 
-        Vault.SettleData memory settleData = _createSimpleSettleData(solver, address(0), settleAmount, nonce);
+        SettleData memory settleData = _createSimpleSettleData(solver, address(0), settleAmount, nonce);
 
         bytes32 structHash = keccak256(
             abi.encode(
@@ -295,8 +298,8 @@ contract AccessControlTest is BaseVaultTest {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = settleAmount;
 
-        Vault.SettleData memory settleData = _createSettleData(
-            Vault.Universe.ETHEREUM,
+        SettleData memory settleData = _createSettleData(
+            Universe.ETHEREUM,
             999999, // Wrong chainID
             address(vault),
             solvers,
@@ -330,8 +333,8 @@ contract AccessControlTest is BaseVaultTest {
         uint256 settleAmount = 0.5 ether;
         uint256 nonce = 28;
 
-        Vault.SettleData memory settleData = _createSettleData(
-            Vault.Universe.SOLANA, // Wrong universe
+        SettleData memory settleData = _createSettleData(
+            Universe.SOLANA, // Wrong universe
             block.chainid,
             address(vault),
             _toAddressArray(solver),
@@ -370,7 +373,7 @@ contract AccessControlTest is BaseVaultTest {
         // Create a contract that rejects ETH
         ETHRejecter rejecter = new ETHRejecter();
 
-        Vault.SettleData memory settleData = _createSimpleSettleData(address(rejecter), address(0), settleAmount, nonce);
+        SettleData memory settleData = _createSimpleSettleData(address(rejecter), address(0), settleAmount, nonce);
 
         bytes32 structHash = keccak256(
             abi.encode(

@@ -3,7 +3,8 @@ pragma solidity ^0.8.29;
 
 // Imports
 import {Test} from "forge-std/Test.sol";
-import {Vault} from "../contracts/Vault.sol";
+import {Vault} from "../src/Vault.sol";
+import {DestinationPair, Party, Request, RFFState, SettleData, SourcePair, Universe} from "../src/types.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
@@ -105,16 +106,13 @@ abstract contract BaseVaultTest is Test {
     /// @param value The amount of tokens/ETH
     /// @param fee The fee amount
     /// @return SourcePair The constructed SourcePair struct
-    function _createSourcePair(
-        Vault.Universe universe,
-        uint256 chainId,
-        bytes32 contractAddress,
-        uint256 value,
-        uint256 fee
-    ) internal pure returns (Vault.SourcePair memory) {
-        return Vault.SourcePair({
-            universe: universe, chainID: chainId, contractAddress: contractAddress, value: value, fee: fee
-        });
+    function _createSourcePair(Universe universe, uint256 chainId, bytes32 contractAddress, uint256 value, uint256 fee)
+        internal
+        pure
+        returns (SourcePair memory)
+    {
+        return
+            SourcePair({universe: universe, chainID: chainId, contractAddress: contractAddress, value: value, fee: fee});
     }
 
     /// @notice Creates a DestinationPair struct for testing
@@ -124,17 +122,17 @@ abstract contract BaseVaultTest is Test {
     function _createDestinationPair(bytes32 contractAddress, uint256 value)
         internal
         pure
-        returns (Vault.DestinationPair memory)
+        returns (DestinationPair memory)
     {
-        return Vault.DestinationPair({contractAddress: contractAddress, value: value});
+        return DestinationPair({contractAddress: contractAddress, value: value});
     }
 
     /// @notice Creates a Party struct for testing
     /// @param universe The blockchain universe of the party
     /// @param address_ The party address as bytes32
     /// @return Party The constructed Party struct
-    function _createParty(Vault.Universe universe, bytes32 address_) internal pure returns (Vault.Party memory) {
-        return Vault.Party({universe: universe, address_: address_});
+    function _createParty(Universe universe, bytes32 address_) internal pure returns (Party memory) {
+        return Party({universe: universe, address_: address_});
     }
 
     /// @notice Creates a complete Request struct for testing
@@ -148,16 +146,16 @@ abstract contract BaseVaultTest is Test {
     /// @param parties Array of participating parties
     /// @return Request The constructed Request struct
     function _createRequest(
-        Vault.SourcePair[] memory sources,
-        Vault.Universe destinationUniverse,
+        SourcePair[] memory sources,
+        Universe destinationUniverse,
         uint256 destinationChainId,
         bytes32 recipientAddress,
-        Vault.DestinationPair[] memory destinations,
+        DestinationPair[] memory destinations,
         uint256 nonce,
         uint256 expiry,
-        Vault.Party[] memory parties
-    ) internal pure returns (Vault.Request memory) {
-        return Vault.Request({
+        Party[] memory parties
+    ) internal pure returns (Request memory) {
+        return Request({
             sources: sources,
             destinationUniverse: destinationUniverse,
             destinationChainID: destinationChainId,
@@ -188,22 +186,22 @@ abstract contract BaseVaultTest is Test {
         address recipient,
         uint256 nonce,
         uint256 expiry
-    ) internal view returns (Vault.Request memory) {
+    ) internal view returns (Request memory) {
         // Create source pair
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, 0);
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = _createSourcePair(Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, 0);
 
         // Create destination pair
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(destToken, destValue);
 
         // Create parties array with requester
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        Party[] memory parties = new Party[](1);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
 
         return _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             block.chainid,
             bytes32(uint256(uint160(recipient))),
             destinations,
@@ -223,15 +221,15 @@ abstract contract BaseVaultTest is Test {
     /// @param nonce Anti-replay nonce
     /// @return SettleData The constructed SettleData struct
     function _createSettleData(
-        Vault.Universe universe,
+        Universe universe,
         uint256 chainId,
         address vaultAddress,
         address[] memory solvers,
         address[] memory contractAddresses,
         uint256[] memory amounts,
         uint256 nonce
-    ) internal pure returns (Vault.SettleData memory) {
-        return Vault.SettleData({
+    ) internal pure returns (SettleData memory) {
+        return SettleData({
             universe: universe,
             chainID: chainId,
             vaultAddress: vaultAddress,
@@ -251,7 +249,7 @@ abstract contract BaseVaultTest is Test {
     function _createSimpleSettleData(address solver_, address token_, uint256 amount, uint256 nonce)
         internal
         view
-        returns (Vault.SettleData memory)
+        returns (SettleData memory)
     {
         address[] memory solvers = new address[](1);
         solvers[0] = solver_;
@@ -262,7 +260,10 @@ abstract contract BaseVaultTest is Test {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amount;
 
-        return _createSettleData(Vault.Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce);
+        return
+            _createSettleData(
+                Universe.ETHEREUM, block.chainid, address(vault), solvers, contractAddresses, amounts, nonce
+            );
     }
 
     // Helper Functions - Address Conversion
@@ -322,8 +323,8 @@ abstract contract BaseVaultTest is Test {
     /// @notice Creates a single-element SourcePair array
     /// @param pair The SourcePair to wrap in an array
     /// @return SourcePair[] Array containing the single pair
-    function _toSourcePairArray(Vault.SourcePair memory pair) internal pure returns (Vault.SourcePair[] memory) {
-        Vault.SourcePair[] memory arr = new Vault.SourcePair[](1);
+    function _toSourcePairArray(SourcePair memory pair) internal pure returns (SourcePair[] memory) {
+        SourcePair[] memory arr = new SourcePair[](1);
         arr[0] = pair;
         return arr;
     }
@@ -331,12 +332,8 @@ abstract contract BaseVaultTest is Test {
     /// @notice Creates a single-element DestinationPair array
     /// @param pair The DestinationPair to wrap in an array
     /// @return DestinationPair[] Array containing the single pair
-    function _toDestinationPairArray(Vault.DestinationPair memory pair)
-        internal
-        pure
-        returns (Vault.DestinationPair[] memory)
-    {
-        Vault.DestinationPair[] memory arr = new Vault.DestinationPair[](1);
+    function _toDestinationPairArray(DestinationPair memory pair) internal pure returns (DestinationPair[] memory) {
+        DestinationPair[] memory arr = new DestinationPair[](1);
         arr[0] = pair;
         return arr;
     }
@@ -344,8 +341,8 @@ abstract contract BaseVaultTest is Test {
     /// @notice Creates a single-element Party array
     /// @param party The Party to wrap in an array
     /// @return Party[] Array containing the single party
-    function _toPartyArray(Vault.Party memory party) internal pure returns (Vault.Party[] memory) {
-        Vault.Party[] memory arr = new Vault.Party[](1);
+    function _toPartyArray(Party memory party) internal pure returns (Party[] memory) {
+        Party[] memory arr = new Party[](1);
         arr[0] = party;
         return arr;
     }

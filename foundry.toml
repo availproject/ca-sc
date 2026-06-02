@@ -1,9 +1,10 @@
 [profile.default]
-src = "contracts"
+src = "src"
 out = "out"
 libs = ["node_modules", "lib"]
 remappings = [
-    "@openzeppelin/=node_modules/@openzeppelin/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "forge-std/=lib/forge-std/src/",
     "createx-forge/=lib/createx-forge/",
 ]
@@ -12,6 +13,10 @@ remappings = [
 via_ir = true
 optimizer = true
 optimizer_runs = 200
+ffi = true
+ast = true
+build_info = true
+extra_output = ["storageLayout"]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
@@ -23,8 +28,6 @@ arbitrum = "${ARBITRUM_ONE_RPC_URL}"
 optimism = "${OPTIMISM_MAINNET_RPC_URL}"
 base = "${BASE_MAINNET_RPC_URL}"
 scroll = "${SCROLL_MAINNET_RPC_URL}"
-linea = "${LINEA_MAINNET_RPC_URL}"
-sophon = "${SOPHON_MAINNET_RPC_URL}"
 avalanche = "${AVALANCHE_C_CHAIN_RPC_URL}"
 hyperliquid = "${HYPERLIQUID_RPC_URL}"
 kaia = "${KAIA_MAINNET_RPC_URL}"

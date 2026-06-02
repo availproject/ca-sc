@@ -4,7 +4,8 @@ pragma solidity ^0.8.29;
 // Imports
 import {BaseVaultTest} from "./BaseVaultTest.t.sol";
 import {SignatureHelper} from "./helpers/SignatureHelper.sol";
-import {Vault} from "../contracts/Vault.sol";
+import {Vault} from "../src/Vault.sol";
+import {DestinationPair, Party, Request, RFFState, SettleData, SourcePair, Universe} from "../src/types.sol";
 
 // VaultIntegrationTest - End-to-End Integration Tests for Vault.sol
 // @title VaultIntegrationTest
@@ -66,21 +67,21 @@ contract VaultIntegrationTest is BaseVaultTest {
         address recipient,
         uint256 nonce,
         uint256 expiry
-    ) internal view returns (Vault.Request memory) {
+    ) internal view returns (Request memory) {
         address requester = _getAddress(userPrivateKey);
 
-        Vault.SourcePair[] memory sources = new Vault.SourcePair[](1);
-        sources[0] = _createSourcePair(Vault.Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, 0);
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = _createSourcePair(Universe.ETHEREUM, block.chainid, sourceToken, sourceValue, 0);
 
-        Vault.DestinationPair[] memory destinations = new Vault.DestinationPair[](1);
+        DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] = _createDestinationPair(destToken, destValue);
 
-        Vault.Party[] memory parties = new Vault.Party[](1);
-        parties[0] = _createParty(Vault.Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
+        Party[] memory parties = new Party[](1);
+        parties[0] = _createParty(Universe.ETHEREUM, bytes32(uint256(uint160(requester))));
 
         return _createRequest(
             sources,
-            Vault.Universe.ETHEREUM,
+            Universe.ETHEREUM,
             block.chainid,
             bytes32(uint256(uint160(recipient))),
             destinations,
@@ -91,7 +92,7 @@ contract VaultIntegrationTest is BaseVaultTest {
     }
 
     /// @notice Signs settle data with verifier key
-    function _signSettleData(Vault.SettleData memory settleData) internal pure returns (bytes memory) {
+    function _signSettleData(SettleData memory settleData) internal pure returns (bytes memory) {
         bytes32 structHash = keccak256(
             abi.encode(
                 settleData.universe,
@@ -128,7 +129,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         // Step 1: Deposit - User signs, relayer deposits
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(0), // ETH
             depositAmount,
             bytes32(0), // ETH destination
@@ -153,9 +154,7 @@ contract VaultIntegrationTest is BaseVaultTest {
         assertTrue(vault.depositNonce(nonce), "Deposit nonce should be marked");
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
-            uint256(vault.requestState(signedMessageHash)),
-            uint256(Vault.RFFState.DEPOSITED),
-            "Request should be DEPOSITED"
+            uint256(vault.requestState(signedMessageHash)), uint256(RFFState.DEPOSITED), "Request should be DEPOSITED"
         );
 
         // Vault should hold the deposited ETH
@@ -173,9 +172,7 @@ contract VaultIntegrationTest is BaseVaultTest {
         // Verify fulfilment state
         assertTrue(vault.fillNonce(nonce), "Fill nonce should be marked");
         assertEq(
-            uint256(vault.requestState(signedMessageHash)),
-            uint256(Vault.RFFState.FULFILLED),
-            "Request should be FULFILLED"
+            uint256(vault.requestState(signedMessageHash)), uint256(RFFState.FULFILLED), "Request should be FULFILLED"
         );
         assertEq(vault.winningSolver(signedMessageHash), solver, "Winning solver should be recorded");
 
@@ -186,7 +183,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         uint256 settleNonce = 100;
 
-        Vault.SettleData memory settleData = _createSimpleSettleData(
+        SettleData memory settleData = _createSimpleSettleData(
             solver,
             address(0), // ETH
             settleAmount,
@@ -220,7 +217,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         // Step 1: Deposit ERC20
 
-        Vault.Request memory request = _createRequestForUser(
+        Request memory request = _createRequestForUser(
             bytes32(uint256(uint160(address(token)))),
             depositAmount,
             bytes32(uint256(uint160(address(token)))),
@@ -265,7 +262,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         uint256 settleNonce = 101;
 
-        Vault.SettleData memory settleData = _createSimpleSettleData(solver, address(token), settleAmount, settleNonce);
+        SettleData memory settleData = _createSimpleSettleData(solver, address(token), settleAmount, settleNonce);
 
         bytes memory settleSignature = _signSettleData(settleData);
 
@@ -297,7 +294,7 @@ contract VaultIntegrationTest is BaseVaultTest {
         uint256 deposit1 = 1 ether;
         uint256 fulfil1 = 0.9 ether;
 
-        Vault.Request memory request1 =
+        Request memory request1 =
             _createRequestForUser(bytes32(0), deposit1, bytes32(0), fulfil1, USER1_PRIVATE_KEY, recipient1, 10, expiry);
 
         bytes memory sig1 = sigHelper.signRequest(request1, USER1_PRIVATE_KEY);
@@ -310,7 +307,7 @@ contract VaultIntegrationTest is BaseVaultTest {
         uint256 deposit2 = 500 * 10 ** 18;
         uint256 fulfil2 = 480 * 10 ** 18;
 
-        Vault.Request memory request2 = _createRequestForUser(
+        Request memory request2 = _createRequestForUser(
             bytes32(uint256(uint160(address(token)))),
             deposit2,
             bytes32(uint256(uint160(address(token)))),
@@ -334,7 +331,7 @@ contract VaultIntegrationTest is BaseVaultTest {
         uint256 deposit3 = 300 * 10 ** 18;
         uint256 fulfil3 = 290 * 10 ** 18;
 
-        Vault.Request memory request3 = _createRequestForUser(
+        Request memory request3 = _createRequestForUser(
             bytes32(uint256(uint160(address(token2)))),
             deposit3,
             bytes32(uint256(uint160(address(token2)))),
@@ -403,7 +400,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         // First deposit
         uint256 deposit1 = 1 ether;
-        Vault.Request memory request1 = _createRequestForUser(
+        Request memory request1 = _createRequestForUser(
             bytes32(0), deposit1, bytes32(0), 0.9 ether, USER1_PRIVATE_KEY, recipient, 100, expiry
         );
         bytes memory sig1 = sigHelper.signRequest(request1, USER1_PRIVATE_KEY);
@@ -413,7 +410,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         // Second deposit (different nonce)
         uint256 deposit2 = 2 ether;
-        Vault.Request memory request2 = _createRequestForUser(
+        Request memory request2 = _createRequestForUser(
             bytes32(0), deposit2, bytes32(0), 1.8 ether, USER1_PRIVATE_KEY, recipient, 101, expiry
         );
         bytes memory sig2 = sigHelper.signRequest(request2, USER1_PRIVATE_KEY);
@@ -423,7 +420,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         // Third deposit (different nonce)
         uint256 deposit3 = 0.5 ether;
-        Vault.Request memory request3 = _createRequestForUser(
+        Request memory request3 = _createRequestForUser(
             bytes32(0), deposit3, bytes32(0), 0.45 ether, USER1_PRIVATE_KEY, recipient, 102, expiry
         );
         bytes memory sig3 = sigHelper.signRequest(request3, USER1_PRIVATE_KEY);
@@ -448,7 +445,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         // Make some deposits
         uint256 deposit1 = 1 ether;
-        Vault.Request memory request1 = _createRequestForUser(
+        Request memory request1 = _createRequestForUser(
             bytes32(0), deposit1, bytes32(0), 0.9 ether, USER1_PRIVATE_KEY, solver, 200, _futureTimestamp(1 hours)
         );
         bytes memory sig1 = sigHelper.signRequest(request1, USER1_PRIVATE_KEY);
@@ -458,7 +455,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         // Make another deposit with ERC20
         uint256 deposit2 = 500 * 10 ** 18;
-        Vault.Request memory request2 = _createRequestForUser(
+        Request memory request2 = _createRequestForUser(
             bytes32(uint256(uint160(address(token)))),
             deposit2,
             bytes32(uint256(uint160(address(token)))),
@@ -490,8 +487,8 @@ contract VaultIntegrationTest is BaseVaultTest {
         uint256 vaultEthBefore = address(vault).balance;
         uint256 vaultTokenBefore = token.balanceOf(address(vault));
         address winningSolverBefore = vault.winningSolver(signedMessageHash1);
-        Vault.RFFState state1Before = vault.requestState(signedMessageHash1);
-        Vault.RFFState state2Before = vault.requestState(signedMessageHash2);
+        RFFState state1Before = vault.requestState(signedMessageHash1);
+        RFFState state2Before = vault.requestState(signedMessageHash2);
 
         // Upgrade to new implementation
 
@@ -540,7 +537,7 @@ contract VaultIntegrationTest is BaseVaultTest {
         // Make initial deposit
 
         uint256 deposit1 = 1 ether;
-        Vault.Request memory request1 = _createRequestForUser(
+        Request memory request1 = _createRequestForUser(
             bytes32(0), deposit1, bytes32(0), 0.9 ether, USER1_PRIVATE_KEY, solver, 300, _futureTimestamp(1 hours)
         );
         bytes memory sig1 = sigHelper.signRequest(request1, USER1_PRIVATE_KEY);
@@ -564,7 +561,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         // Make new deposit after upgrade
         uint256 deposit2 = 2 ether;
-        Vault.Request memory request2 = _createRequestForUser(
+        Request memory request2 = _createRequestForUser(
             bytes32(0), deposit2, bytes32(0), 1.8 ether, USER2_PRIVATE_KEY, solver, 301, _futureTimestamp(1 hours)
         );
         bytes memory sig2 = sigHelper.signRequest(request2, USER2_PRIVATE_KEY);
@@ -576,7 +573,7 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         // Settle after upgrade
         uint256 settleNonce = 500;
-        Vault.SettleData memory settleData = _createSimpleSettleData(solver, address(0), 0.5 ether, settleNonce);
+        SettleData memory settleData = _createSimpleSettleData(solver, address(0), 0.5 ether, settleNonce);
         bytes memory settleSig = _signSettleData(settleData);
 
         vm.prank(user);
@@ -596,7 +593,7 @@ contract VaultIntegrationTest is BaseVaultTest {
         uint256 expiry = _futureTimestamp(1 hours);
 
         // User 1: Deposit and fulfil
-        Vault.Request memory req1 =
+        Request memory req1 =
             _createRequestForUser(bytes32(0), 1 ether, bytes32(0), 0.9 ether, USER1_PRIVATE_KEY, user1, 400, expiry);
         bytes memory sig1 = sigHelper.signRequest(req1, USER1_PRIVATE_KEY);
         vm.prank(solver);
@@ -605,7 +602,7 @@ contract VaultIntegrationTest is BaseVaultTest {
         vault.fulfil{value: 0.9 ether}(req1, sig1);
 
         // User 2: Deposit only (not fulfilled)
-        Vault.Request memory req2 = _createRequestForUser(
+        Request memory req2 = _createRequestForUser(
             bytes32(uint256(uint160(address(token)))),
             1000 * 10 ** 18,
             bytes32(uint256(uint160(address(token)))),
@@ -622,14 +619,14 @@ contract VaultIntegrationTest is BaseVaultTest {
         vault.deposit(req2, sig2, 0);
 
         // User 3: Deposit only
-        Vault.Request memory req3 =
+        Request memory req3 =
             _createRequestForUser(bytes32(0), 2 ether, bytes32(0), 1.8 ether, USER3_PRIVATE_KEY, user3, 402, expiry);
         bytes memory sig3 = sigHelper.signRequest(req3, USER3_PRIVATE_KEY);
         vm.prank(solver);
         vault.deposit{value: 2 ether}(req3, sig3, 0);
 
         // Do a settlement
-        Vault.SettleData memory settleData = _createSimpleSettleData(solver, address(0), 0.3 ether, 600);
+        SettleData memory settleData = _createSimpleSettleData(solver, address(0), 0.3 ether, 600);
         bytes memory settleSig = _signSettleData(settleData);
         vm.prank(user);
         vault.settle(settleData, settleSig);
@@ -639,9 +636,9 @@ contract VaultIntegrationTest is BaseVaultTest {
         bytes32 hash2 = sigHelper.getEip191Hash(sigHelper.hashRequest(req2));
         bytes32 hash3 = sigHelper.getEip191Hash(sigHelper.hashRequest(req3));
 
-        Vault.RFFState state1Before = vault.requestState(hash1);
-        Vault.RFFState state2Before = vault.requestState(hash2);
-        Vault.RFFState state3Before = vault.requestState(hash3);
+        RFFState state1Before = vault.requestState(hash1);
+        RFFState state2Before = vault.requestState(hash2);
+        RFFState state3Before = vault.requestState(hash3);
 
         uint256 ethBefore = address(vault).balance;
         uint256 tokenBefore = token.balanceOf(address(vault));

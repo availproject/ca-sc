@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {MockFeeOnTransfer} from "test/mocks/MockFeeOnTransfer.sol";
 
 contract MockFeeOnTransferTest is Test {
@@ -110,6 +110,6 @@ contract MockFeeOnTransferTest is Test {
         token.setFeePercent(9901);
     }
 
-    /// @note Skipping transfer to address(0) test - standard ERC20 doesn't allow this
+    /// @custom:note Skipping transfer to address(0) test - standard ERC20 doesn't allow this
     /// @notice The contract correctly handles this edge case but OpenZeppelin ERC20 reverts on address(0)
 }
