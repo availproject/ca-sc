@@ -40,7 +40,7 @@ pragma solidity ^0.8.29;
 //         usdc = new MockERC20("USD Coin", "USDC", 6);
 //
 //         vaultImpl = new Vault();
-//         bytes memory initData = abi.encodeCall(Vault.initialize, (owner));
+//         bytes memory initData = abi.encodeCall(Vault.initialize, (owner, verifier));
 //         ERC1967Proxy proxy = new ERC1967Proxy(address(vaultImpl), initData);
 //         vault = Vault(payable(address(proxy)));
 //

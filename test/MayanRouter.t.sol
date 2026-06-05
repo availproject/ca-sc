@@ -19,6 +19,7 @@ contract MayanRouterTest is Test {
     MockERC20 public token;
 
     address public admin;
+    address public verifier;
     address public user;
     uint256 public userPrivateKey;
     address public recipient;
@@ -42,19 +43,34 @@ contract MayanRouterTest is Test {
         vm.warp(1777326693);
 
         admin = makeAddr("admin");
+        verifier = makeAddr("verifier");
         userPrivateKey = 0xA11CE;
         user = vm.addr(userPrivateKey);
         recipient = makeAddr("recipient");
 
         // Deploy MayanRouter implementation and proxy
         MayanRouter mayanRouterImpl = new MayanRouter();
-        bytes memory mayanRouterInitData = abi.encodeWithSelector(MayanRouter.initialize.selector, admin);
+        (Universe[] memory universes, uint256[] memory chainIds, uint16[] memory wormholeChainIds) =
+            _defaultWormholeConfig();
+        uint16[] memory tokenWormholeChainIds = new uint16[](0);
+        address[] memory tokens = new address[](0);
+        uint8[] memory decimals = new uint8[](0);
+        bytes memory mayanRouterInitData = abi.encodeWithSelector(
+            MayanRouter.initialize.selector,
+            admin,
+            universes,
+            chainIds,
+            wormholeChainIds,
+            tokenWormholeChainIds,
+            tokens,
+            decimals
+        );
         ERC1967Proxy mayanRouterProxy = new ERC1967Proxy(address(mayanRouterImpl), mayanRouterInitData);
         mayanRouter = MayanRouter(payable(address(mayanRouterProxy)));
 
         // Deploy Vault implementation and proxy
         Vault vaultImpl = new Vault();
-        bytes memory vaultInitData = abi.encodeWithSelector(Vault.initialize.selector, admin);
+        bytes memory vaultInitData = abi.encodeWithSelector(Vault.initialize.selector, admin, verifier);
         ERC1967Proxy vaultProxy = new ERC1967Proxy(address(vaultImpl), vaultInitData);
         vault = Vault(payable(address(vaultProxy)));
 
@@ -98,6 +114,37 @@ contract MayanRouterTest is Test {
         bytes32 signedMessageHash = MessageHashUtils.toEthSignedMessageHash(msgBytes);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, signedMessageHash);
         return abi.encodePacked(r, s, v);
+    }
+
+    function _defaultWormholeConfig()
+        internal
+        pure
+        returns (Universe[] memory universes, uint256[] memory chainIds, uint16[] memory wormholeChainIds)
+    {
+        universes = new Universe[](7);
+        chainIds = new uint256[](7);
+        wormholeChainIds = new uint16[](7);
+
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 0, 1, 2);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 1, 8453, 30);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 2, 42_161, 23);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 3, 10, 24);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 4, 43_114, 6);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 5, 137, 5);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 6, 56, 4);
+    }
+
+    function _setWormholeConfigAt(
+        Universe[] memory universes,
+        uint256[] memory chainIds,
+        uint16[] memory wormholeChainIds,
+        uint256 index,
+        uint256 chainId,
+        uint16 wormholeChainId
+    ) internal pure {
+        universes[index] = Universe.ETHEREUM;
+        chainIds[index] = chainId;
+        wormholeChainIds[index] = wormholeChainId;
     }
 
     function _grantVaultRole(address account) internal {

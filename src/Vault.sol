@@ -36,7 +36,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     bytes32 private constant SETTLEMENT_VERIFIER_ROLE = keccak256("SETTLEMENT_VERIFIER_ROLE");
     string private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
     // Storage gap to reserve slots for future use
-    uint256[49] private __gap;
+    uint256[49] private _gap;
 
     event Deposit(bytes32 indexed requestHash, address from);
     event Fulfilment(bytes32 indexed requestHash, address from, address solver);
@@ -51,11 +51,15 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
     /// @notice Initializes the Vault contract with admin roles
     /// @param admin Address to grant DEFAULT_ADMIN_ROLE and UPGRADER_ROLE
-    function initialize(address admin) public initializer {
+    /// @param mpc Address to grant SETTLEMENT_VERIFIER_ROLE
+    function initialize(address admin, address mpc) public initializer {
+        require(mpc != address(0), "Vault: Zero address");
+
         __AccessControl_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(UPGRADER_ROLE, admin);
+        _grantRole(SETTLEMENT_VERIFIER_ROLE, mpc);
     }
 
     /// @notice Set the router contract address

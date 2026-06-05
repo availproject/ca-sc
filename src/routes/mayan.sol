@@ -77,6 +77,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     error InvalidNativeAmount(uint256 expected, uint256 actual);
     error InvalidRFF();
     error InvalidSwiftVersion(uint8 version);
+    error InvalidConfigLength();
     error MinAmountOutTooLarge(uint256 minAmountOut);
     error PartyNotFound();
     /// @notice Reverts when a token's decimals are not configured for the destination chain
@@ -88,22 +89,44 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
         _disableInitializers();
     }
 
-    /// @notice Initialize router with default EVM chain mappings
+    /// @notice Initialize router with deployment-provided Wormhole mappings and token decimals
     /// @param owner_ Address to grant owner, admin, and upgrader permissions
-    function initialize(address owner_) public initializer {
+    /// @param universes Destination universes for Wormhole chain mappings
+    /// @param chainIds Chain IDs within each universe
+    /// @param wormholeChainIds Wormhole chain IDs matching universes and chainIds
+    /// @param tokenWormholeChainIds Wormhole chain IDs for destination token decimals
+    /// @param tokens Destination tokens matching tokenWormholeChainIds
+    /// @param decimals Destination token decimals matching tokens
+    function initialize(
+        address owner_,
+        Universe[] memory universes,
+        uint256[] memory chainIds,
+        uint16[] memory wormholeChainIds,
+        uint16[] memory tokenWormholeChainIds,
+        address[] memory tokens,
+        uint8[] memory decimals
+    ) public initializer {
         __Ownable_init(owner_);
         __AccessControl_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner_);
         _grantRole(UPGRADER_ROLE, owner_);
 
-        wormholeChainID[Universe.ETHEREUM][1] = 2;
-        wormholeChainID[Universe.ETHEREUM][8453] = 30;
-        wormholeChainID[Universe.ETHEREUM][42_161] = 23;
-        wormholeChainID[Universe.ETHEREUM][10] = 24;
-        wormholeChainID[Universe.ETHEREUM][43_114] = 6;
-        wormholeChainID[Universe.ETHEREUM][137] = 5;
-        wormholeChainID[Universe.ETHEREUM][56] = 4;
+        if (universes.length != chainIds.length || chainIds.length != wormholeChainIds.length) {
+            revert InvalidConfigLength();
+        }
+
+        if (tokenWormholeChainIds.length != tokens.length || tokens.length != decimals.length) {
+            revert InvalidConfigLength();
+        }
+
+        for (uint256 i = 0; i < universes.length; ++i) {
+            wormholeChainID[universes[i]][chainIds[i]] = wormholeChainIds[i];
+        }
+
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            tokenOutDecimals[tokenWormholeChainIds[i]][tokens[i]] = decimals[i];
+        }
 
         referrerAddr = bytes32(0);
         cancelFeeBps = 150;
