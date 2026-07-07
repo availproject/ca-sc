@@ -40,7 +40,7 @@ contract DeployAll is Script {
         vm.startBroadcast();
 
         // Base version used to derive all CREATE2 salts deterministically
-        string memory baseVersion = "1.1.0";
+        string memory baseVersion = "1.1.0canary";
 
         console.log("\n========== Deploying Vault (createX) ==========");
         bytes32 vaultSalt = keccak256(abi.encodePacked("nexus-mayan-vault-", baseVersion));

@@ -218,16 +218,36 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
                 amountIn, swapProtocol, swapData, middleToken, minMiddleAmount, SWIFT_V2_PROTOCOL, protocolData
             );
         } else {
-            bytes memory protocolData = abi.encodeWithSelector(
-                IMayanSwiftV2.createOrderWithToken.selector, tokenIn, amountIn, orderParams, bytes("")
-            );
             IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
             IERC20(tokenIn).forceApprove(MAYAN_FORWARDER, amountIn);
 
             IMayanForwarder.PermitParams memory emptyPermit =
                 IMayanForwarder.PermitParams({value: 0, deadline: 0, v: 0, r: bytes32(0), s: bytes32(0)});
-            IMayanForwarder(MAYAN_FORWARDER)
-                .forwardERC20(tokenIn, amountIn, emptyPermit, SWIFT_V2_PROTOCOL, protocolData);
+
+            if (swapProtocol == address(0)) {
+                // Direct bridge: no swap, order is created against the input token.
+                bytes memory protocolData = abi.encodeWithSelector(
+                    IMayanSwiftV2.createOrderWithToken.selector, tokenIn, amountIn, orderParams, bytes("")
+                );
+                IMayanForwarder(MAYAN_FORWARDER)
+                    .forwardERC20(tokenIn, amountIn, emptyPermit, SWIFT_V2_PROTOCOL, protocolData);
+            } else {
+                // Swap then bridge: order is created against the swapped middle token.
+                bytes memory protocolData = abi.encodeWithSelector(
+                    IMayanSwiftV2.createOrderWithToken.selector, middleToken, minMiddleAmount, orderParams, bytes("")
+                );
+                IMayanForwarder(MAYAN_FORWARDER).swapAndForwardERC20(
+                    tokenIn,
+                    amountIn,
+                    emptyPermit,
+                    swapProtocol,
+                    swapData,
+                    middleToken,
+                    minMiddleAmount,
+                    SWIFT_V2_PROTOCOL,
+                    protocolData
+                );
+            }
         }
     }
 
