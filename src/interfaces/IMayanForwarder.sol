@@ -49,4 +49,27 @@ interface IMayanForwarder {
         address mayanProtocol,
         bytes calldata mayanData
     ) external payable;
+
+    /// @notice Swap ERC20 tokens and forward the resulting middle token to Mayan protocol
+    /// @dev When tokenIn equals middleToken no swap is performed and amountIn must equal minMiddleAmount
+    /// @param tokenIn Source token address
+    /// @param amountIn Amount of tokenIn to swap
+    /// @param permitParams Permit signature parameters
+    /// @param swapProtocol Address of the swap protocol
+    /// @param swapData Encoded swap data for the swap protocol
+    /// @param middleToken Address of the expected middle token
+    /// @param minMiddleAmount Minimum amount of middle token to receive
+    /// @param mayanProtocol Target Mayan protocol address
+    /// @param mayanData Encoded protocol call data for Mayan
+    function swapAndForwardERC20(
+        address tokenIn,
+        uint256 amountIn,
+        PermitParams calldata permitParams,
+        address swapProtocol,
+        bytes calldata swapData,
+        address middleToken,
+        uint256 minMiddleAmount,
+        address mayanProtocol,
+        bytes calldata mayanData
+    ) external payable;
 }

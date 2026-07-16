@@ -72,13 +72,9 @@ abstract contract BaseVaultTest is Test {
         verifier = makeAddr("verifier");
 
         // Deploy proxy with initialization data
-        bytes memory initData = abi.encodeWithSelector(vaultImpl.initialize.selector, admin);
+        bytes memory initData = abi.encodeWithSelector(vaultImpl.initialize.selector, admin, verifier);
         proxy = new ERC1967Proxy(address(vaultImpl), initData);
         vault = Vault(address(proxy));
-
-        // Grant SETTLEMENT_VERIFIER_ROLE to verifier
-        vm.prank(admin);
-        vault.grantRole(SETTLEMENT_VERIFIER_ROLE, verifier);
 
         // Deploy mock tokens
         token = new MockERC20("Mock Token", "MOCK");

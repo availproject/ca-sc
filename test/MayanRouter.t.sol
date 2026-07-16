@@ -19,6 +19,7 @@ contract MayanRouterTest is Test {
     MockERC20 public token;
 
     address public admin;
+    address public verifier;
     address public user;
     uint256 public userPrivateKey;
     address public recipient;
@@ -38,23 +39,47 @@ contract MayanRouterTest is Test {
         hex"2213bc0b0000000000000000000000007747f8d2a76bd6345cc29622a946a929647f2359000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002985b825cff80000000000000000000000000007747f8d2a76bd6345cc29622a946a929647f235900000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000009241fff991f000000000000000000000000337685fdab40d39bd02028545a4ffa7d287cc3e2000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000000000000000000000000000000000001984bf3300000000000000000000000000000000000000000000000000000000000000a0fd0aba5d02eb31646adca10d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000028000000000000000000000000000000000000000000000000000000000000003a000000000000000000000000000000000000000000000000000000000000005a000000000000000000000000000000000000000000000000000000000000007a00000000000000000000000000000000000000000000000000000000000000044bd01c2260000000000000000000000000000000000000000000000000000000069efdb8b00000000000000000000000000000000000000000000000002985b825cff800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010438c9c147000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee00000000000000000000000000000000000000000000000000000000000027100000000000000000000000004200000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000024d0e30db00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e48d68a1560000000000000000000000007747f8d2a76bd6345cc29622a946a929647f23590000000000000000000000000000000000000000000000000000000000000ef90000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000404200000000000000000000000000000000000006040000c8fffd8963efd1fc6a506488495d951d5263988d250b3e328455c4059eeb9e3f84b5543f74e24e7e1b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c438c9c1470000000000000000000000004200000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000271000000000000000000000000055555522005bcae1c2424d474bfd5ed477749e3e000000000000000000000000000000000000000000000000000000000000004400000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e43ae8b2980000000000000000000000004200000000000000000000000000000000000006000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda029130000000000000000000000000000000000000000000000000199afe5b9594aa0000000000000000000000000000000000000000000000000000000000fb7365d0000000000000000000000007747f8d2a76bd6345cc29622a946a929647f235900000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c438c9c1470000000000000000000000000b3e328455c4059eeb9e3f84b5543f74e24e7e1b000000000000000000000000000000000000000000000000000000000000271000000000000000000000000055555522005bcae1c2424d474bfd5ed477749e3e000000000000000000000000000000000000000000000000000000000000004400000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e43ae8b2980000000000000000000000000b3e328455c4059eeb9e3f84b5543f74e24e7e1b000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda0291300000000000000000000000000000000000000000000000cd9363105af0a80000000000000000000000000000000000000000000000000000000000009c5203e0000000000000000000000007747f8d2a76bd6345cc29622a946a929647f235900000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008434ee90ca000000000000000000000000f5c4f3dc02c3fb9279495a8fef7b0741da956157000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda029130000000000000000000000000000000000000000000000000000000019896ad500000000000000000000000000000000000000000000000000000000000027100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
     function setUp() public {
-        vm.createSelectFork("base", 45268673);
-        vm.warp(1777326693);
+        // Fork Base. By default we pin the historical block the captured swap fixtures were recorded
+        // against (requires an archive RPC). Set BASE_FORK_BLOCK=0 to fork the latest block instead,
+        // which a public (non-archive) endpoint can serve — used to run the ERC20 direct-bridge and
+        // swap-routing tests. The captured ETH-swap fixtures only replay at the pinned block.
+        uint256 forkBlock = vm.envOr("BASE_FORK_BLOCK", uint256(45_268_673));
+        if (forkBlock == 0) {
+            vm.createSelectFork("base");
+        } else {
+            vm.createSelectFork("base", forkBlock);
+            vm.warp(1_777_326_693);
+        }
 
         admin = makeAddr("admin");
+        verifier = makeAddr("verifier");
         userPrivateKey = 0xA11CE;
         user = vm.addr(userPrivateKey);
         recipient = makeAddr("recipient");
 
         // Deploy MayanRouter implementation and proxy
         MayanRouter mayanRouterImpl = new MayanRouter();
-        bytes memory mayanRouterInitData = abi.encodeWithSelector(MayanRouter.initialize.selector, admin);
+        (Universe[] memory universes, uint256[] memory chainIds, uint16[] memory wormholeChainIds) =
+            _defaultWormholeConfig();
+        uint16[] memory tokenWormholeChainIds = new uint16[](0);
+        address[] memory tokens = new address[](0);
+        uint8[] memory decimals = new uint8[](0);
+        bytes memory mayanRouterInitData = abi.encodeWithSelector(
+            MayanRouter.initialize.selector,
+            admin,
+            universes,
+            chainIds,
+            wormholeChainIds,
+            tokenWormholeChainIds,
+            tokens,
+            decimals
+        );
         ERC1967Proxy mayanRouterProxy = new ERC1967Proxy(address(mayanRouterImpl), mayanRouterInitData);
         mayanRouter = MayanRouter(payable(address(mayanRouterProxy)));
 
         // Deploy Vault implementation and proxy
         Vault vaultImpl = new Vault();
-        bytes memory vaultInitData = abi.encodeWithSelector(Vault.initialize.selector, admin);
+        bytes memory vaultInitData = abi.encodeWithSelector(Vault.initialize.selector, admin, verifier);
         ERC1967Proxy vaultProxy = new ERC1967Proxy(address(vaultImpl), vaultInitData);
         vault = Vault(payable(address(vaultProxy)));
 
@@ -98,6 +123,37 @@ contract MayanRouterTest is Test {
         bytes32 signedMessageHash = MessageHashUtils.toEthSignedMessageHash(msgBytes);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, signedMessageHash);
         return abi.encodePacked(r, s, v);
+    }
+
+    function _defaultWormholeConfig()
+        internal
+        pure
+        returns (Universe[] memory universes, uint256[] memory chainIds, uint16[] memory wormholeChainIds)
+    {
+        universes = new Universe[](7);
+        chainIds = new uint256[](7);
+        wormholeChainIds = new uint16[](7);
+
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 0, 1, 2);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 1, 8453, 30);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 2, 42_161, 23);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 3, 10, 24);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 4, 43_114, 6);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 5, 137, 5);
+        _setWormholeConfigAt(universes, chainIds, wormholeChainIds, 6, 56, 4);
+    }
+
+    function _setWormholeConfigAt(
+        Universe[] memory universes,
+        uint256[] memory chainIds,
+        uint16[] memory wormholeChainIds,
+        uint256 index,
+        uint256 chainId,
+        uint16 wormholeChainId
+    ) internal pure {
+        universes[index] = Universe.ETHEREUM;
+        chainIds[index] = chainId;
+        wormholeChainIds[index] = wormholeChainId;
     }
 
     function _grantVaultRole(address account) internal {
@@ -237,6 +293,98 @@ contract MayanRouterTest is Test {
 
         vm.prank(user);
         mayanRouter.processTransfer(request, abi.encode(uint256(0), data));
+    }
+
+    /// @notice ERC20 swap-and-bridge: when a swap protocol is provided the router must route through
+    /// swapAndForwardERC20 and build the Mayan order against the swapped middle token / minMiddleAmount.
+    /// @dev The forwarder is mocked because executing a real swap requires live aggregator calldata for
+    /// the input token, which the mock token cannot provide. The assertion verifies routing + encoding.
+    function test_ProcessTransfer_ERC20_SwapAndBridge() public {
+        _grantVaultRole(user);
+
+        vm.prank(user);
+        token.approve(address(mayanRouter), 100e18);
+
+        address swapProtocol = SWAP_PROTOCOL;
+        bytes memory swapData = hex"deadbeef";
+        address middleToken = MIDDLE_TOKEN; // USDC on Base
+        uint256 minMiddleAmount = 250e6;
+
+        bytes memory data =
+            abi.encode(uint16(0), uint16(0), uint64(0), bytes32(0), swapProtocol, swapData, middleToken, minMiddleAmount);
+
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: 8453,
+            contractAddress: bytes32(uint256(uint160(address(token)))),
+            value: 100e18,
+            fee: 0
+        });
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(uint256(uint160(address(token)))), value: 90e18});
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
+
+        Request memory request = Request({
+            sources: sources,
+            destinationUniverse: Universe.ETHEREUM,
+            destinationChainID: 1,
+            recipientAddress: bytes32(uint256(uint160(user))),
+            destinations: destinations,
+            nonce: 22_345,
+            expiry: block.timestamp + 3600,
+            parties: parties
+        });
+
+        // The order must be created against the middle token, not the input token.
+        IMayanSwiftV2.OrderParams memory expectedOrderParams = IMayanSwiftV2.OrderParams({
+            payloadType: 1,
+            trader: bytes32(uint256(uint160(user))),
+            destAddr: bytes32(uint256(uint160(user))),
+            destChainId: 2,
+            referrerAddr: bytes32(0),
+            tokenOut: bytes32(uint256(uint160(address(token)))),
+            minAmountOut: 9_000_000_000,
+            gasDrop: 0,
+            cancelFee: 0,
+            refundFee: 0,
+            deadline: uint64(request.expiry),
+            referrerBps: 0,
+            auctionMode: 2,
+            random: bytes32(0)
+        });
+        bytes memory protocolData = abi.encodeWithSelector(
+            IMayanSwiftV2.createOrderWithToken.selector, middleToken, minMiddleAmount, expectedOrderParams, bytes("")
+        );
+        IMayanForwarder.PermitParams memory emptyPermit;
+        bytes memory expectedForwardCall = abi.encodeWithSelector(
+            IMayanForwarder.swapAndForwardERC20.selector,
+            address(token),
+            uint256(100e18),
+            emptyPermit,
+            swapProtocol,
+            swapData,
+            middleToken,
+            minMiddleAmount,
+            mayanRouter.SWIFT_V2_PROTOCOL(),
+            protocolData
+        );
+
+        // Mock the forwarder so the assertion does not depend on executing a real on-chain swap.
+        vm.mockCall(
+            MAYAN_FORWARDER, abi.encodeWithSelector(IMayanForwarder.swapAndForwardERC20.selector), bytes("")
+        );
+        vm.expectCall(MAYAN_FORWARDER, expectedForwardCall);
+
+        uint256 userBalanceBefore = token.balanceOf(user);
+        vm.prank(user);
+        mayanRouter.processTransfer(request, abi.encode(uint256(0), data));
+
+        // Input token is pulled from the user into the router before forwarding.
+        assertEq(userBalanceBefore - 100e18, token.balanceOf(user));
     }
 
     uint256 constant SWAP_AMOUNT = 0.187 ether;

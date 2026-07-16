@@ -17,12 +17,14 @@ contract DeployVault is Script {
 
     function run() external returns (address proxy) {
         address admin = _getAdmin();
+        address mpc = _getMpc();
         address finalAdmin = _getFinalAdmin(admin);
         vm.startBroadcast();
         bytes32 salt = _getSalt();
         bytes32 proxySalt = keccak256(abi.encodePacked(salt, "proxy"));
 
         console.log("Admin:", admin);
+        console.log("MPC:", mpc);
         console.log("Final Admin:", finalAdmin);
         console.log("Salt (impl):", vm.toString(salt));
         console.log("Salt (proxy):", vm.toString(proxySalt));
@@ -32,7 +34,7 @@ contract DeployVault is Script {
         address expectedImpl = CREATEX.computeCreate2Address(keccak256(abi.encode(salt)), vaultInitCodeHash);
         console.log("Expected implementation:", expectedImpl);
 
-        bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, admin);
+        bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, admin, mpc);
         bytes memory proxyInitCode =
             abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(expectedImpl, initData));
         bytes32 proxyInitCodeHash = keccak256(proxyInitCode);
@@ -88,16 +90,21 @@ contract DeployVault is Script {
     }
 
     function preview(address admin) external view returns (address impl, address proxy) {
+        return preview(admin, _getMpc());
+    }
+
+    function preview(address admin, address mpc) public view returns (address impl, address proxy) {
         bytes32 salt = _getSalt();
         bytes32 proxySalt = keccak256(abi.encodePacked(salt, "proxy"));
 
         impl = CREATEX.computeCreate2Address(salt, keccak256(type(Vault).creationCode));
 
-        bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, admin);
+        bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, admin, mpc);
         bytes memory proxyInitCode = abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(impl, initData));
         proxy = CREATEX.computeCreate2Address(proxySalt, keccak256(proxyInitCode));
 
         console.log("Admin:", admin);
+        console.log("MPC:", mpc);
         console.log("Expected Implementation:", impl);
         console.log("Expected Proxy:", proxy);
     }
@@ -116,6 +123,14 @@ contract DeployVault is Script {
         } catch {
             return msg.sender;
         }
+    }
+
+    function _getMpc() internal view returns (address) {
+        try vm.envAddress("MPC_ADDRESS") returns (address mpcAddress) {
+            return mpcAddress;
+        } catch {}
+
+        return vm.envAddress("MPC");
     }
 
     function _getFinalAdmin(address admin) internal view returns (address) {

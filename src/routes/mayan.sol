@@ -20,7 +20,6 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     using SafeERC20 for IERC20;
 
     bytes32 public constant VAULT_ROLE = keccak256("VAULT_ROLE");
-    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     address public constant MAYAN_FORWARDER = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
 
@@ -77,6 +76,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     error InvalidNativeAmount(uint256 expected, uint256 actual);
     error InvalidRFF();
     error InvalidSwiftVersion(uint8 version);
+    error InvalidConfigLength();
     error MinAmountOutTooLarge(uint256 minAmountOut);
     error PartyNotFound();
     /// @notice Reverts when a token's decimals are not configured for the destination chain
@@ -88,22 +88,41 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
         _disableInitializers();
     }
 
-    /// @notice Initialize router with default EVM chain mappings
+    /// @notice Initialize router with deployment-provided Wormhole mappings and token decimals
     /// @param owner_ Address to grant owner, admin, and upgrader permissions
-    function initialize(address owner_) public initializer {
+    /// @param universes Destination universes for Wormhole chain mappings
+    /// @param chainIds Chain IDs within each universe
+    /// @param wormholeChainIds Wormhole chain IDs matching universes and chainIds
+    /// @param tokenWormholeChainIds Wormhole chain IDs for destination token decimals
+    /// @param tokens Destination tokens matching tokenWormholeChainIds
+    /// @param decimals Destination token decimals matching tokens
+    function initialize(
+        address owner_,
+        Universe[] memory universes,
+        uint256[] memory chainIds,
+        uint16[] memory wormholeChainIds,
+        uint16[] memory tokenWormholeChainIds,
+        address[] memory tokens,
+        uint8[] memory decimals
+    ) public initializer {
         __Ownable_init(owner_);
         __AccessControl_init();
 
-        _grantRole(DEFAULT_ADMIN_ROLE, owner_);
-        _grantRole(UPGRADER_ROLE, owner_);
+        if (universes.length != chainIds.length || chainIds.length != wormholeChainIds.length) {
+            revert InvalidConfigLength();
+        }
 
-        wormholeChainID[Universe.ETHEREUM][1] = 2;
-        wormholeChainID[Universe.ETHEREUM][8453] = 30;
-        wormholeChainID[Universe.ETHEREUM][42_161] = 23;
-        wormholeChainID[Universe.ETHEREUM][10] = 24;
-        wormholeChainID[Universe.ETHEREUM][43_114] = 6;
-        wormholeChainID[Universe.ETHEREUM][137] = 5;
-        wormholeChainID[Universe.ETHEREUM][56] = 4;
+        if (tokenWormholeChainIds.length != tokens.length || tokens.length != decimals.length) {
+            revert InvalidConfigLength();
+        }
+
+        for (uint256 i = 0; i < universes.length; ++i) {
+            wormholeChainID[universes[i]][chainIds[i]] = wormholeChainIds[i];
+        }
+
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            tokenOutDecimals[tokenWormholeChainIds[i]][tokens[i]] = decimals[i];
+        }
 
         referrerAddr = bytes32(0);
         cancelFeeBps = 150;
@@ -195,16 +214,36 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
                 amountIn, swapProtocol, swapData, middleToken, minMiddleAmount, SWIFT_V2_PROTOCOL, protocolData
             );
         } else {
-            bytes memory protocolData = abi.encodeWithSelector(
-                IMayanSwiftV2.createOrderWithToken.selector, tokenIn, amountIn, orderParams, bytes("")
-            );
             IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
             IERC20(tokenIn).forceApprove(MAYAN_FORWARDER, amountIn);
 
             IMayanForwarder.PermitParams memory emptyPermit =
                 IMayanForwarder.PermitParams({value: 0, deadline: 0, v: 0, r: bytes32(0), s: bytes32(0)});
-            IMayanForwarder(MAYAN_FORWARDER)
-                .forwardERC20(tokenIn, amountIn, emptyPermit, SWIFT_V2_PROTOCOL, protocolData);
+
+            if (swapProtocol == address(0)) {
+                // Direct bridge: no swap, order is created against the input token.
+                bytes memory protocolData = abi.encodeWithSelector(
+                    IMayanSwiftV2.createOrderWithToken.selector, tokenIn, amountIn, orderParams, bytes("")
+                );
+                IMayanForwarder(MAYAN_FORWARDER)
+                    .forwardERC20(tokenIn, amountIn, emptyPermit, SWIFT_V2_PROTOCOL, protocolData);
+            } else {
+                // Swap then bridge: order is created against the swapped middle token.
+                bytes memory protocolData = abi.encodeWithSelector(
+                    IMayanSwiftV2.createOrderWithToken.selector, middleToken, minMiddleAmount, orderParams, bytes("")
+                );
+                IMayanForwarder(MAYAN_FORWARDER).swapAndForwardERC20(
+                    tokenIn,
+                    amountIn,
+                    emptyPermit,
+                    swapProtocol,
+                    swapData,
+                    middleToken,
+                    minMiddleAmount,
+                    SWIFT_V2_PROTOCOL,
+                    protocolData
+                );
+            }
         }
     }
 
@@ -271,9 +310,8 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     }
 
     /// @notice Authorizes a contract upgrade
-    /// @dev Ensures only accounts with UPGRADER_ROLE can upgrade the implementation
     /// @param newImplementation Address of the new implementation contract
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /// @notice Calculate fee amount from basis points
     /// @param amount Base amount to calculate fee against
