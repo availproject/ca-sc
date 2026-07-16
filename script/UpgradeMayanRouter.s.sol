@@ -12,7 +12,7 @@ interface ICreateX {
 
 interface IMayanRouterUpgrade {
     function hasRole(bytes32 role, address account) external view returns (bool);
-    function grantRole(bytes32 role, address account) external;
+    function owner() external view returns (address);
     function setWormholeChainMapping(Universe universe, uint256 chainId, uint16 wormholeChainId) external;
     function setTokenOutDecimals(uint16 wormholeChainId, address token, uint8 decimals) external;
     function upgradeToAndCall(address newImplementation, bytes memory data) external;
@@ -27,7 +27,6 @@ interface IERC1822Proxiable {
 contract UpgradeMayanRouter is Script {
     address public constant DEFAULT_PROXY_ADDRESS = 0x1F035f26710d5a3C4F7052f184564C8e4707c8f1;
     bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
-    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 public constant ERC1967_IMPLEMENTATION_SLOT =
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
     ICreateX public constant CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
@@ -116,19 +115,13 @@ contract UpgradeMayanRouter is Script {
         console.log("Expected New Implementation:", expectedImpl);
 
         IMayanRouterUpgrade proxy = IMayanRouterUpgrade(proxyAddress);
-        bool hasUpgraderRole = proxy.hasRole(UPGRADER_ROLE, deployer);
+        address owner = proxy.owner();
         bool hasAdminRole = proxy.hasRole(DEFAULT_ADMIN_ROLE, deployer);
-        console.log("Has UPGRADER_ROLE:", hasUpgraderRole);
+        console.log("Owner:", owner);
+        console.log("Is owner:", owner == deployer);
         console.log("Has DEFAULT_ADMIN_ROLE:", hasAdminRole);
 
-        if (!hasUpgraderRole) {
-            require(hasAdminRole, "UpgradeMayanRouter: caller has neither admin nor upgrader role");
-
-            console.log("Deployer has admin role. Granting UPGRADER_ROLE...");
-            proxy.grantRole(UPGRADER_ROLE, deployer);
-            require(proxy.hasRole(UPGRADER_ROLE, deployer), "UpgradeMayanRouter: failed to grant UPGRADER_ROLE");
-            console.log("UPGRADER_ROLE granted");
-        }
+        require(owner == deployer, "UpgradeMayanRouter: caller is not owner");
 
         address newImplementation = expectedImpl;
         if (newImplementation.code.length == 0) {

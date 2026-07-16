@@ -149,12 +149,10 @@ contract DeployAll is Script {
         vault.revokeRole(vault.DEFAULT_ADMIN_ROLE(), admin);
         console.log("Vault admin and upgrader roles transferred to:", finalAdmin);
 
-        mayanRouter.grantRole(mayanRouter.DEFAULT_ADMIN_ROLE(), finalAdmin);
-        mayanRouter.grantRole(mayanRouter.UPGRADER_ROLE(), finalAdmin);
         mayanRouter.transferOwnership(finalAdmin);
-        mayanRouter.revokeRole(mayanRouter.UPGRADER_ROLE(), admin);
+        mayanRouter.grantRole(mayanRouter.DEFAULT_ADMIN_ROLE(), finalAdmin);
         mayanRouter.revokeRole(mayanRouter.DEFAULT_ADMIN_ROLE(), admin);
-        console.log("MayanRouter ownership, admin, and upgrader roles transferred to:", finalAdmin);
+        console.log("MayanRouter ownership and admin role transferred to:", finalAdmin);
     }
 
     function _verifyDeployment(DeploymentAddresses memory addresses, address initialAdmin) internal view {
@@ -173,7 +171,6 @@ contract DeployAll is Script {
         MayanRouter mayanRouter = MayanRouter(addresses.mayanRouter);
         require(mayanRouter.owner() == addresses.admin, "MayanRouter: Owner not transferred");
         require(mayanRouter.hasRole(mayanRouter.DEFAULT_ADMIN_ROLE(), addresses.admin), "MayanRouter: Admin not set");
-        require(mayanRouter.hasRole(mayanRouter.UPGRADER_ROLE(), addresses.admin), "MayanRouter: Upgrader not set");
 
         if (initialAdmin != addresses.admin) {
             require(!vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), initialAdmin), "Vault: Initial admin still admin");
@@ -181,10 +178,6 @@ contract DeployAll is Script {
             require(
                 !mayanRouter.hasRole(mayanRouter.DEFAULT_ADMIN_ROLE(), initialAdmin),
                 "MayanRouter: Initial admin still admin"
-            );
-            require(
-                !mayanRouter.hasRole(mayanRouter.UPGRADER_ROLE(), initialAdmin),
-                "MayanRouter: Initial admin still upgrader"
             );
         }
 
