@@ -20,7 +20,6 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     using SafeERC20 for IERC20;
 
     bytes32 public constant VAULT_ROLE = keccak256("VAULT_ROLE");
-    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
     address public constant MAYAN_FORWARDER = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
 
@@ -108,9 +107,6 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     ) public initializer {
         __Ownable_init(owner_);
         __AccessControl_init();
-
-        _grantRole(DEFAULT_ADMIN_ROLE, owner_);
-        _grantRole(UPGRADER_ROLE, owner_);
 
         if (universes.length != chainIds.length || chainIds.length != wormholeChainIds.length) {
             revert InvalidConfigLength();
@@ -314,9 +310,8 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     }
 
     /// @notice Authorizes a contract upgrade
-    /// @dev Ensures only accounts with UPGRADER_ROLE can upgrade the implementation
     /// @param newImplementation Address of the new implementation contract
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /// @notice Calculate fee amount from basis points
     /// @param amount Base amount to calculate fee against
