@@ -232,17 +232,18 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
                 bytes memory protocolData = abi.encodeWithSelector(
                     IMayanSwiftV2.createOrderWithToken.selector, middleToken, minMiddleAmount, orderParams, bytes("")
                 );
-                IMayanForwarder(MAYAN_FORWARDER).swapAndForwardERC20(
-                    tokenIn,
-                    amountIn,
-                    emptyPermit,
-                    swapProtocol,
-                    swapData,
-                    middleToken,
-                    minMiddleAmount,
-                    SWIFT_V2_PROTOCOL,
-                    protocolData
-                );
+                IMayanForwarder(MAYAN_FORWARDER)
+                    .swapAndForwardERC20(
+                        tokenIn,
+                        amountIn,
+                        emptyPermit,
+                        swapProtocol,
+                        swapData,
+                        middleToken,
+                        minMiddleAmount,
+                        SWIFT_V2_PROTOCOL,
+                        protocolData
+                    );
             }
         }
     }

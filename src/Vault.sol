@@ -134,12 +134,9 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         return (signer == from, signedMessageHash);
     }
 
-    function _depositNonceKey(
-    uint256 nonce,
-    uint256 sourceIndex
-) private pure returns (uint256) {
-    return uint256(keccak256(abi.encode(nonce, sourceIndex)));
-}
+    function _depositNonceKey(uint256 nonce, uint256 sourceIndex) private pure returns (uint256) {
+        return uint256(keccak256(abi.encode(nonce, sourceIndex)));
+    }
 
     /// @notice Deposits funds into the vault for a cross-chain intent
     /// @dev Validates signature, chain ID, universe, nonce and expiry before accepting deposit
@@ -161,7 +158,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(request.sources[chainIndex].chainID == block.chainid, "Vault: Chain ID mismatch");
         require(request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!depositNonce[request.nonce], "Vault: Nonce already used");
-        require(!depositNonce[depositKey],"Vault: Deposit Key based nonce already used");
+        require(!depositNonce[depositKey], "Vault: Deposit Key based nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
         depositNonce[depositKey] = true;

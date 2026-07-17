@@ -310,8 +310,9 @@ contract MayanRouterTest is Test {
         address middleToken = MIDDLE_TOKEN; // USDC on Base
         uint256 minMiddleAmount = 250e6;
 
-        bytes memory data =
-            abi.encode(uint16(0), uint16(0), uint64(0), bytes32(0), swapProtocol, swapData, middleToken, minMiddleAmount);
+        bytes memory data = abi.encode(
+            uint16(0), uint16(0), uint64(0), bytes32(0), swapProtocol, swapData, middleToken, minMiddleAmount
+        );
 
         SourcePair[] memory sources = new SourcePair[](1);
         sources[0] = SourcePair({
@@ -374,9 +375,7 @@ contract MayanRouterTest is Test {
         );
 
         // Mock the forwarder so the assertion does not depend on executing a real on-chain swap.
-        vm.mockCall(
-            MAYAN_FORWARDER, abi.encodeWithSelector(IMayanForwarder.swapAndForwardERC20.selector), bytes("")
-        );
+        vm.mockCall(MAYAN_FORWARDER, abi.encodeWithSelector(IMayanForwarder.swapAndForwardERC20.selector), bytes(""));
         vm.expectCall(MAYAN_FORWARDER, expectedForwardCall);
 
         uint256 userBalanceBefore = token.balanceOf(user);
