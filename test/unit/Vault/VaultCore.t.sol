@@ -130,7 +130,7 @@ contract VaultCoreTest is BaseVaultTest {
         vault.deposit{value: depositAmount}(request, signature, 0);
 
         // Verify state changes
-        assertTrue(vault.depositNonce(nonce), "Nonce should be marked as used");
+        assertTrue(vault.depositNonce(_depositNonceKey(nonce, 0)), "Nonce should be marked as used");
 
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
@@ -179,7 +179,7 @@ contract VaultCoreTest is BaseVaultTest {
         vault.deposit(request, signature, 0);
 
         // Verify state changes
-        assertTrue(vault.depositNonce(nonce), "Nonce should be marked as used");
+        assertTrue(vault.depositNonce(_depositNonceKey(nonce, 0)), "Nonce should be marked as used");
 
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
@@ -311,8 +311,8 @@ contract VaultCoreTest is BaseVaultTest {
         vm.prank(solver);
         vault.deposit{value: depositAmount}(request, signature, 0);
 
-        // Second deposit with same nonce should revert
-        vm.expectRevert("Vault: Nonce already used");
+        // Second deposit with same nonce and chain index should revert
+        vm.expectRevert("Vault: Deposit Key based nonce already used");
         vm.prank(solver);
         vault.deposit{value: depositAmount}(request, signature, 0);
     }
@@ -947,7 +947,7 @@ contract VaultCoreTest is BaseVaultTest {
         vault.deposit{value: depositAmount}(request, signature, 0);
 
         // Verify it used the correct address by checking nonce was marked
-        assertTrue(vault.depositNonce(nonce), "Deposit should succeed with first ETHEREUM party");
+        assertTrue(vault.depositNonce(_depositNonceKey(nonce, 0)), "Deposit should succeed with first ETHEREUM party");
     }
 
     /// @notice Test extractAddress reverts when no ETHEREUM parties found
@@ -1009,7 +1009,7 @@ contract VaultCoreTest is BaseVaultTest {
         vm.prank(solver);
         vault.deposit{value: 0}(request, signature, 0);
 
-        assertTrue(vault.depositNonce(nonce), "Zero ETH deposit should succeed");
+        assertTrue(vault.depositNonce(_depositNonceKey(nonce, 0)), "Zero ETH deposit should succeed");
     }
 
     /// @notice Test fulfil with zero value destination
@@ -1149,7 +1149,7 @@ contract VaultCoreTest is BaseVaultTest {
         vm.prank(requester);
         vault.deposit(request, signature, 0);
 
-        assertTrue(vault.depositNonce(nonce), "Nonce should be marked as used");
+        assertTrue(vault.depositNonce(_depositNonceKey(nonce, 0)), "Nonce should be marked as used");
         assertEq(token.balanceOf(address(vault)), depositAmount, "Vault should have deposited tokens");
     }
 
@@ -1209,7 +1209,7 @@ contract VaultCoreTest is BaseVaultTest {
         vm.prank(requester);
         vault.deposit{value: depositAmount}(request, signature, 0);
 
-        assertTrue(vault.depositNonce(nonce), "Nonce should be marked as used");
+        assertTrue(vault.depositNonce(_depositNonceKey(nonce, 0)), "Nonce should be marked as used");
         assertEq(address(vault).balance, depositAmount, "Vault should have deposited ETH");
     }
 
@@ -1251,7 +1251,7 @@ contract VaultCoreTest is BaseVaultTest {
         vm.prank(solver);
         vault.deposit(request, signature, 0);
 
-        assertTrue(vault.depositNonce(nonce), "Nonce should be marked as used");
+        assertTrue(vault.depositNonce(_depositNonceKey(nonce, 0)), "Nonce should be marked as used");
         assertEq(token.balanceOf(address(vault)), depositAmount, "Vault should have deposited tokens");
         assertEq(token.balanceOf(solver) - solverBalBefore, fee, "Solver should have received fee");
     }

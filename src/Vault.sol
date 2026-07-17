@@ -134,6 +134,13 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         return (signer == from, signedMessageHash);
     }
 
+    function _depositNonceKey(
+    uint256 nonce,
+    uint256 sourceIndex
+) private pure returns (uint256) {
+    return uint256(keccak256(abi.encode(nonce, sourceIndex)));
+}
+
     /// @notice Deposits funds into the vault for a cross-chain intent
     /// @dev Validates signature, chain ID, universe, nonce and expiry before accepting deposit
     /// @param request Request struct containing source chain and amount details
@@ -148,12 +155,16 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         bytes32 request_hash = _hashRequest(request);
         (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
+
+        uint256 depositKey = _depositNonceKey(request.nonce, chainIndex);
+
         require(request.sources[chainIndex].chainID == block.chainid, "Vault: Chain ID mismatch");
         require(request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!depositNonce[request.nonce], "Vault: Nonce already used");
+        require(!depositNonce[depositKey],"Vault: Deposit Key based nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
-        depositNonce[request.nonce] = true;
+        depositNonce[depositKey] = true;
         requestState[signedMessageHash] = RFFState.DEPOSITED;
 
         if (request.sources[chainIndex].contractAddress == bytes32(0)) {
@@ -203,12 +214,16 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         bytes32 request_hash = _hashRequest(request);
         (bool success, bytes32 requestHash) = _verify_request(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
+
+        uint256 depositKey = _depositNonceKey(request.nonce, chainIndex);
+
         require(request.sources[chainIndex].chainID == block.chainid, "Vault: Chain ID mismatch");
         require(request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!depositNonce[request.nonce], "Vault: Nonce already used");
+        require(!depositNonce[depositKey], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
-        depositNonce[request.nonce] = true;
+        depositNonce[depositKey] = true;
         requestState[requestHash] = RFFState.DEPOSITED;
 
         uint256 valueToRoute = 0;

@@ -262,6 +262,17 @@ abstract contract BaseVaultTest is Test {
             );
     }
 
+    // Helper Functions - Nonce Keys
+
+    /// @notice Computes the deposit nonce storage key used by the Vault
+    /// @dev Mirrors Vault._depositNonceKey: deposits are keyed by keccak256(nonce, chainIndex)
+    /// @param nonce The request nonce
+    /// @param chainIndex Index of the source chain in request.sources
+    /// @return The deposit nonce mapping key
+    function _depositNonceKey(uint256 nonce, uint256 chainIndex) internal pure returns (uint256) {
+        return uint256(keccak256(abi.encode(nonce, chainIndex)));
+    }
+
     // Helper Functions - Address Conversion
 
     /// @notice Converts an address to bytes32
