@@ -320,24 +320,90 @@ contract DeployVaultImplementationForSafe is Script {
         address[] memory tokens,
         uint8[] memory decimals
     ) internal pure {
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 0, ETHEREUM_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 1, ETHEREUM_WORMHOLE_CHAIN_ID, ETHEREUM_WETH, WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 2, BSC_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 3, BSC_WORMHOLE_CHAIN_ID, BSC_WBNB, WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 4, POLYGON_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 5, POLYGON_WORMHOLE_CHAIN_ID, POLYGON_WPOL, WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 6, AVALANCHE_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 7, AVALANCHE_WORMHOLE_CHAIN_ID, AVALANCHE_WAVAX, WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 8, ARBITRUM_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 9, ARBITRUM_WORMHOLE_CHAIN_ID, ARBITRUM_WETH, WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 10, OPTIMISM_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 11, OPTIMISM_WORMHOLE_CHAIN_ID, OPTIMISM_WETH, WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 12, BASE_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 13, BASE_WORMHOLE_CHAIN_ID, BASE_WETH, WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 14, HYPEREVM_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 15, HYPEREVM_WORMHOLE_CHAIN_ID, HYPEREVM_WHYPE, WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 16, MONAD_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 17, MONAD_WORMHOLE_CHAIN_ID, MONAD_WMON, WRAPPED_NATIVE_DECIMALS);
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 0, ETHEREUM_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds,
+            tokens,
+            decimals,
+            1,
+            ETHEREUM_WORMHOLE_CHAIN_ID,
+            ETHEREUM_WETH,
+            WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 2, BSC_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 3, BSC_WORMHOLE_CHAIN_ID, BSC_WBNB, WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 4, POLYGON_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 5, POLYGON_WORMHOLE_CHAIN_ID, POLYGON_WPOL, WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 6, AVALANCHE_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds,
+            tokens,
+            decimals,
+            7,
+            AVALANCHE_WORMHOLE_CHAIN_ID,
+            AVALANCHE_WAVAX,
+            WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 8, ARBITRUM_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds,
+            tokens,
+            decimals,
+            9,
+            ARBITRUM_WORMHOLE_CHAIN_ID,
+            ARBITRUM_WETH,
+            WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 10, OPTIMISM_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds,
+            tokens,
+            decimals,
+            11,
+            OPTIMISM_WORMHOLE_CHAIN_ID,
+            OPTIMISM_WETH,
+            WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 12, BASE_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 13, BASE_WORMHOLE_CHAIN_ID, BASE_WETH, WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 14, HYPEREVM_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds,
+            tokens,
+            decimals,
+            15,
+            HYPEREVM_WORMHOLE_CHAIN_ID,
+            HYPEREVM_WHYPE,
+            WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 16, MONAD_WORMHOLE_CHAIN_ID, address(0), WRAPPED_NATIVE_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 17, MONAD_WORMHOLE_CHAIN_ID, MONAD_WMON, WRAPPED_NATIVE_DECIMALS
+        );
     }
 
     function _setUsdcTokenDecimals(
@@ -345,15 +411,31 @@ contract DeployVaultImplementationForSafe is Script {
         address[] memory tokens,
         uint8[] memory decimals
     ) internal pure {
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 18, ETHEREUM_WORMHOLE_CHAIN_ID, ETHEREUM_USDC, USDC_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 19, BSC_WORMHOLE_CHAIN_ID, BSC_BINANCE_PEG_USDC, BSC_USDC_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 20, POLYGON_WORMHOLE_CHAIN_ID, POLYGON_USDC, USDC_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 21, AVALANCHE_WORMHOLE_CHAIN_ID, AVALANCHE_USDC, USDC_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 22, ARBITRUM_WORMHOLE_CHAIN_ID, ARBITRUM_USDC, USDC_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 23, OPTIMISM_WORMHOLE_CHAIN_ID, OPTIMISM_USDC, USDC_DECIMALS);
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 18, ETHEREUM_WORMHOLE_CHAIN_ID, ETHEREUM_USDC, USDC_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 19, BSC_WORMHOLE_CHAIN_ID, BSC_BINANCE_PEG_USDC, BSC_USDC_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 20, POLYGON_WORMHOLE_CHAIN_ID, POLYGON_USDC, USDC_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 21, AVALANCHE_WORMHOLE_CHAIN_ID, AVALANCHE_USDC, USDC_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 22, ARBITRUM_WORMHOLE_CHAIN_ID, ARBITRUM_USDC, USDC_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 23, OPTIMISM_WORMHOLE_CHAIN_ID, OPTIMISM_USDC, USDC_DECIMALS
+        );
         _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 24, BASE_WORMHOLE_CHAIN_ID, BASE_USDC, USDC_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 25, HYPEREVM_WORMHOLE_CHAIN_ID, HYPEREVM_USDC, USDC_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 26, MONAD_WORMHOLE_CHAIN_ID, MONAD_USDC, USDC_DECIMALS);
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 25, HYPEREVM_WORMHOLE_CHAIN_ID, HYPEREVM_USDC, USDC_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 26, MONAD_WORMHOLE_CHAIN_ID, MONAD_USDC, USDC_DECIMALS
+        );
     }
 
     function _setUsdtTokenDecimals(
@@ -361,15 +443,31 @@ contract DeployVaultImplementationForSafe is Script {
         address[] memory tokens,
         uint8[] memory decimals
     ) internal pure {
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 27, ETHEREUM_WORMHOLE_CHAIN_ID, ETHEREUM_USDT, USDT_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 28, BSC_WORMHOLE_CHAIN_ID, BSC_USDT, BSC_USDT_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 29, POLYGON_WORMHOLE_CHAIN_ID, POLYGON_USDT, USDT_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 30, AVALANCHE_WORMHOLE_CHAIN_ID, AVALANCHE_USDT, USDT_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 31, ARBITRUM_WORMHOLE_CHAIN_ID, ARBITRUM_USDT, USDT_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 32, OPTIMISM_WORMHOLE_CHAIN_ID, OPTIMISM_USDT, USDT_DECIMALS);
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 27, ETHEREUM_WORMHOLE_CHAIN_ID, ETHEREUM_USDT, USDT_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 28, BSC_WORMHOLE_CHAIN_ID, BSC_USDT, BSC_USDT_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 29, POLYGON_WORMHOLE_CHAIN_ID, POLYGON_USDT, USDT_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 30, AVALANCHE_WORMHOLE_CHAIN_ID, AVALANCHE_USDT, USDT_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 31, ARBITRUM_WORMHOLE_CHAIN_ID, ARBITRUM_USDT, USDT_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 32, OPTIMISM_WORMHOLE_CHAIN_ID, OPTIMISM_USDT, USDT_DECIMALS
+        );
         _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 33, BASE_WORMHOLE_CHAIN_ID, BASE_USDT, USDT_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 34, HYPEREVM_WORMHOLE_CHAIN_ID, HYPEREVM_USDT, USDT_DECIMALS);
-        _setTokenDecimals(tokenWormholeChainIds, tokens, decimals, 35, MONAD_WORMHOLE_CHAIN_ID, MONAD_USDT, USDT_DECIMALS);
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 34, HYPEREVM_WORMHOLE_CHAIN_ID, HYPEREVM_USDT, USDT_DECIMALS
+        );
+        _setTokenDecimals(
+            tokenWormholeChainIds, tokens, decimals, 35, MONAD_WORMHOLE_CHAIN_ID, MONAD_USDT, USDT_DECIMALS
+        );
     }
 
     function _setTokenDecimals(
