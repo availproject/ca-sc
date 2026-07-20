@@ -34,7 +34,9 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 private constant SETTLEMENT_VERIFIER_ROLE = keccak256("SETTLEMENT_VERIFIER_ROLE");
+    bytes32 private constant MIDDLEWARE_ROLE = keccak256("MIDDLEWARE_ROLE");
     string private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
+
     // Storage gap to reserve slots for future use
     uint256[49] private _gap;
 
@@ -207,6 +209,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(request.sources[chainIndex].universe == Universe.ETHEREUM, "Vault: Universe mismatch");
         require(!depositNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
+
+        require(msg.sender == from || hasRole(MIDDLEWARE_ROLE, msg.sender), "Vault: Invalid Sender");
 
         depositNonce[request.nonce] = true;
         requestState[requestHash] = RFFState.DEPOSITED;
