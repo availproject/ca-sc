@@ -23,6 +23,9 @@ contract MayanRouterTest is Test {
     address public user;
     uint256 public userPrivateKey;
     address public recipient;
+    address public middleware;
+
+    bytes32 public constant MIDDLEWARE_ROLE = keccak256("MIDDLEWARE_ROLE");
 
     /// @notice True when the fork is pinned to a specific block (BASE_FORK_BLOCK set), enabling
     /// the captured ETH-swap fixture tests which only replay at their capture block
@@ -61,6 +64,7 @@ contract MayanRouterTest is Test {
         userPrivateKey = 0xA11CE;
         user = vm.addr(userPrivateKey);
         recipient = makeAddr("recipient");
+        middleware = makeAddr("middleware");
 
         // Deploy MayanRouter implementation and proxy
         MayanRouter mayanRouterImpl = new MayanRouter();
@@ -100,6 +104,7 @@ contract MayanRouterTest is Test {
         // Configure Vault with MayanRouter and authorize it to call the router.
         vm.startPrank(admin);
         vault.setRouter(address(mayanRouter));
+        vault.grantRole(MIDDLEWARE_ROLE, middleware);
         mayanRouter.grantRole(mayanRouter.VAULT_ROLE(), address(vault));
         vm.stopPrank();
 
@@ -116,7 +121,10 @@ contract MayanRouterTest is Test {
         vm.prank(admin);
         mayanRouter.setTokenOutDecimals(30, address(0), 18);
 
+        vm.etch(MAYAN_FORWARDER, hex"00");
+
         vm.deal(user, 100 ether);
+        vm.deal(middleware, 100 ether);
     }
 
     function _signRequest(Request memory request, uint256 privateKey) internal pure returns (bytes memory) {
@@ -513,6 +521,89 @@ contract MayanRouterTest is Test {
         assertEq(userBalanceBefore - 100e18, userBalanceAfter);
         // Vault should not hold tokens (forwarded to router/mayan)
         assertEq(vaultBalanceBefore, vaultBalanceAfter);
+    }
+
+    function test_VaultDepositRouter_MiddlewareRole_ERC20() public {
+        vm.prank(user);
+        token.approve(address(vault), 100e18);
+
+        bytes memory routeData =
+            abi.encode(uint16(0), uint16(0), uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
+
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: block.chainid,
+            contractAddress: bytes32(uint256(uint160(address(token)))),
+            value: 100e18,
+            fee: 0
+        });
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(uint256(uint160(address(token)))), value: 90e18});
+
+        Request memory request = Request({
+            sources: sources,
+            recipientAddress: bytes32(uint256(uint160(recipient))),
+            parties: parties,
+            destinationUniverse: Universe.ETHEREUM,
+            destinations: destinations,
+            destinationChainID: 1,
+            nonce: 1006,
+            expiry: uint64(block.timestamp + 3600)
+        });
+
+        bytes memory signature = _signRequest(request, userPrivateKey);
+
+        vm.prank(middleware);
+        vault.depositMayan(request, signature, 0, routeData);
+
+        assertTrue(vault.depositNonce(1006), "Middleware deposit should mark nonce");
+    }
+
+    function test_VaultDepositRouter_NonMiddlewareRelayer_Reverts() public {
+        address relayer = makeAddr("relayer");
+
+        vm.prank(user);
+        token.approve(address(vault), 100e18);
+
+        bytes memory routeData =
+            abi.encode(uint16(0), uint16(0), uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
+
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: block.chainid,
+            contractAddress: bytes32(uint256(uint160(address(token)))),
+            value: 100e18,
+            fee: 0
+        });
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(uint256(uint160(address(token)))), value: 90e18});
+
+        Request memory request = Request({
+            sources: sources,
+            recipientAddress: bytes32(uint256(uint160(recipient))),
+            parties: parties,
+            destinationUniverse: Universe.ETHEREUM,
+            destinations: destinations,
+            destinationChainID: 1,
+            nonce: 1007,
+            expiry: uint64(block.timestamp + 3600)
+        });
+
+        bytes memory signature = _signRequest(request, userPrivateKey);
+
+        vm.expectRevert("Vault: Invalid Sender");
+        vm.prank(relayer);
+        vault.depositMayan(request, signature, 0, routeData);
     }
 
     function test_VaultDepositRouter_ETH() public {
