@@ -107,6 +107,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     ) public initializer {
         __Ownable_init(owner_);
         __AccessControl_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, owner_);
 
         if (universes.length != chainIds.length || chainIds.length != wormholeChainIds.length) {
             revert InvalidConfigLength();
