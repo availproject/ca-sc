@@ -107,6 +107,7 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
     ) public initializer {
         __Ownable_init(owner_);
         __AccessControl_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, owner_);
 
         if (universes.length != chainIds.length || chainIds.length != wormholeChainIds.length) {
             revert InvalidConfigLength();
@@ -232,17 +233,18 @@ contract MayanRouter is Initializable, UUPSUpgradeable, IRouter, OwnableUpgradea
                 bytes memory protocolData = abi.encodeWithSelector(
                     IMayanSwiftV2.createOrderWithToken.selector, middleToken, minMiddleAmount, orderParams, bytes("")
                 );
-                IMayanForwarder(MAYAN_FORWARDER).swapAndForwardERC20(
-                    tokenIn,
-                    amountIn,
-                    emptyPermit,
-                    swapProtocol,
-                    swapData,
-                    middleToken,
-                    minMiddleAmount,
-                    SWIFT_V2_PROTOCOL,
-                    protocolData
-                );
+                IMayanForwarder(MAYAN_FORWARDER)
+                    .swapAndForwardERC20(
+                        tokenIn,
+                        amountIn,
+                        emptyPermit,
+                        swapProtocol,
+                        swapData,
+                        middleToken,
+                        minMiddleAmount,
+                        SWIFT_V2_PROTOCOL,
+                        protocolData
+                    );
             }
         }
     }
