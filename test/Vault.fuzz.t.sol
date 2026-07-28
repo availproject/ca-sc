@@ -137,7 +137,7 @@ contract VaultFuzzTest is BaseVaultTest {
         vault.deposit{value: depositAmount}(request, signature, 0);
 
         // Verify invariants
-        assertTrue(vault.depositNonce(nonce), "Nonce should be marked as used");
+        assertTrue(vault.depositNonce(_depositNonceKey(nonce, 0)), "Nonce should be marked as used");
 
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
@@ -189,7 +189,7 @@ contract VaultFuzzTest is BaseVaultTest {
         vault.deposit(request, signature, 0);
 
         // Verify invariants
-        assertTrue(vault.depositNonce(nonce), "Nonce should be marked as used");
+        assertTrue(vault.depositNonce(_depositNonceKey(nonce, 0)), "Nonce should be marked as used");
 
         bytes32 requestHash = sigHelper.hashRequest(request);
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);

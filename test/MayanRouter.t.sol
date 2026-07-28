@@ -23,6 +23,13 @@ contract MayanRouterTest is Test {
     address public user;
     uint256 public userPrivateKey;
     address public recipient;
+    address public middleware;
+
+    bytes32 public constant MIDDLEWARE_ROLE = keccak256("MIDDLEWARE_ROLE");
+
+    /// @notice True when the fork is pinned to a specific block (BASE_FORK_BLOCK set), enabling
+    /// the captured ETH-swap fixture tests which only replay at their capture block
+    bool internal forkPinned;
 
     // Mayan Protocol addresses on Base
     address constant MAYAN_FORWARDER = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
@@ -39,11 +46,12 @@ contract MayanRouterTest is Test {
         hex"2213bc0b0000000000000000000000007747f8d2a76bd6345cc29622a946a929647f2359000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002985b825cff80000000000000000000000000007747f8d2a76bd6345cc29622a946a929647f235900000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000009241fff991f000000000000000000000000337685fdab40d39bd02028545a4ffa7d287cc3e2000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000000000000000000000000000000000001984bf3300000000000000000000000000000000000000000000000000000000000000a0fd0aba5d02eb31646adca10d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000028000000000000000000000000000000000000000000000000000000000000003a000000000000000000000000000000000000000000000000000000000000005a000000000000000000000000000000000000000000000000000000000000007a00000000000000000000000000000000000000000000000000000000000000044bd01c2260000000000000000000000000000000000000000000000000000000069efdb8b00000000000000000000000000000000000000000000000002985b825cff800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010438c9c147000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee00000000000000000000000000000000000000000000000000000000000027100000000000000000000000004200000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000000000024d0e30db00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e48d68a1560000000000000000000000007747f8d2a76bd6345cc29622a946a929647f23590000000000000000000000000000000000000000000000000000000000000ef90000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000404200000000000000000000000000000000000006040000c8fffd8963efd1fc6a506488495d951d5263988d250b3e328455c4059eeb9e3f84b5543f74e24e7e1b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c438c9c1470000000000000000000000004200000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000271000000000000000000000000055555522005bcae1c2424d474bfd5ed477749e3e000000000000000000000000000000000000000000000000000000000000004400000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e43ae8b2980000000000000000000000004200000000000000000000000000000000000006000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda029130000000000000000000000000000000000000000000000000199afe5b9594aa0000000000000000000000000000000000000000000000000000000000fb7365d0000000000000000000000007747f8d2a76bd6345cc29622a946a929647f235900000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c438c9c1470000000000000000000000000b3e328455c4059eeb9e3f84b5543f74e24e7e1b000000000000000000000000000000000000000000000000000000000000271000000000000000000000000055555522005bcae1c2424d474bfd5ed477749e3e000000000000000000000000000000000000000000000000000000000000004400000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e43ae8b2980000000000000000000000000b3e328455c4059eeb9e3f84b5543f74e24e7e1b000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda0291300000000000000000000000000000000000000000000000cd9363105af0a80000000000000000000000000000000000000000000000000000000000009c5203e0000000000000000000000007747f8d2a76bd6345cc29622a946a929647f235900000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008434ee90ca000000000000000000000000f5c4f3dc02c3fb9279495a8fef7b0741da956157000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda029130000000000000000000000000000000000000000000000000000000019896ad500000000000000000000000000000000000000000000000000000000000027100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
     function setUp() public {
-        // Fork Base. By default we pin the historical block the captured swap fixtures were recorded
-        // against (requires an archive RPC). Set BASE_FORK_BLOCK=0 to fork the latest block instead,
-        // which a public (non-archive) endpoint can serve — used to run the ERC20 direct-bridge and
-        // swap-routing tests. The captured ETH-swap fixtures only replay at the pinned block.
-        uint256 forkBlock = vm.envOr("BASE_FORK_BLOCK", uint256(45_268_673));
+        // Fork Base. By default we fork the latest block, which any public (non-archive) endpoint
+        // can serve. Set BASE_FORK_BLOCK to pin a specific block (requires an archive RPC); pinning
+        // is only needed to replay the captured ETH-swap fixtures, which were recorded against
+        // block 45_268_673 and only execute at their capture block.
+        uint256 forkBlock = vm.envOr("BASE_FORK_BLOCK", uint256(0));
+        forkPinned = forkBlock != 0;
         if (forkBlock == 0) {
             vm.createSelectFork("base");
         } else {
@@ -56,6 +64,7 @@ contract MayanRouterTest is Test {
         userPrivateKey = 0xA11CE;
         user = vm.addr(userPrivateKey);
         recipient = makeAddr("recipient");
+        middleware = makeAddr("middleware");
 
         // Deploy MayanRouter implementation and proxy
         MayanRouter mayanRouterImpl = new MayanRouter();
@@ -77,6 +86,15 @@ contract MayanRouterTest is Test {
         ERC1967Proxy mayanRouterProxy = new ERC1967Proxy(address(mayanRouterImpl), mayanRouterInitData);
         mayanRouter = MayanRouter(payable(address(mayanRouterProxy)));
 
+        // MayanRouter.initialize grants no AccessControl admin, so grantRole cannot be called
+        // until an admin exists. Write DEFAULT_ADMIN_ROLE for admin directly into the ERC-7201
+        // namespaced AccessControl storage to simulate the required post-deployment admin grant.
+        bytes32 accessControlStorage = 0x02dd7bc7dec4dceedda775e58dd541e08a116c6c53815c0bd028192f7b626800;
+        bytes32 adminRoleDataSlot =
+            keccak256(abi.encode(mayanRouter.DEFAULT_ADMIN_ROLE(), uint256(accessControlStorage)));
+        bytes32 adminHasRoleSlot = keccak256(abi.encode(admin, adminRoleDataSlot));
+        vm.store(address(mayanRouter), adminHasRoleSlot, bytes32(uint256(1)));
+
         // Deploy Vault implementation and proxy
         Vault vaultImpl = new Vault();
         bytes memory vaultInitData = abi.encodeWithSelector(Vault.initialize.selector, admin, verifier);
@@ -86,6 +104,7 @@ contract MayanRouterTest is Test {
         // Configure Vault with MayanRouter and authorize it to call the router.
         vm.startPrank(admin);
         vault.setRouter(address(mayanRouter));
+        vault.grantRole(MIDDLEWARE_ROLE, middleware);
         mayanRouter.grantRole(mayanRouter.VAULT_ROLE(), address(vault));
         vm.stopPrank();
 
@@ -102,7 +121,10 @@ contract MayanRouterTest is Test {
         vm.prank(admin);
         mayanRouter.setTokenOutDecimals(30, address(0), 18);
 
+        vm.etch(MAYAN_FORWARDER, hex"00");
+
         vm.deal(user, 100 ether);
+        vm.deal(middleware, 100 ether);
     }
 
     function _signRequest(Request memory request, uint256 privateKey) internal pure returns (bytes memory) {
@@ -310,8 +332,9 @@ contract MayanRouterTest is Test {
         address middleToken = MIDDLE_TOKEN; // USDC on Base
         uint256 minMiddleAmount = 250e6;
 
-        bytes memory data =
-            abi.encode(uint16(0), uint16(0), uint64(0), bytes32(0), swapProtocol, swapData, middleToken, minMiddleAmount);
+        bytes memory data = abi.encode(
+            uint16(0), uint16(0), uint64(0), bytes32(0), swapProtocol, swapData, middleToken, minMiddleAmount
+        );
 
         SourcePair[] memory sources = new SourcePair[](1);
         sources[0] = SourcePair({
@@ -374,9 +397,7 @@ contract MayanRouterTest is Test {
         );
 
         // Mock the forwarder so the assertion does not depend on executing a real on-chain swap.
-        vm.mockCall(
-            MAYAN_FORWARDER, abi.encodeWithSelector(IMayanForwarder.swapAndForwardERC20.selector), bytes("")
-        );
+        vm.mockCall(MAYAN_FORWARDER, abi.encodeWithSelector(IMayanForwarder.swapAndForwardERC20.selector), bytes(""));
         vm.expectCall(MAYAN_FORWARDER, expectedForwardCall);
 
         uint256 userBalanceBefore = token.balanceOf(user);
@@ -390,6 +411,7 @@ contract MayanRouterTest is Test {
     uint256 constant SWAP_AMOUNT = 0.187 ether;
 
     function test_ProcessTransfer_ETH() public {
+        vm.skip(!forkPinned, "captured swap fixtures only replay on a pinned fork (archive RPC required)");
         _grantVaultRole(user);
 
         // Prepare transfer data with real swap params from mainnet tx (direct V2 payload)
@@ -501,7 +523,91 @@ contract MayanRouterTest is Test {
         assertEq(vaultBalanceBefore, vaultBalanceAfter);
     }
 
+    function test_VaultDepositRouter_MiddlewareRole_ERC20() public {
+        vm.prank(user);
+        token.approve(address(vault), 100e18);
+
+        bytes memory routeData =
+            abi.encode(uint16(0), uint16(0), uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
+
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: block.chainid,
+            contractAddress: bytes32(uint256(uint160(address(token)))),
+            value: 100e18,
+            fee: 0
+        });
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(uint256(uint160(address(token)))), value: 90e18});
+
+        Request memory request = Request({
+            sources: sources,
+            recipientAddress: bytes32(uint256(uint160(recipient))),
+            parties: parties,
+            destinationUniverse: Universe.ETHEREUM,
+            destinations: destinations,
+            destinationChainID: 1,
+            nonce: 1006,
+            expiry: uint64(block.timestamp + 3600)
+        });
+
+        bytes memory signature = _signRequest(request, userPrivateKey);
+
+        vm.prank(middleware);
+        vault.depositMayan(request, signature, 0, routeData);
+
+        assertTrue(vault.depositNonce(1006), "Middleware deposit should mark nonce");
+    }
+
+    function test_VaultDepositRouter_NonMiddlewareRelayer_Reverts() public {
+        address relayer = makeAddr("relayer");
+
+        vm.prank(user);
+        token.approve(address(vault), 100e18);
+
+        bytes memory routeData =
+            abi.encode(uint16(0), uint16(0), uint64(0), bytes32(0), address(0), bytes(""), address(0), uint256(0));
+
+        SourcePair[] memory sources = new SourcePair[](1);
+        sources[0] = SourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: block.chainid,
+            contractAddress: bytes32(uint256(uint160(address(token)))),
+            value: 100e18,
+            fee: 0
+        });
+
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] = DestinationPair({contractAddress: bytes32(uint256(uint160(address(token)))), value: 90e18});
+
+        Request memory request = Request({
+            sources: sources,
+            recipientAddress: bytes32(uint256(uint160(recipient))),
+            parties: parties,
+            destinationUniverse: Universe.ETHEREUM,
+            destinations: destinations,
+            destinationChainID: 1,
+            nonce: 1007,
+            expiry: uint64(block.timestamp + 3600)
+        });
+
+        bytes memory signature = _signRequest(request, userPrivateKey);
+
+        vm.expectRevert("Vault: Invalid Sender");
+        vm.prank(relayer);
+        vault.depositMayan(request, signature, 0, routeData);
+    }
+
     function test_VaultDepositRouter_ETH() public {
+        vm.skip(!forkPinned, "captured swap fixtures only replay on a pinned fork (archive RPC required)");
         // Prepare route data with real swap params (direct V2 payload)
         bytes memory routeData = abi.encode(
             uint16(0), // cancelFee
@@ -697,6 +803,7 @@ contract MayanRouterTest is Test {
     }
 
     function test_ProcessTransferV2_ETH() public {
+        vm.skip(!forkPinned, "captured swap fixtures only replay on a pinned fork (archive RPC required)");
         _grantVaultRole(user);
 
         // Encode V2 data with real swap params from mainnet tx
@@ -846,6 +953,7 @@ contract MayanRouterTest is Test {
     }
 
     function test_VaultDepositRouter_V2_ETH() public {
+        vm.skip(!forkPinned, "captured swap fixtures only replay on a pinned fork (archive RPC required)");
         // Encode V2 data with real swap params from mainnet tx
         bytes memory routeData = abi.encode(
             uint16(0), // cancelFee

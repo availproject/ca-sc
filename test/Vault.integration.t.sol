@@ -151,7 +151,7 @@ contract VaultIntegrationTest is BaseVaultTest {
         vault.deposit{value: depositAmount}(request, signature, 0);
 
         // Verify deposit state
-        assertTrue(vault.depositNonce(nonce), "Deposit nonce should be marked");
+        assertTrue(vault.depositNonce(_depositNonceKey(nonce, 0)), "Deposit nonce should be marked");
         bytes32 signedMessageHash = sigHelper.getEip191Hash(requestHash);
         assertEq(
             uint256(vault.requestState(signedMessageHash)), uint256(RFFState.DEPOSITED), "Request should be DEPOSITED"
@@ -352,9 +352,9 @@ contract VaultIntegrationTest is BaseVaultTest {
 
         // Verify all deposits recorded
 
-        assertTrue(vault.depositNonce(10), "User1 deposit nonce should be marked");
-        assertTrue(vault.depositNonce(11), "User2 deposit nonce should be marked");
-        assertTrue(vault.depositNonce(12), "User3 deposit nonce should be marked");
+        assertTrue(vault.depositNonce(_depositNonceKey(10, 0)), "User1 deposit nonce should be marked");
+        assertTrue(vault.depositNonce(_depositNonceKey(11, 0)), "User2 deposit nonce should be marked");
+        assertTrue(vault.depositNonce(_depositNonceKey(12, 0)), "User3 deposit nonce should be marked");
 
         // Verify vault balances
         assertEq(address(vault).balance, deposit1, "Vault should hold ETH");
@@ -429,9 +429,9 @@ contract VaultIntegrationTest is BaseVaultTest {
         vault.deposit{value: deposit3}(request3, sig3, 0);
 
         // Verify all deposits
-        assertTrue(vault.depositNonce(100), "First deposit nonce should be marked");
-        assertTrue(vault.depositNonce(101), "Second deposit nonce should be marked");
-        assertTrue(vault.depositNonce(102), "Third deposit nonce should be marked");
+        assertTrue(vault.depositNonce(_depositNonceKey(100, 0)), "First deposit nonce should be marked");
+        assertTrue(vault.depositNonce(_depositNonceKey(101, 0)), "Second deposit nonce should be marked");
+        assertTrue(vault.depositNonce(_depositNonceKey(102, 0)), "Third deposit nonce should be marked");
 
         // Verify total vault balance
         assertEq(address(vault).balance, deposit1 + deposit2 + deposit3, "Vault should hold all deposits");
@@ -500,8 +500,8 @@ contract VaultIntegrationTest is BaseVaultTest {
         // Verify state preserved after upgrade
 
         // Nonces should be preserved
-        assertTrue(vault.depositNonce(200), "Deposit nonce 200 should be preserved");
-        assertTrue(vault.depositNonce(201), "Deposit nonce 201 should be preserved");
+        assertTrue(vault.depositNonce(_depositNonceKey(200, 0)), "Deposit nonce 200 should be preserved");
+        assertTrue(vault.depositNonce(_depositNonceKey(201, 0)), "Deposit nonce 201 should be preserved");
         assertTrue(vault.fillNonce(200), "Fill nonce 200 should be preserved");
 
         // Request states should be preserved
@@ -569,7 +569,7 @@ contract VaultIntegrationTest is BaseVaultTest {
         vm.prank(solver);
         vault.deposit{value: deposit2}(request2, sig2, 0);
 
-        assertTrue(vault.depositNonce(301), "New deposit should work after upgrade");
+        assertTrue(vault.depositNonce(_depositNonceKey(301, 0)), "New deposit should work after upgrade");
 
         // Settle after upgrade
         uint256 settleNonce = 500;
@@ -658,9 +658,9 @@ contract VaultIntegrationTest is BaseVaultTest {
         assertEq(address(vault).balance, ethBefore, "ETH preserved");
         assertEq(token.balanceOf(address(vault)), tokenBefore, "Token preserved");
 
-        assertTrue(vault.depositNonce(400), "Deposit nonce 400 preserved");
-        assertTrue(vault.depositNonce(401), "Deposit nonce 401 preserved");
-        assertTrue(vault.depositNonce(402), "Deposit nonce 402 preserved");
+        assertTrue(vault.depositNonce(_depositNonceKey(400, 0)), "Deposit nonce 400 preserved");
+        assertTrue(vault.depositNonce(_depositNonceKey(401, 0)), "Deposit nonce 401 preserved");
+        assertTrue(vault.depositNonce(_depositNonceKey(402, 0)), "Deposit nonce 402 preserved");
         assertTrue(vault.fillNonce(400), "Fill nonce 400 preserved");
         assertTrue(vault.settleNonce(600), "Settle nonce 600 preserved");
 
