@@ -77,19 +77,11 @@ struct ExternalRequest {
     Party[] parties;
 }
 
-/// @notice Approval granted to the routing target for one execution. Field order is part of the
-/// payload ABI and MUST NOT change within v1.
-struct Approval {
-    address token;
-    uint256 amount;
-}
-
 /// @notice Generic routing payload executed by the external intent Executor. Field order is part
 /// of the payload ABI and MUST NOT change within v1.
 struct RoutingPayload {
     string protocolTag;
     address target;
-    Approval approval;
     uint256 nativeValue;
     bytes callData;
 }

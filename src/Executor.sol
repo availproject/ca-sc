@@ -27,14 +27,14 @@ contract Executor is IExternalIntentExecutor {
     /// @notice Emitted after a routing payload executes successfully.
     /// @param payloadHash The keccak256 of the executed payload
     /// @param target The routing target that was invoked
-    /// @param refundRecipient The receiver of all residual funds
+    /// @param party The signed party whose source entry funded the execution
     /// @param asset The funded asset (address(0) for native)
     /// @param amount The signed source amount that funded the execution
     /// @param protocolTag The payload's protocol tag
     event PayloadExecuted(
         bytes32 indexed payloadHash,
         address indexed target,
-        address indexed refundRecipient,
+        address indexed party,
         address asset,
         uint256 amount,
         string protocolTag
@@ -55,13 +55,8 @@ contract Executor is IExternalIntentExecutor {
     /// @inheritdoc IExternalIntentExecutor
     /// @dev On success the full residual balance of `asset` and the full native balance are
     /// refunded, so a native-funded execution performs exactly one native transfer.
-    function execute(address asset, uint256 amount, address refundRecipient, bytes calldata payload)
-        external
-        payable
-        override
-    {
+    function execute(address asset, uint256 amount, address party, bytes calldata payload) external payable override {
         if (msg.sender != gateway) revert Router.UnauthorizedCaller(msg.sender);
-        if (refundRecipient == address(0)) revert Router.ZeroAddress();
 
         RoutingPayload memory p = abi.decode(payload, (RoutingPayload));
 
@@ -70,30 +65,12 @@ contract Executor is IExternalIntentExecutor {
         }
         if (amount == 0) revert Router.ZeroAmount();
 
-        bool approvalPresent;
         if (asset == address(0)) {
             if (msg.value != amount) revert Router.InvalidNativeValue(amount, msg.value);
-            if (p.approval.token != address(0) || p.approval.amount != 0) {
-                revert Router.InvalidApproval(p.approval.token, p.approval.amount);
-            }
-            if (p.nativeValue > amount) revert Router.InvalidNativeValue(amount, p.nativeValue);
         } else {
             if (msg.value != 0) revert Router.InvalidNativeValue(0, msg.value);
             uint256 actualBalance = IERC20(asset).balanceOf(address(this));
             if (actualBalance < amount) revert Router.NonExactTransfer(amount, actualBalance);
-            if (p.nativeValue != 0) revert Router.InvalidNativeValue(0, p.nativeValue);
-
-            bool tokenZero = p.approval.token == address(0);
-            bool amountZero = p.approval.amount == 0;
-            if (tokenZero != amountZero) revert Router.InvalidApproval(p.approval.token, p.approval.amount);
-            approvalPresent = !tokenZero;
-            if (approvalPresent && (p.approval.token != asset || p.approval.amount > amount)) {
-                revert Router.InvalidApproval(p.approval.token, p.approval.amount);
-            }
-        }
-
-        if (approvalPresent) {
-            IERC20(asset).forceApprove(p.target, p.approval.amount);
         }
 
         (bool ok, bytes memory ret) = p.target.call{value: p.nativeValue}(p.callData);
@@ -106,36 +83,19 @@ contract Executor is IExternalIntentExecutor {
             revert Router.TargetCallFailed();
         }
 
-        if (approvalPresent) {
-            IERC20(asset).forceApprove(p.target, 0);
-        }
-
         if (asset != address(0)) {
             uint256 tokenBalance = IERC20(asset).balanceOf(address(this));
             if (tokenBalance > 0) {
-                IERC20(asset).safeTransfer(refundRecipient, tokenBalance);
+                IERC20(asset).safeTransfer(gateway, tokenBalance);
             }
-        }
-        uint256 bal = address(this).balance;
-        if (bal > 0) {
-            (bool sent,) = refundRecipient.call{value: bal}("");
-            if (!sent) revert Router.NativeTransferFailed(refundRecipient, bal);
-        }
-
-        emit PayloadExecuted(keccak256(payload), p.target, refundRecipient, asset, amount, p.protocolTag);
-    }
-
-    /// @inheritdoc IExternalIntentExecutor
-    function sweep(address asset, address recipient) external override {
-        if (recipient == address(0)) revert Router.ZeroAddress();
-        if (asset == address(0)) {
+        } else {
             uint256 bal = address(this).balance;
             if (bal > 0) {
-                (bool sent,) = recipient.call{value: bal}("");
-                if (!sent) revert Router.NativeTransferFailed(recipient, bal);
+                (bool sent,) = gateway.call{value: bal}("");
+                if (!sent) revert Router.NativeTransferFailed(gateway, bal);
             }
-            return;
         }
-        IERC20(asset).safeTransfer(recipient, IERC20(asset).balanceOf(address(this)));
+
+        emit PayloadExecuted(keccak256(payload), p.target, party, asset, amount, p.protocolTag);
     }
 }

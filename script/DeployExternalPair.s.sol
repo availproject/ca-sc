@@ -78,7 +78,7 @@ contract DeployExternalPair is Script {
         console.log("Router:", routerAddr);
         console.log("Executor:", executorAddr);
 
-        require(Router(routerAddr).executor() == executorAddr, "DeployExternalPair: router executor mismatch");
+        require(Router(payable(routerAddr)).executor() == executorAddr, "DeployExternalPair: router executor mismatch");
         require(
             Executor(payable(executorAddr)).gateway() == routerAddr, "DeployExternalPair: executor gateway mismatch"
         );
