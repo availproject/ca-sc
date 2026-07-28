@@ -224,7 +224,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
         require(msg.sender == from || hasRole(MIDDLEWARE_ROLE, msg.sender), "Vault: Invalid Sender");
 
-        depositNonce[request.nonce] = true;
+        depositNonce[depositKey] = true;
         requestState[requestHash] = RFFState.DEPOSITED;
 
         uint256 valueToRoute = 0;
