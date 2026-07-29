@@ -26,6 +26,7 @@ contract Router is ReentrancyGuardTransient {
 
     /// @notice The immutable ExternalIntentExecutor funded and invoked by this gateway.
     address public immutable executor;
+    address public immutable vault;
 
     /// @dev EIP-191 message prefix for External RFF signatures. Currently identical to the
     /// Vault prefix, so one signed message validates on both the Vault and this gateway.
@@ -58,6 +59,7 @@ contract Router is ReentrancyGuardTransient {
     error TargetCallFailed();
     error NativeTransferFailed(address recipient, uint256 amount);
     error AlreadyProcessed();
+    error InvalidSender();
 
     /// @notice Canonical execution record for one source entry. Exactly one per execution.
     /// @param requestHash Raw External RFF request hash (distinct from the EIP-191 digest)
@@ -81,9 +83,10 @@ contract Router is ReentrancyGuardTransient {
     /// @dev The address is prediction-derived and verified by deployment tooling; it cannot be
     /// changed after deployment.
     /// @param executor_ The ExternalIntentExecutor address of this deployment pair
-    constructor(address executor_) {
-        if (executor_ == address(0)) revert ZeroAddress();
+    constructor(address executor_, address vault_) {
+        if (executor_ == address(0) || vault_ == address(0)) revert ZeroAddress();
         executor = executor_;
+        vault = vault_;
     }
 
     /// @dev Accepts native currency returned by the executor after execution; the balance is
@@ -106,6 +109,7 @@ contract Router is ReentrancyGuardTransient {
         bytes calldata payload,
         bytes calldata authorization
     ) external payable nonReentrant {
+        if (msg.sender != vault) revert InvalidSender();
         if (sourceIndex >= request.sources.length) revert InvalidSourceIndex(sourceIndex);
 
         address party = _selectParty(request.parties);
@@ -168,6 +172,7 @@ contract Router is ReentrancyGuardTransient {
     function _hashRequest(ExternalRequest calldata request) internal pure returns (bytes32) {
         return keccak256(
             abi.encode(
+                "nexusExternalRouter",
                 request.sources,
                 request.destinationUniverse,
                 request.destinationChainID,

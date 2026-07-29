@@ -28,21 +28,20 @@ contract ExecutorTest is Test {
         mockTarget = new MockTarget();
     }
 
-    function _payload(string memory protocolTag, address target, uint256 nativeValue, bytes memory callData)
+    function _payload(string memory protocolTag, address target, bytes memory callData)
         internal
         pure
         returns (bytes memory)
     {
         return abi.encode(
-            RoutingPayload({protocolTag: protocolTag, target: target, nativeValue: nativeValue, callData: callData})
+            RoutingPayload({protocolTag: protocolTag, target: target, callData: callData, arbitary_data: bytes("")})
         );
     }
 
     function test_Execute_Native_HappyPath() public {
         uint256 amount = 1 ether;
-        uint256 nativeValue = 0.4 ether;
         bytes memory callData = hex"12345678";
-        bytes memory payload = _payload("native-happy", address(mockTarget), nativeValue, callData);
+        bytes memory payload = _payload("native-happy", address(mockTarget), callData);
 
         vm.deal(gateway, amount);
         vm.expectEmit(true, true, true, true);
@@ -54,16 +53,16 @@ contract ExecutorTest is Test {
 
         assertEq(mockTarget.lastCaller(), address(executor));
         assertEq(mockTarget.lastCallData(), callData);
-        assertEq(mockTarget.lastNativeValue(), nativeValue);
-        assertEq(address(mockTarget).balance, nativeValue);
+        assertEq(mockTarget.lastNativeValue(), amount);
+        assertEq(address(mockTarget).balance, amount);
         assertEq(address(executor).balance, 0);
-        assertEq(gateway.balance, amount - nativeValue);
+        assertEq(gateway.balance, 0);
     }
 
     function test_Execute_ERC20_HappyPath() public {
         uint256 amount = 1000e18;
         bytes memory callData = hex"abcdef";
-        bytes memory payload = _payload("erc20-happy", address(mockTarget), 0, callData);
+        bytes memory payload = _payload("erc20-happy", address(mockTarget), callData);
 
         token.mint(address(executor), amount);
 
@@ -79,17 +78,18 @@ contract ExecutorTest is Test {
         assertEq(mockTarget.lastNativeValue(), 0);
         assertEq(token.balanceOf(address(executor)), 0);
         assertEq(token.balanceOf(gateway), amount);
+        assertEq(token.allowance(address(executor), address(mockTarget)), 0);
     }
 
     function test_Execute_RevertsWhenCallerNotGateway() public {
-        bytes memory payload = _payload("tag", address(mockTarget), 0, hex"");
+        bytes memory payload = _payload("tag", address(mockTarget), hex"");
 
         vm.expectRevert(abi.encodeWithSelector(Router.UnauthorizedCaller.selector, address(this)));
         executor.execute(address(0), 1, party, payload);
     }
 
     function test_Execute_RevertsOnZeroAmount() public {
-        bytes memory payload = _payload("tag", address(mockTarget), 0, hex"");
+        bytes memory payload = _payload("tag", address(mockTarget), hex"");
 
         vm.expectRevert(Router.ZeroAmount.selector);
         vm.prank(gateway);
@@ -101,7 +101,7 @@ contract ExecutorTest is Test {
         vm.deal(gateway, 4);
 
         for (uint256 i = 0; i < badTargets.length; i++) {
-            bytes memory payload = _payload("tag", badTargets[i], 0, hex"");
+            bytes memory payload = _payload("tag", badTargets[i], hex"");
             vm.expectRevert(abi.encodeWithSelector(Router.ForbiddenTarget.selector, badTargets[i]));
             vm.prank(gateway);
             executor.execute{value: 1}(address(0), 1, party, payload);
@@ -109,7 +109,7 @@ contract ExecutorTest is Test {
     }
 
     function test_Execute_RevertsOnNativeValueMismatch() public {
-        bytes memory payload = _payload("tag", address(mockTarget), 0, hex"");
+        bytes memory payload = _payload("tag", address(mockTarget), hex"");
 
         // Native funding with msg.value != amount.
         vm.deal(gateway, 1 ether);
@@ -126,7 +126,7 @@ contract ExecutorTest is Test {
     function test_Execute_BubblesTargetRevertData() public {
         mockTarget.setRevertMode(1);
         uint256 amount = 1 ether;
-        bytes memory payload = _payload("tag", address(mockTarget), 0, hex"12345678");
+        bytes memory payload = _payload("tag", address(mockTarget), hex"12345678");
 
         vm.deal(gateway, amount);
         vm.expectRevert(abi.encodeWithSelector(MockTarget.MockTargetError.selector, "mock revert"));
@@ -137,7 +137,7 @@ contract ExecutorTest is Test {
     function test_Execute_TargetCallFailedOnEmptyRevertData() public {
         mockTarget.setRevertMode(2);
         uint256 amount = 1 ether;
-        bytes memory payload = _payload("tag", address(mockTarget), 0, hex"12345678");
+        bytes memory payload = _payload("tag", address(mockTarget), hex"12345678");
 
         vm.deal(gateway, amount);
         vm.expectRevert(Router.TargetCallFailed.selector);
@@ -147,28 +147,26 @@ contract ExecutorTest is Test {
 
     function test_Execute_NativeFundingSingleRefundTransfer() public {
         uint256 amount = 1 ether;
-        uint256 spent = 0.3 ether;
-        bytes memory payload = _payload("tag", address(mockTarget), spent, hex"");
+        bytes memory payload = _payload("tag", address(mockTarget), hex"");
 
         vm.deal(gateway, amount);
-        uint256 gatewayBefore = gateway.balance;
         vm.prank(gateway);
         executor.execute{value: amount}(address(0), amount, party, payload);
 
-        assertEq(gateway.balance, amount - spent);
+        assertEq(gateway.balance, 0);
         assertEq(address(executor).balance, 0);
-        assertEq(address(mockTarget).balance, spent);
+        assertEq(address(mockTarget).balance, amount);
     }
 
     function test_RoutingPayload_FieldOrderGoldenVector() public pure {
         RoutingPayload memory samplePayload = RoutingPayload({
             protocolTag: "test",
             target: 0x000000000000000000000000000000000000dEaD,
-            nativeValue: 0,
-            callData: hex"12345678"
+            callData: hex"12345678",
+            arbitary_data: bytes("")
         });
 
-        bytes32 expected = 0x48f64d781f9372ee7bc0d9208357b4007afbb55d7cc87d1da22c8aff0b6ecf1d;
+        bytes32 expected = 0xd034e7b461cd9c424bcaf82fc75a89a3dc18307a6ad398168ee4aa451aba4ca4;
         assertEq(keccak256(abi.encode(samplePayload)), expected);
     }
 }

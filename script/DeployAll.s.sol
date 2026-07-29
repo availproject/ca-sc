@@ -161,7 +161,7 @@ contract DeployAll is Script {
         require(vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), addresses.admin), "Vault: Admin role not granted");
         require(vault.hasRole(VAULT_UPGRADER_ROLE, addresses.admin), "Vault: Upgrader role not granted");
         require(vault.hasRole(keccak256("SETTLEMENT_VERIFIER_ROLE"), _getMpc()), "Vault: MPC role not granted");
-        require(address(vault.router()) == addresses.mayanRouter, "Vault: MayanRouter not set");
+        require(address(vault.mayanRouter()) == addresses.mayanRouter, "Vault: MayanRouter not set");
         require(
             MayanRouter(addresses.mayanRouter)
                 .hasRole(MayanRouter(addresses.mayanRouter).VAULT_ROLE(), addresses.vaultProxy),

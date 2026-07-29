@@ -12,7 +12,8 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import {Request, Party, Universe, RFFState, SettleData} from "./types.sol";
+import {Request, Party, Universe, RFFState, SettleData, ExternalRequest} from "./types.sol";
+import {IExternalIntentRouter} from "./interfaces/IExternalIntentRouter.sol";
 import {IRouter} from "./interfaces/IRouter.sol";
 
 /// @title Vault
@@ -30,7 +31,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     mapping(uint256 => bool) public settleNonce;
 
     /// @notice Router contract for processing cross-chain transfers
-    IRouter public router;
+    IRouter public mayanRouter;
+    IExternalIntentRouter public intentRouter;
 
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 private constant SETTLEMENT_VERIFIER_ROLE = keccak256("SETTLEMENT_VERIFIER_ROLE");
@@ -45,6 +47,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     event Settle(uint256 indexed nonce, address[] solver, address[] token, uint256[] amount);
     event RouterSet(address indexed newRouter);
     event DepositMayan(bytes32 indexed requestHash, address from);
+    event IntentRouterSet(address indexed newIntentRouter);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -65,11 +68,18 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     }
 
     /// @notice Set the router contract address
-    /// @param _router Address of the Router contract
-    function setRouter(address _router) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_router != address(0), "Vault: Zero address");
-        router = IRouter(_router);
-        emit RouterSet(_router);
+    /// @param _mayanRouter Address of the Router contract
+    function setRouter(address _mayanRouter) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_mayanRouter != address(0), "Vault: Zero address");
+        mayanRouter = IRouter(_mayanRouter);
+        emit RouterSet(_mayanRouter);
+    }
+
+
+    function setExternalRouter(address _intentRouter) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_intentRouter != address(0), "Vault: Zero address");
+        intentRouter = IExternalIntentRouter(_intentRouter);
+        emit IntentRouterSet(_intentRouter);
     }
 
     /// @notice Authorizes a contract upgrade
@@ -208,7 +218,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         uint256 chainIndex,
         bytes calldata routeData
     ) external payable nonReentrant {
-        require(address(router) != address(0), "Vault: Router not set");
+        require(address(mayanRouter) != address(0), "Vault: Router not set");
         require(chainIndex < request.destinations.length, "Vault: Invalid destination index");
 
         address from = extractAddress(request.parties);
@@ -245,7 +255,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 revert("Vault: failed to transfer the source amount");
             }
 
-            token.forceApprove(address(router), request.sources[chainIndex].value);
+            token.forceApprove(address(mayanRouter), request.sources[chainIndex].value);
 
             if (request.sources[chainIndex].fee > 0 && msg.sender != from) {
                 uint256 solverBal = token.balanceOf(msg.sender);
@@ -259,10 +269,22 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         }
 
         bytes memory encodedRouteData = abi.encode(chainIndex, routeData);
-        router.processTransfer{value: valueToRoute}(request, encodedRouteData);
+        mayanRouter.processTransfer{value: valueToRoute}(request, encodedRouteData);
 
         emit DepositMayan(request_hash, from);
     }
+
+    function depositRouter(
+        ExternalRequest calldata request,
+        bytes calldata signature,
+        uint256 sourceIndex,
+        bytes calldata payload,
+        bytes calldata authorization
+    ) external payable nonReentrant {
+        intentRouter.execute(request, signature, sourceIndex, payload, authorization);
+    }
+
+
 
     /// @notice Extracts the Ethereum party address from a parties array
     /// @dev Iterates through parties to find the ETHEREUM universe entry

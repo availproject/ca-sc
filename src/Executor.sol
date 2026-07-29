@@ -71,9 +71,11 @@ contract Executor is IExternalIntentExecutor {
             if (msg.value != 0) revert Router.InvalidNativeValue(0, msg.value);
             uint256 actualBalance = IERC20(asset).balanceOf(address(this));
             if (actualBalance < amount) revert Router.NonExactTransfer(amount, actualBalance);
+            IERC20(asset).forceApprove(p.target, amount);
         }
 
-        (bool ok, bytes memory ret) = p.target.call{value: p.nativeValue}(p.callData);
+        uint256 callValue = asset == address(0) ? amount : 0;
+        (bool ok, bytes memory ret) = p.target.call{value: callValue}(p.callData);
         if (!ok) {
             if (ret.length > 0) {
                 assembly {
@@ -84,6 +86,7 @@ contract Executor is IExternalIntentExecutor {
         }
 
         if (asset != address(0)) {
+            IERC20(asset).forceApprove(p.target, 0);
             uint256 tokenBalance = IERC20(asset).balanceOf(address(this));
             if (tokenBalance > 0) {
                 IERC20(asset).safeTransfer(gateway, tokenBalance);

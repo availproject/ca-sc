@@ -82,7 +82,7 @@ struct ExternalRequest {
 struct RoutingPayload {
     string protocolTag;
     address target;
-    uint256 nativeValue;
     bytes callData;
+    bytes arbitary_data;
 }
 
