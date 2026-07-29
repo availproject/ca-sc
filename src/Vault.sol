@@ -75,7 +75,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         emit RouterSet(_mayanRouter);
     }
 
-
     function setExternalRouter(address _intentRouter) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_intentRouter != address(0), "Vault: Zero address");
         intentRouter = IExternalIntentRouter(_intentRouter);
@@ -281,10 +280,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         bytes calldata payload,
         bytes calldata authorization
     ) external payable nonReentrant {
-        intentRouter.execute(request, signature, sourceIndex, payload, authorization);
+        if (sourceIndex < request.sources.length && request.sources[sourceIndex].contractAddress == bytes32(0)) {
+            require(msg.sender == extractAddress(request.parties), "Vault: Invalid native sender");
+        }
+        intentRouter.execute{value: msg.value}(request, signature, sourceIndex, payload, authorization);
     }
-
-
 
     /// @notice Extracts the Ethereum party address from a parties array
     /// @dev Iterates through parties to find the ETHEREUM universe entry

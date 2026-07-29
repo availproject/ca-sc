@@ -1248,9 +1248,9 @@ contract MayanPolygonDeploymentForkTest is Test {
     function test_E2E_PolygonDeployment_DepositRouterExecutesMayanForwarderPayload() public {
         vm.createSelectFork("polygon");
 
-        Vault deployedVault = Vault(0x2eb619fa8E6c33Df489ecE9787ac432A50289dC1);
-        Router deployedRouter = Router(payable(0x82Ac09B4ad62C6e4FF39AC8125b063be2429e4ED));
-        Executor deployedExecutor = Executor(payable(0xF376c6D02b529510D233602E403cE915CF296840));
+        Vault deployedVault = Vault(0x25aebA4966d7BE028fB169aE251Fb282e30C7dcC);
+        Router deployedRouter = Router(payable(0x197653Fa85d7A0303C418A1394A1EDad3c736bF4));
+        Executor deployedExecutor = Executor(payable(0x8e2b29D13C1F17f3263b52444361b45AEAD7cc06));
         address mayanForwarder = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
         address polygonUsdc = 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359;
         address ethereumUsdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -1347,5 +1347,105 @@ contract MayanPolygonDeploymentForkTest is Test {
             swiftBalanceBefore + amountIn,
             "Mayan Swift did not escrow Polygon USDC"
         );
+    }
+
+    function test_E2E_PolygonDeployment_DepositRouterExecutesNativePolMayanForwarderPayload() public {
+        vm.createSelectFork("polygon");
+
+        Vault deployedVault = Vault(0x25aebA4966d7BE028fB169aE251Fb282e30C7dcC);
+        Router deployedRouter = Router(payable(0x197653Fa85d7A0303C418A1394A1EDad3c736bF4));
+        Executor deployedExecutor = Executor(payable(0x8e2b29D13C1F17f3263b52444361b45AEAD7cc06));
+        address mayanForwarder = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
+        address ethereumUsdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        address swiftV2Protocol = 0x40fFE85A28DC9993541449464d7529a922142960;
+        uint256 userPrivateKey = 0xB0B;
+        address user = vm.addr(userPrivateKey);
+        address recipient = makeAddr("native POL recipient");
+        uint256 amountIn = 0.01 ether;
+        uint64 minAmountOut = 1;
+        uint256 expiry = block.timestamp + 1 hours;
+
+        assertEq(address(deployedVault.intentRouter()), address(deployedRouter), "Vault Router");
+        assertEq(deployedRouter.executor(), address(deployedExecutor), "Router Executor");
+        assertEq(deployedRouter.vault(), address(deployedVault), "Router Vault");
+        assertEq(deployedExecutor.gateway(), address(deployedRouter), "Executor gateway");
+        assertEq(deployedExecutor.vault(), address(deployedVault), "Executor Vault");
+
+        DestinationPair[] memory destinations = new DestinationPair[](1);
+        destinations[0] =
+            DestinationPair({contractAddress: bytes32(uint256(uint160(ethereumUsdc))), value: minAmountOut});
+        Party[] memory parties = new Party[](1);
+        parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
+
+        IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2.OrderParams({
+            payloadType: 1,
+            trader: bytes32(uint256(uint160(user))),
+            destAddr: bytes32(uint256(uint160(recipient))),
+            destChainId: 2,
+            referrerAddr: bytes32(0),
+            tokenOut: bytes32(uint256(uint160(ethereumUsdc))),
+            minAmountOut: minAmountOut,
+            gasDrop: 0,
+            cancelFee: 0,
+            refundFee: 0,
+            deadline: uint64(expiry),
+            referrerBps: 0,
+            auctionMode: 2,
+            random: keccak256(abi.encode("polygon-native-deployment-e2e", block.number))
+        });
+        bytes4 createOrderWithEthSelector = bytes4(
+            keccak256(
+                "createOrderWithEth((uint8,bytes32,bytes32,uint16,bytes32,bytes32,uint64,uint64,uint64,uint64,uint64,uint8,uint8,bytes32),bytes)"
+            )
+        );
+        bytes memory protocolData = abi.encodeWithSelector(createOrderWithEthSelector, orderParams, bytes(""));
+        bytes memory mayanCallData = abi.encodeCall(IMayanForwarder.forwardEth, (swiftV2Protocol, protocolData));
+        bytes memory payload = abi.encode(
+            RoutingPayload({
+                protocolTag: "mayan-swift-v2-native",
+                target: mayanForwarder,
+                callData: mayanCallData,
+                arbitary_data: bytes("")
+            })
+        );
+
+        ExternalSourcePair[] memory sources = new ExternalSourcePair[](1);
+        sources[0] = ExternalSourcePair({
+            universe: Universe.ETHEREUM,
+            chainID: 137,
+            contractAddress: bytes32(0),
+            value: amountIn,
+            fee: 0,
+            payloadHash: keccak256(payload)
+        });
+        ExternalRequest memory request = ExternalRequest({
+            sources: sources,
+            destinationUniverse: Universe.ETHEREUM,
+            destinationChainID: 1,
+            recipientAddress: bytes32(uint256(uint160(recipient))),
+            destinations: destinations,
+            nonce: uint256(keccak256(abi.encode("polygon-native-deployment-e2e", block.number))),
+            expiry: expiry,
+            parties: parties
+        });
+
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
+            abi.encodePacked(
+                "Sign this intent to proceed \n", Strings.toHexString(uint256(deployedRouter.hashRequest(request)), 32)
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+
+        vm.deal(user, amountIn);
+        uint256 swiftBalanceBefore = swiftV2Protocol.balance;
+
+        vm.prank(user);
+        deployedVault.depositRouter{value: amountIn}(request, abi.encodePacked(r, s, v), 0, payload, bytes(""));
+
+        assertEq(user.balance, 0, "user native balance");
+        assertEq(address(deployedVault).balance, 0, "Vault native balance");
+        assertEq(address(deployedRouter).balance, 0, "Router native balance");
+        assertEq(address(deployedExecutor).balance, 0, "Executor native balance");
+        assertEq(swiftV2Protocol.balance, swiftBalanceBefore + amountIn, "Mayan Swift did not escrow native POL");
     }
 }

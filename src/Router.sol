@@ -203,7 +203,6 @@ contract Router is ReentrancyGuardTransient {
     {
         if (source.contractAddress == bytes32(0)) {
             if (authorization.length != 0) revert InvalidPermitData();
-            if (msg.sender != party) revert UnauthorizedCaller(msg.sender);
             if (msg.value != source.value) revert InvalidNativeValue(source.value, msg.value);
             return address(0);
         }
