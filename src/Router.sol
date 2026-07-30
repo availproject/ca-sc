@@ -122,7 +122,7 @@ contract Router is ReentrancyGuardTransient {
         if (source.chainID != block.chainid) revert InvalidChain(source.chainID, block.chainid);
         if (block.timestamp >= request.expiry) revert RequestExpired(request.expiry);
         if (source.value == 0) revert ZeroAmount();
-        if (source.fee != 0) revert UnsupportedFee(source.fee);
+
         bytes32 payloadHash = keccak256(payload);
         if (payloadHash != source.payloadHash) {
             revert PayloadHashMismatch(source.payloadHash, payloadHash);
@@ -172,7 +172,6 @@ contract Router is ReentrancyGuardTransient {
     function _hashRequest(ExternalRequest calldata request) internal pure returns (bytes32) {
         return keccak256(
             abi.encode(
-                "nexusExternalRouter",
                 request.sources,
                 request.destinationUniverse,
                 request.destinationChainID,
