@@ -180,7 +180,8 @@ contract Router is ReentrancyGuardTransient {
                 request.destinations,
                 request.nonce,
                 request.expiry,
-                request.parties
+                request.parties,
+                request.arbitaryData
             )
         );
     }

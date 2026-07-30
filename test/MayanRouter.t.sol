@@ -132,7 +132,8 @@ contract MayanRouterTest is Test {
             destinations: destinations,
             nonce: 55_001,
             expiry: expiry,
-            parties: parties
+            parties: parties,
+            arbitaryData: bytes("")
         });
 
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
@@ -1246,7 +1247,7 @@ contract MayanRouterTest is Test {
 
 contract MayanPolygonDeploymentForkTest is Test {
     function test_E2E_PolygonDeployment_DepositRouterExecutesMayanForwarderPayload() public {
-        vm.createSelectFork("polygon");
+        vm.createSelectFork("polygon", 91_101_122);
 
         Vault deployedVault = Vault(0x25aebA4966d7BE028fB169aE251Fb282e30C7dcC);
         Router deployedRouter = Router(payable(0x197653Fa85d7A0303C418A1394A1EDad3c736bF4));
@@ -1319,7 +1320,8 @@ contract MayanPolygonDeploymentForkTest is Test {
             destinations: destinations,
             nonce: uint256(keccak256(abi.encode("polygon-deployment-e2e", block.number))),
             expiry: expiry,
-            parties: parties
+            parties: parties,
+            arbitaryData: bytes("")
         });
 
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
@@ -1350,7 +1352,7 @@ contract MayanPolygonDeploymentForkTest is Test {
     }
 
     function test_E2E_PolygonDeployment_DepositRouterExecutesNativePolMayanForwarderPayload() public {
-        vm.createSelectFork("polygon");
+        vm.createSelectFork("polygon", 91_101_122);
 
         Vault deployedVault = Vault(0x25aebA4966d7BE028fB169aE251Fb282e30C7dcC);
         Router deployedRouter = Router(payable(0x197653Fa85d7A0303C418A1394A1EDad3c736bF4));
@@ -1378,7 +1380,7 @@ contract MayanPolygonDeploymentForkTest is Test {
         parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
 
         IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2.OrderParams({
-            payloadType: 1,
+            payloadType: 0,
             trader: bytes32(uint256(uint160(user))),
             destAddr: bytes32(uint256(uint160(recipient))),
             destChainId: 2,
@@ -1426,7 +1428,8 @@ contract MayanPolygonDeploymentForkTest is Test {
             destinations: destinations,
             nonce: uint256(keccak256(abi.encode("polygon-native-deployment-e2e", block.number))),
             expiry: expiry,
-            parties: parties
+            parties: parties,
+            arbitaryData: bytes("")
         });
 
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(

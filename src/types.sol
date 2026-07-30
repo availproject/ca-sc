@@ -75,6 +75,7 @@ struct ExternalRequest {
     uint256 nonce;
     uint256 expiry;
     Party[] parties;
+    bytes arbitaryData;
 }
 
 /// @notice Generic routing payload executed by the external intent Executor. Field order is part
@@ -85,4 +86,3 @@ struct RoutingPayload {
     bytes callData;
     bytes arbitary_data;
 }
-
