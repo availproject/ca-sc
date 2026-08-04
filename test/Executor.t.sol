@@ -5,7 +5,6 @@ import {Test} from "forge-std/Test.sol";
 
 import {Executor} from "../src/Executor.sol";
 import {RoutingPayload} from "../src/types.sol";
-import {Router} from "../src/Router.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockTarget} from "./mocks/MockTarget.sol";
 
@@ -19,11 +18,11 @@ contract ExecutorTest is Test {
     address public party;
 
     function setUp() public {
-        gateway = makeAddr("gateway");
         vault = makeAddr("vault");
+        gateway = vault;
         party = makeAddr("party");
 
-        executor = new Executor(gateway, vault);
+        executor = new Executor(vault);
         token = new MockERC20("Test Token", "TEST");
         mockTarget = new MockTarget();
     }
@@ -34,7 +33,7 @@ contract ExecutorTest is Test {
         returns (bytes memory)
     {
         return abi.encode(
-            RoutingPayload({protocolTag: protocolTag, target: target, callData: callData, arbitary_data: bytes("")})
+            RoutingPayload({protocolTag: protocolTag, target: target, callData: callData, arbitaryData: bytes("")})
         );
     }
 
@@ -84,14 +83,14 @@ contract ExecutorTest is Test {
     function test_Execute_RevertsWhenCallerNotGateway() public {
         bytes memory payload = _payload("tag", address(mockTarget), hex"");
 
-        vm.expectRevert(abi.encodeWithSelector(Router.UnauthorizedCaller.selector, address(this)));
+        vm.expectRevert(abi.encodeWithSelector(Executor.UnauthorizedCaller.selector, address(this)));
         executor.execute(address(0), 1, party, payload);
     }
 
     function test_Execute_RevertsOnZeroAmount() public {
         bytes memory payload = _payload("tag", address(mockTarget), hex"");
 
-        vm.expectRevert(Router.ZeroAmount.selector);
+        vm.expectRevert(Executor.ZeroAmount.selector);
         vm.prank(gateway);
         executor.execute(address(0), 0, party, payload);
     }
@@ -102,7 +101,7 @@ contract ExecutorTest is Test {
 
         for (uint256 i = 0; i < badTargets.length; i++) {
             bytes memory payload = _payload("tag", badTargets[i], hex"");
-            vm.expectRevert(abi.encodeWithSelector(Router.ForbiddenTarget.selector, badTargets[i]));
+            vm.expectRevert(abi.encodeWithSelector(Executor.ForbiddenTarget.selector, badTargets[i]));
             vm.prank(gateway);
             executor.execute{value: 1}(address(0), 1, party, payload);
         }
@@ -113,12 +112,12 @@ contract ExecutorTest is Test {
 
         // Native funding with msg.value != amount.
         vm.deal(gateway, 1 ether);
-        vm.expectRevert(abi.encodeWithSelector(Router.InvalidNativeValue.selector, 2 ether, 1 ether));
+        vm.expectRevert(abi.encodeWithSelector(Executor.InvalidNativeValue.selector, 2 ether, 1 ether));
         vm.prank(gateway);
         executor.execute{value: 1 ether}(address(0), 2 ether, party, payload);
 
         // ERC-20 funding with nonzero msg.value.
-        vm.expectRevert(abi.encodeWithSelector(Router.InvalidNativeValue.selector, 0, 1));
+        vm.expectRevert(abi.encodeWithSelector(Executor.InvalidNativeValue.selector, 0, 1));
         vm.prank(gateway);
         executor.execute{value: 1}(address(token), 100, party, payload);
     }
@@ -140,7 +139,7 @@ contract ExecutorTest is Test {
         bytes memory payload = _payload("tag", address(mockTarget), hex"12345678");
 
         vm.deal(gateway, amount);
-        vm.expectRevert(Router.TargetCallFailed.selector);
+        vm.expectRevert(Executor.TargetCallFailed.selector);
         vm.prank(gateway);
         executor.execute{value: amount}(address(0), amount, party, payload);
     }
@@ -163,7 +162,7 @@ contract ExecutorTest is Test {
             protocolTag: "test",
             target: 0x000000000000000000000000000000000000dEaD,
             callData: hex"12345678",
-            arbitary_data: bytes("")
+            arbitaryData: bytes("")
         });
 
         bytes32 expected = 0xd034e7b461cd9c424bcaf82fc75a89a3dc18307a6ad398168ee4aa451aba4ca4;

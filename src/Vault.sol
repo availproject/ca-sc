@@ -3,6 +3,7 @@ pragma solidity ^0.8.29;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -12,8 +13,8 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import {Request, Party, Universe, RFFState, SettleData, ExternalRequest} from "./types.sol";
-import {IExternalIntentRouter} from "./interfaces/IExternalIntentRouter.sol";
+import {Request, Party, Universe, RFFState, SettleData, ExternalRequest, ExternalSourcePair} from "./types.sol";
+import {IExternalIntentExecutor} from "./interfaces/IExternalIntentExecutor.sol";
 import {IRouter} from "./interfaces/IRouter.sol";
 
 /// @title Vault
@@ -32,21 +33,59 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
     /// @notice Router contract for processing cross-chain transfers
     IRouter public mayanRouter;
-    IExternalIntentRouter public intentRouter;
+    address public executor;
 
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 private constant SETTLEMENT_VERIFIER_ROLE = keccak256("SETTLEMENT_VERIFIER_ROLE");
     bytes32 private constant MIDDLEWARE_ROLE = keccak256("MIDDLEWARE_ROLE");
     string private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
 
+    error ZeroAddress();
+    error InvalidSourceIndex(uint256 sourceIndex);
+    error InvalidParty();
+    error DuplicateEvmParty();
+    error NonCanonicalAddress(bytes32 encoded);
+    error InvalidSignature();
+    error InvalidUniverse(Universe universe);
+    error InvalidChain(uint256 expected, uint256 actual);
+    error RequestExpired(uint256 expiry);
+    error ZeroAmount();
+    error UnsupportedFee(uint256 fee);
+    error PayloadHashMismatch(bytes32 expected, bytes32 actual);
+    error NonceBoundToDifferentRequest(uint256 nonce, bytes32 expectedRequestHash, bytes32 actualRequestHash);
+    error SourceAlreadyConsumed(bytes32 requestHash, uint256 sourceIndex);
+    error InvalidPermitData();
+    error InsufficientAllowance(uint256 required, uint256 actual);
+    error InvalidNativeValue(uint256 expected, uint256 actual);
+    error NonExactTransfer(uint256 expected, uint256 actual);
+    error UnauthorizedCaller(address caller);
+    error ForbiddenTarget(address target);
+    error InvalidApproval(address token, uint256 amount);
+    error TargetCallFailed();
+    error NativeTransferFailed(address recipient, uint256 amount);
+    error AlreadyProcessed();
+    error InvalidSender();
+
     // Storage gap to reserve slots for future use
-    uint256[49] private _gap;
+    uint256[48] private _gap;
 
     event Deposit(bytes32 indexed requestHash, address from);
     event Fulfilment(bytes32 indexed requestHash, address from, address solver);
     event Settle(uint256 indexed nonce, address[] solver, address[] token, uint256[] amount);
     event RouterSet(address indexed newRouter);
+    event ExecutorSet(address indexed executor);
     event DepositMayan(bytes32 indexed requestHash, address from);
+
+    event DepositRouter(
+        bytes32 indexed requestHash,
+        uint256 indexed sourceIndex,
+        address indexed party,
+        address asset,
+        uint256 amount,
+        bytes32 payloadHash,
+        address caller
+    );
+
     event IntentRouterSet(address indexed newIntentRouter);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -75,10 +114,12 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         emit RouterSet(_mayanRouter);
     }
 
-    function setExternalRouter(address _intentRouter) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_intentRouter != address(0), "Vault: Zero address");
-        intentRouter = IExternalIntentRouter(_intentRouter);
-        emit IntentRouterSet(_intentRouter);
+    /// @notice Sets the external intent executor address
+    /// @param _executor Address of the external intent executor
+    function setExecutor(address _executor) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_executor != address(0), "Vault: Zero address");
+        executor = _executor;
+        emit ExecutorSet(_executor);
     }
 
     /// @notice Authorizes a contract upgrade
@@ -111,6 +152,22 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         );
     }
 
+    function _hashExternalRequest(ExternalRequest calldata request) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                request.sources,
+                request.destinationUniverse,
+                request.destinationChainID,
+                request.recipientAddress,
+                request.destinations,
+                request.nonce,
+                request.expiry,
+                request.parties,
+                request.arbitaryData
+            )
+        );
+    }
+
     /// @notice Converts a bytes32 value to an address
     /// @dev Casts the last 20 bytes of the bytes32 to an address
     /// @param a The bytes32 value to convert
@@ -127,7 +184,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     /// @param hash The hash of the request data
     /// @return success True if signer matches expected address
     /// @return signedMessageHash The computed EIP-191 signed message hash
-    function _verify_request(bytes calldata signature, address from, bytes32 hash)
+    function _verifyRequest(bytes calldata signature, address from, bytes32 hash)
         private
         pure
         returns (bool, bytes32)
@@ -161,7 +218,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     {
         address from = extractAddress(request.parties);
         bytes32 request_hash = _hashRequest(request);
-        (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request_hash);
+        (bool success, bytes32 signedMessageHash) = _verifyRequest(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
 
         uint256 depositKey = _depositNonceKey(request.nonce, chainIndex);
@@ -171,8 +228,6 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(!depositNonce[request.nonce], "Vault: Nonce already used");
         require(!depositNonce[depositKey], "Vault: Deposit Key based nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
-
-        require(msg.sender == from || hasRole(MIDDLEWARE_ROLE, msg.sender), "Invalid Sender");
 
         depositNonce[depositKey] = true;
         requestState[signedMessageHash] = RFFState.DEPOSITED;
@@ -222,7 +277,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
         address from = extractAddress(request.parties);
         bytes32 request_hash = _hashRequest(request);
-        (bool success, bytes32 requestHash) = _verify_request(signature, from, request_hash);
+        (bool success, bytes32 requestHash) = _verifyRequest(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
 
         uint256 depositKey = _depositNonceKey(request.nonce, chainIndex);
@@ -283,7 +338,44 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         if (sourceIndex < request.sources.length && request.sources[sourceIndex].contractAddress == bytes32(0)) {
             require(msg.sender == extractAddress(request.parties), "Vault: Invalid native sender");
         }
-        intentRouter.execute{value: msg.value}(request, signature, sourceIndex, payload, authorization);
+        if (sourceIndex >= request.sources.length) revert InvalidSourceIndex(sourceIndex);
+
+        address party = extractAddress(request.parties);
+
+        require(msg.sender == party || hasRole(MIDDLEWARE_ROLE, msg.sender), "Invalid Sender");
+
+        bytes32 requestHash = _hashExternalRequest(request);
+
+        (bool success, bytes32 signedMessageHash) = _verifyRequest(signature, party, requestHash);
+
+        if (!success) revert InvalidSignature();
+
+        ExternalSourcePair calldata source = request.sources[sourceIndex];
+        if (source.universe != Universe.ETHEREUM) revert InvalidUniverse(source.universe);
+        if (source.chainID != block.chainid) revert InvalidChain(source.chainID, block.chainid);
+        if (block.timestamp >= request.expiry) revert RequestExpired(request.expiry);
+        if (source.value == 0) revert ZeroAmount();
+
+        bytes32 payloadHash = keccak256(payload);
+        if (payloadHash != source.payloadHash) {
+            revert PayloadHashMismatch(source.payloadHash, payloadHash);
+        }
+
+        uint256 depositKey = _depositNonceKey(request.nonce, sourceIndex);
+
+        if (depositNonce[depositKey]) revert AlreadyProcessed();
+
+        depositNonce[depositKey] = true;
+        requestState[signedMessageHash] = RFFState.DEPOSITED;
+
+        address asset = _acquireFunding(source, party, authorization);
+        _fundExecutor(asset, source.value, party, payload);
+
+        // Defensive sweep of any funded asset unexpectedly held by this contract or returned to this contract by executor.
+        _sweepFundedAsset(asset, party);
+
+        // Canonical execution event.
+        emit DepositRouter(requestHash, sourceIndex, party, asset, source.value, source.payloadHash, msg.sender);
     }
 
     /// @notice Extracts the Ethereum party address from a parties array
@@ -306,7 +398,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     function fulfil(Request calldata request, bytes calldata signature) external payable nonReentrant {
         address from = extractAddress(request.parties);
         bytes32 request_hash = _hashRequest(request);
-        (bool success, bytes32 signedMessageHash) = _verify_request(signature, from, request_hash);
+        (bool success, bytes32 signedMessageHash) = _verifyRequest(signature, from, request_hash);
         require(success, "Vault: Invalid signature or from");
         require(uint256(request.destinationChainID) == block.chainid, "Vault: Chain ID mismatch");
         require(request.destinationUniverse == Universe.ETHEREUM, "Vault: Universe mismatch");
@@ -382,5 +474,87 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             }
         }
         emit Settle(settleData.nonce, settleData.solvers, settleData.contractAddresses, settleData.amounts);
+    }
+
+    function _acquireFunding(ExternalSourcePair calldata source, address party, bytes calldata authorization)
+        internal
+        returns (address asset)
+    {
+        if (source.contractAddress == bytes32(0)) {
+            if (authorization.length != 0) revert InvalidPermitData();
+            if (msg.value != source.value) revert InvalidNativeValue(source.value, msg.value);
+            return address(0);
+        }
+
+        if (uint256(source.contractAddress) >> 160 != 0) revert NonCanonicalAddress(source.contractAddress);
+        if (msg.value != 0) revert InvalidNativeValue(0, msg.value);
+
+        asset = address(uint160(uint256(source.contractAddress)));
+        IERC20 token = IERC20(asset);
+        uint256 balanceBefore = token.balanceOf(address(this));
+
+        if (authorization.length == 0) {
+            token.safeTransferFrom(party, address(this), source.value);
+        } else {
+            _acquireWithPermit(token, party, source.value, authorization);
+        }
+
+        uint256 received = token.balanceOf(address(this)) - balanceBefore;
+        if (received != source.value) revert NonExactTransfer(source.value, received);
+    }
+
+    /// @dev Acquires funding via an EIP-2612 permit on top of any existing allowance. A reverted
+    /// permit call is non-fatal if the resulting allowance is sufficient, so a previously used
+    /// or front-run permit does not block execution.
+    function _acquireWithPermit(IERC20 token, address party, uint256 amount, bytes calldata data) internal {
+        (uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) =
+            abi.decode(data, (uint256, uint256, uint8, bytes32, bytes32));
+        if (value < amount) revert InsufficientAllowance(amount, value);
+
+        if (token.allowance(party, address(this)) < amount) {
+            try IERC20Permit(address(token)).permit(party, address(this), value, deadline, v, r, s) {}
+                catch {
+                // Non-fatal: the allowance check below remains authoritative.
+            }
+        }
+
+        uint256 allowance = token.allowance(party, address(this));
+        if (allowance < amount) revert InsufficientAllowance(amount, allowance);
+
+        token.safeTransferFrom(party, address(this), amount);
+    }
+
+    /// @dev Funds the immutable executor with exactly the signed amount and invokes it. Both
+    /// funding hops require exact balance deltas.
+    function _fundExecutor(address asset, uint256 amount, address party, bytes calldata payload) internal {
+        if (asset == address(0)) {
+            IExternalIntentExecutor(executor).execute{value: amount}(address(0), amount, party, payload);
+            return;
+        }
+
+        IERC20 token = IERC20(asset);
+        uint256 balanceBefore = token.balanceOf(executor);
+        token.safeTransfer(executor, amount);
+        uint256 received = token.balanceOf(executor) - balanceBefore;
+        if (received != amount) revert NonExactTransfer(amount, received);
+
+        IExternalIntentExecutor(executor).execute(asset, amount, party, payload);
+    }
+
+    /// @dev Defensive cleanup: transfers any balance of the funded asset held by this contract
+    /// after execution back to the party. Not a normal path.
+    function _sweepFundedAsset(address asset, address party) internal {
+        if (asset == address(0)) {
+            uint256 residual = address(this).balance;
+            if (residual > 0) {
+                (bool sent,) = party.call{value: residual}("");
+                if (!sent) revert NativeTransferFailed(party, residual);
+            }
+        } else {
+            uint256 residual = IERC20(asset).balanceOf(address(this));
+            if (residual > 0) {
+                IERC20(asset).safeTransfer(party, residual);
+            }
+        }
     }
 }

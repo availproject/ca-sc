@@ -84,5 +84,5 @@ struct RoutingPayload {
     string protocolTag;
     address target;
     bytes callData;
-    bytes arbitary_data;
+    bytes arbitaryData;
 }

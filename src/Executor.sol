@@ -6,7 +6,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IExternalIntentExecutor} from "./interfaces/IExternalIntentExecutor.sol";
 import {RoutingPayload} from "./types.sol";
-import {Router} from "./Router.sol";
 
 /// @title Executor (ExternalIntentExecutorV1)
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -17,9 +16,6 @@ import {Router} from "./Router.sol";
 /// upgrade entry point. The only contract permitted to decode RoutingPayload.
 contract Executor is IExternalIntentExecutor {
     using SafeERC20 for IERC20;
-
-    /// @notice The immutable gateway permitted to invoke {execute}.
-    address public immutable gateway;
 
     /// @notice The immutable protocol vault excluded as a routing target.
     address public immutable vault;
@@ -40,12 +36,42 @@ contract Executor is IExternalIntentExecutor {
         string protocolTag
     );
 
-    /// @notice Deploys the executor bound to its immutable gateway and vault.
-    /// @param gateway_ The gateway address permitted to invoke {execute}
+    /// @notice Thrown when the vault address supplied at deployment is the zero address.
+    error ZeroAddress();
+
+    /// @notice Thrown when any account other than the vault calls `execute`.
+    /// @param caller The rejected caller
+    error UnauthorizedCaller(address caller);
+
+    /// @notice Thrown when the payload targets the zero address, this contract, or the vault.
+    /// @param target The rejected routing target
+    error ForbiddenTarget(address target);
+
+    /// @notice Thrown when the signed source amount is zero.
+    error ZeroAmount();
+
+    /// @notice Thrown when the native value attached by the vault does not match the funding mode.
+    /// @param expected The required native value
+    /// @param actual The native value received
+    error InvalidNativeValue(uint256 expected, uint256 actual);
+
+    /// @notice Thrown when the token balance held by this contract is below the signed amount.
+    /// @param expected The signed source amount
+    /// @param actual The balance actually held
+    error NonExactTransfer(uint256 expected, uint256 actual);
+
+    /// @notice Thrown when the routing target reverts without returning any revert data.
+    error TargetCallFailed();
+
+    /// @notice Thrown when a native refund to the vault fails.
+    /// @param recipient The intended refund recipient
+    /// @param amount The refund amount
+    error NativeTransferFailed(address recipient, uint256 amount);
+
+    /// @notice Deploys the executor bound to its immutable vault.
     /// @param vault_ The protocol vault address excluded as a routing target
-    constructor(address gateway_, address vault_) {
-        if (gateway_ == address(0) || vault_ == address(0)) revert Router.ZeroAddress();
-        gateway = gateway_;
+    constructor(address vault_) {
+        if (vault_ == address(0)) revert ZeroAddress();
         vault = vault_;
     }
 
@@ -56,49 +82,52 @@ contract Executor is IExternalIntentExecutor {
     /// @dev On success the full residual balance of `asset` and the full native balance are
     /// refunded, so a native-funded execution performs exactly one native transfer.
     function execute(address asset, uint256 amount, address party, bytes calldata payload) external payable override {
-        if (msg.sender != gateway) revert Router.UnauthorizedCaller(msg.sender);
+        if (msg.sender != vault) revert UnauthorizedCaller(msg.sender);
 
-        RoutingPayload memory p = abi.decode(payload, (RoutingPayload));
+        RoutingPayload memory routing = abi.decode(payload, (RoutingPayload));
 
-        if (p.target == address(0) || p.target == address(this) || p.target == gateway || p.target == vault) {
-            revert Router.ForbiddenTarget(p.target);
+        if (routing.target == address(0) || routing.target == address(this) || routing.target == vault) {
+            revert ForbiddenTarget(routing.target);
         }
-        if (amount == 0) revert Router.ZeroAmount();
+        if (amount == 0) revert ZeroAmount();
 
         if (asset == address(0)) {
-            if (msg.value != amount) revert Router.InvalidNativeValue(amount, msg.value);
+            if (msg.value != amount) revert InvalidNativeValue(amount, msg.value);
         } else {
-            if (msg.value != 0) revert Router.InvalidNativeValue(0, msg.value);
+            if (msg.value != 0) revert InvalidNativeValue(0, msg.value);
+
             uint256 actualBalance = IERC20(asset).balanceOf(address(this));
-            if (actualBalance < amount) revert Router.NonExactTransfer(amount, actualBalance);
-            IERC20(asset).forceApprove(p.target, amount);
+            if (actualBalance < amount) revert NonExactTransfer(amount, actualBalance);
+
+            IERC20(asset).forceApprove(routing.target, amount);
         }
 
         uint256 callValue = asset == address(0) ? amount : 0;
-        (bool ok, bytes memory ret) = p.target.call{value: callValue}(p.callData);
-        if (!ok) {
-            if (ret.length > 0) {
+        (bool success, bytes memory returnData) = routing.target.call{value: callValue}(routing.callData);
+        if (!success) {
+            if (returnData.length > 0) {
                 assembly {
-                    revert(add(ret, 0x20), mload(ret))
+                    revert(add(returnData, 0x20), mload(returnData))
                 }
             }
-            revert Router.TargetCallFailed();
+            revert TargetCallFailed();
         }
 
-        if (asset != address(0)) {
-            IERC20(asset).forceApprove(p.target, 0);
-            uint256 tokenBalance = IERC20(asset).balanceOf(address(this));
-            if (tokenBalance > 0) {
-                IERC20(asset).safeTransfer(gateway, tokenBalance);
+        if (asset == address(0)) {
+            uint256 nativeBalance = address(this).balance;
+            if (nativeBalance > 0) {
+                (bool sent,) = vault.call{value: nativeBalance}("");
+                if (!sent) revert NativeTransferFailed(vault, nativeBalance);
             }
         } else {
-            uint256 bal = address(this).balance;
-            if (bal > 0) {
-                (bool sent,) = gateway.call{value: bal}("");
-                if (!sent) revert Router.NativeTransferFailed(gateway, bal);
+            IERC20(asset).forceApprove(routing.target, 0);
+
+            uint256 tokenBalance = IERC20(asset).balanceOf(address(this));
+            if (tokenBalance > 0) {
+                IERC20(asset).safeTransfer(vault, tokenBalance);
             }
         }
 
-        emit PayloadExecuted(keccak256(payload), p.target, party, asset, amount, p.protocolTag);
+        emit PayloadExecuted(keccak256(payload), routing.target, party, asset, amount, routing.protocolTag);
     }
 }

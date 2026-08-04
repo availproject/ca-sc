@@ -4,7 +4,6 @@ pragma solidity ^0.8.29;
 import {Test} from "forge-std/Test.sol";
 import {MayanRouter} from "../src/routes/mayan.sol";
 import {Vault} from "../src/Vault.sol";
-import {Router} from "../src/Router.sol";
 import {Executor} from "../src/Executor.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {IMayanForwarder} from "../src/interfaces/IMayanForwarder.sol";
@@ -70,13 +69,10 @@ contract MayanRouterTest is Test {
         Vault e2eVault =
             Vault(address(new ERC1967Proxy(address(vaultImpl), abi.encodeCall(Vault.initialize, (admin, verifier)))));
 
-        address predictedRouter = vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1);
-        Executor executor = new Executor(predictedRouter, address(e2eVault));
-        Router intentRouter = new Router(address(executor), address(e2eVault));
-        assertEq(address(intentRouter), predictedRouter, "incorrect Router prediction");
+        Executor executor = new Executor(address(e2eVault));
 
         vm.prank(admin);
-        e2eVault.setExternalRouter(address(intentRouter));
+        e2eVault.setExecutor(address(executor));
 
         DestinationPair[] memory destinations = new DestinationPair[](1);
         destinations[0] =
@@ -111,7 +107,7 @@ contract MayanRouterTest is Test {
                 protocolTag: "mayan-swift-v2",
                 target: MAYAN_FORWARDER,
                 callData: mayanCallData,
-                arbitary_data: bytes("")
+                arbitaryData: bytes("")
             })
         );
 
@@ -139,7 +135,24 @@ contract MayanRouterTest is Test {
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
             abi.encodePacked(
                 "Sign this intent to proceed \n",
-                Strings.toHexString(uint256(intentRouter.hashRequest(externalRequest)), 32)
+                Strings.toHexString(
+                    uint256(
+                        keccak256(
+                            abi.encode(
+                                externalRequest.sources,
+                                externalRequest.destinationUniverse,
+                                externalRequest.destinationChainID,
+                                externalRequest.recipientAddress,
+                                externalRequest.destinations,
+                                externalRequest.nonce,
+                                externalRequest.expiry,
+                                externalRequest.parties,
+                                externalRequest.arbitaryData
+                            )
+                        )
+                    ),
+                    32
+                )
             )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
@@ -147,7 +160,7 @@ contract MayanRouterTest is Test {
 
         deal(MIDDLE_TOKEN, user, amountIn);
         vm.prank(user);
-        IERC20(MIDDLE_TOKEN).approve(address(intentRouter), amountIn);
+        IERC20(MIDDLE_TOKEN).approve(address(e2eVault), amountIn);
 
         uint256 swiftBalanceBefore = IERC20(MIDDLE_TOKEN).balanceOf(swiftV2Protocol);
 
@@ -155,12 +168,11 @@ contract MayanRouterTest is Test {
         e2eVault.depositRouter(externalRequest, signature, 0, payload, bytes(""));
 
         assertTrue(
-            intentRouter.depositNonce(uint256(keccak256(abi.encode(uint256(55_001), uint256(0))))),
+            e2eVault.depositNonce(uint256(keccak256(abi.encode(uint256(55_001), uint256(0))))),
             "source nonce not consumed"
         );
         assertEq(IERC20(MIDDLE_TOKEN).balanceOf(user), 0, "user source balance");
         assertEq(IERC20(MIDDLE_TOKEN).balanceOf(address(e2eVault)), 0, "Vault source balance");
-        assertEq(IERC20(MIDDLE_TOKEN).balanceOf(address(intentRouter)), 0, "Router source balance");
         assertEq(IERC20(MIDDLE_TOKEN).balanceOf(address(executor)), 0, "Executor source balance");
         assertEq(
             IERC20(MIDDLE_TOKEN).balanceOf(swiftV2Protocol),
@@ -1245,13 +1257,29 @@ contract MayanRouterTest is Test {
     }
 }
 
-contract MayanPolygonDeploymentForkTest is Test {
-    function test_E2E_PolygonDeployment_DepositRouterExecutesMayanForwarderPayload() public {
-        vm.createSelectFork("polygon", 91_141_216);
+/// @notice Stand-in for MayanForwarder that accepts and retains the forwarded native value.
+/// @dev Etched over the real forwarder so the native leg settles without replaying an on-chain swap.
+///      vm.mockCall cannot be used here: it intercepts the call without transferring value, which
+///      leaves the balance stranded on the Executor and trips its residual refund path.
+contract MayanForwarderNativeStub {
+    function swapAndForwardEth(uint256, address, bytes calldata, address, uint256, address, bytes calldata)
+        external
+        payable
+    {}
+}
 
-        Vault deployedVault = Vault(0x968555e0f9938C72a83B0557c4847a4787aa7fBF);
-        Router deployedRouter = Router(payable(0x86A84C1a7C94F98c4f4648832Be05F0758dF6848));
-        Executor deployedExecutor = Executor(payable(0xAB97C2724880646292ce5fc6CefABa9E322d2227));
+contract MayanPolygonDeploymentForkTest is Test {
+    address private constant VAULT_IMPLEMENTATION = 0xc41C1aD28AdB4301b2abCd1720CDcd7e1F6Dbd6c;
+    address private constant VAULT_PROXY = 0x7d4787E6bE280886B9Cc7CD1980B78474c69F98C;
+    address private constant EXECUTOR = 0x7cb43713091923b4aAF3478d7514AbB72648188e;
+    bytes32 private constant ERC1967_IMPLEMENTATION_SLOT =
+        0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
+    function test_E2E_PolygonDeployment_DepositRouterExecutesMayanForwarderPayload() public {
+        vm.createSelectFork("polygon");
+
+        Vault deployedVault = Vault(VAULT_PROXY);
+        Executor deployedExecutor = Executor(payable(EXECUTOR));
         address mayanForwarder = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
         address polygonUsdc = 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359;
         address ethereumUsdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -1263,10 +1291,12 @@ contract MayanPolygonDeploymentForkTest is Test {
         uint64 minAmountOut = 9e6;
         uint256 expiry = block.timestamp + 1 hours;
 
-        assertEq(address(deployedVault.intentRouter()), address(deployedRouter), "Vault Router");
-        assertEq(deployedRouter.executor(), address(deployedExecutor), "Router Executor");
-        assertEq(deployedRouter.vault(), address(deployedVault), "Router Vault");
-        assertEq(deployedExecutor.gateway(), address(deployedRouter), "Executor gateway");
+        assertEq(
+            address(uint160(uint256(vm.load(address(deployedVault), ERC1967_IMPLEMENTATION_SLOT)))),
+            VAULT_IMPLEMENTATION,
+            "Vault implementation"
+        );
+        assertEq(deployedVault.executor(), address(deployedExecutor), "Vault Executor");
         assertEq(deployedExecutor.vault(), address(deployedVault), "Executor Vault");
 
         DestinationPair[] memory destinations = new DestinationPair[](1);
@@ -1299,7 +1329,7 @@ contract MayanPolygonDeploymentForkTest is Test {
         );
         bytes memory payload = abi.encode(
             RoutingPayload({
-                protocolTag: "mayan-swift-v2", target: mayanForwarder, callData: mayanCallData, arbitary_data: bytes("")
+                protocolTag: "mayan-swift-v2", target: mayanForwarder, callData: mayanCallData, arbitaryData: bytes("")
             })
         );
 
@@ -1326,14 +1356,14 @@ contract MayanPolygonDeploymentForkTest is Test {
 
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
             abi.encodePacked(
-                "Sign this intent to proceed \n", Strings.toHexString(uint256(deployedRouter.hashRequest(request)), 32)
+                "Sign this intent to proceed \n", Strings.toHexString(uint256(_hashExternalRequest(request)), 32)
             )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
 
         deal(polygonUsdc, user, amountIn);
         vm.prank(user);
-        IERC20(polygonUsdc).approve(address(deployedRouter), amountIn);
+        IERC20(polygonUsdc).approve(address(deployedVault), amountIn);
 
         uint256 swiftBalanceBefore = IERC20(polygonUsdc).balanceOf(swiftV2Protocol);
 
@@ -1342,7 +1372,6 @@ contract MayanPolygonDeploymentForkTest is Test {
 
         assertEq(IERC20(polygonUsdc).balanceOf(user), 0, "user source balance");
         assertEq(IERC20(polygonUsdc).balanceOf(address(deployedVault)), 0, "Vault source balance");
-        assertEq(IERC20(polygonUsdc).balanceOf(address(deployedRouter)), 0, "Router source balance");
         assertEq(IERC20(polygonUsdc).balanceOf(address(deployedExecutor)), 0, "Executor source balance");
         assertEq(
             IERC20(polygonUsdc).balanceOf(swiftV2Protocol),
@@ -1352,12 +1381,12 @@ contract MayanPolygonDeploymentForkTest is Test {
     }
 
     function test_E2E_PolygonDeployment_DepositRouterExecutesNativePolMayanForwarderPayload() public {
-        vm.createSelectFork("polygon", 91_141_216);
+        vm.createSelectFork("polygon");
 
-        Vault deployedVault = Vault(0x968555e0f9938C72a83B0557c4847a4787aa7fBF);
-        Router deployedRouter = Router(payable(0x86A84C1a7C94F98c4f4648832Be05F0758dF6848));
-        Executor deployedExecutor = Executor(payable(0xAB97C2724880646292ce5fc6CefABa9E322d2227));
+        Vault deployedVault = Vault(VAULT_PROXY);
+        Executor deployedExecutor = Executor(payable(EXECUTOR));
         address mayanForwarder = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
+        address polygonUsdc = 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359;
         address ethereumUsdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         address swiftV2Protocol = 0x40fFE85A28DC9993541449464d7529a922142960;
         uint256 userPrivateKey = 0xB0B;
@@ -1367,10 +1396,19 @@ contract MayanPolygonDeploymentForkTest is Test {
         uint64 minAmountOut = 1;
         uint256 expiry = block.timestamp + 1 hours;
 
-        assertEq(address(deployedVault.intentRouter()), address(deployedRouter), "Vault Router");
-        assertEq(deployedRouter.executor(), address(deployedExecutor), "Router Executor");
-        assertEq(deployedRouter.vault(), address(deployedVault), "Router Vault");
-        assertEq(deployedExecutor.gateway(), address(deployedRouter), "Executor gateway");
+        // Swift V2 has no native entry point, so native input is swapped to a middle token first and
+        // the order is created against that token. Mirrors MayanRouter._processTransferV2.
+        address swapProtocol = 0x0000000000001fF3684f28c67538d4D072C22734;
+        address middleToken = polygonUsdc;
+        uint256 minMiddleAmount = 1;
+        bytes memory swapData = hex"";
+
+        assertEq(
+            address(uint160(uint256(vm.load(address(deployedVault), ERC1967_IMPLEMENTATION_SLOT)))),
+            VAULT_IMPLEMENTATION,
+            "Vault implementation"
+        );
+        assertEq(deployedVault.executor(), address(deployedExecutor), "Vault Executor");
         assertEq(deployedExecutor.vault(), address(deployedVault), "Executor Vault");
 
         DestinationPair[] memory destinations = new DestinationPair[](1);
@@ -1380,7 +1418,7 @@ contract MayanPolygonDeploymentForkTest is Test {
         parties[0] = Party({universe: Universe.ETHEREUM, address_: bytes32(uint256(uint160(user)))});
 
         IMayanSwiftV2.OrderParams memory orderParams = IMayanSwiftV2.OrderParams({
-            payloadType: 0,
+            payloadType: 1,
             trader: bytes32(uint256(uint160(user))),
             destAddr: bytes32(uint256(uint160(recipient))),
             destChainId: 2,
@@ -1395,19 +1433,18 @@ contract MayanPolygonDeploymentForkTest is Test {
             auctionMode: 2,
             random: keccak256(abi.encode("polygon-native-deployment-e2e", block.number))
         });
-        bytes4 createOrderWithEthSelector = bytes4(
-            keccak256(
-                "createOrderWithEth((uint8,bytes32,bytes32,uint16,bytes32,bytes32,uint64,uint64,uint64,uint64,uint64,uint8,uint8,bytes32),bytes)"
-            )
+        bytes memory protocolData =
+            abi.encodeCall(IMayanSwiftV2.createOrderWithToken, (middleToken, minMiddleAmount, orderParams, bytes("")));
+        bytes memory mayanCallData = abi.encodeCall(
+            IMayanForwarder.swapAndForwardEth,
+            (amountIn, swapProtocol, swapData, middleToken, minMiddleAmount, swiftV2Protocol, protocolData)
         );
-        bytes memory protocolData = abi.encodeWithSelector(createOrderWithEthSelector, orderParams, bytes(""));
-        bytes memory mayanCallData = abi.encodeCall(IMayanForwarder.forwardEth, (swiftV2Protocol, protocolData));
         bytes memory payload = abi.encode(
             RoutingPayload({
                 protocolTag: "mayan-swift-v2-native",
                 target: mayanForwarder,
                 callData: mayanCallData,
-                arbitary_data: bytes("")
+                arbitaryData: bytes("")
             })
         );
 
@@ -1434,21 +1471,43 @@ contract MayanPolygonDeploymentForkTest is Test {
 
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(
             abi.encodePacked(
-                "Sign this intent to proceed \n", Strings.toHexString(uint256(deployedRouter.hashRequest(request)), 32)
+                "Sign this intent to proceed \n", Strings.toHexString(uint256(_hashExternalRequest(request)), 32)
             )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
 
         vm.deal(user, amountIn);
-        uint256 swiftBalanceBefore = swiftV2Protocol.balance;
+        uint256 forwarderBalanceBefore = mayanForwarder.balance;
+
+        // Stub the forwarder so the assertion does not depend on executing a real on-chain swap,
+        // while still consuming the forwarded native value.
+        vm.etch(mayanForwarder, address(new MayanForwarderNativeStub()).code);
+        vm.expectCall(mayanForwarder, amountIn, mayanCallData);
 
         vm.prank(user);
         deployedVault.depositRouter{value: amountIn}(request, abi.encodePacked(r, s, v), 0, payload, bytes(""));
 
         assertEq(user.balance, 0, "user native balance");
         assertEq(address(deployedVault).balance, 0, "Vault native balance");
-        assertEq(address(deployedRouter).balance, 0, "Router native balance");
         assertEq(address(deployedExecutor).balance, 0, "Executor native balance");
-        assertEq(swiftV2Protocol.balance, swiftBalanceBefore + amountIn, "Mayan Swift did not escrow native POL");
+        assertEq(
+            mayanForwarder.balance, forwarderBalanceBefore + amountIn, "Mayan Forwarder did not receive native POL"
+        );
+    }
+
+    function _hashExternalRequest(ExternalRequest memory request) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                request.sources,
+                request.destinationUniverse,
+                request.destinationChainID,
+                request.recipientAddress,
+                request.destinations,
+                request.nonce,
+                request.expiry,
+                request.parties,
+                request.arbitaryData
+            )
+        );
     }
 }
