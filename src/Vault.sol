@@ -93,6 +93,15 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         _disableInitializers();
     }
 
+    /// @notice Accepts native currency sent with empty calldata
+    /// @dev Required so the executor can return unspent native funding after a routing call.
+    /// Residual balances are forwarded to the signed party by `_sweepFundedAsset`.
+    receive() external payable {}
+
+    /// @notice Accepts native currency sent with unrecognised calldata
+    /// @dev Present so protocol integrations that refund with a non-empty payload do not revert.
+    fallback() external payable {}
+
     /// @notice Initializes the Vault contract with admin roles
     /// @param admin Address to grant DEFAULT_ADMIN_ROLE and UPGRADER_ROLE
     /// @param mpc Address to grant SETTLEMENT_VERIFIER_ROLE
@@ -184,11 +193,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     /// @param hash The hash of the request data
     /// @return success True if signer matches expected address
     /// @return signedMessageHash The computed EIP-191 signed message hash
-    function _verifyRequest(bytes calldata signature, address from, bytes32 hash)
-        private
-        pure
-        returns (bool, bytes32)
-    {
+    function _verifyRequest(bytes calldata signature, address from, bytes32 hash) private pure returns (bool, bytes32) {
         // Must match EXACT client string: "Sign this intent to proceed \n" + "0x...."
         bytes memory msgBytes = abi.encodePacked(
             SIGNATURE_PREFIX,
@@ -368,11 +373,20 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         depositNonce[depositKey] = true;
         requestState[signedMessageHash] = RFFState.DEPOSITED;
 
-        address asset = _acquireFunding(source, party, authorization);
+        uint256 contractCurrentBalance = 0;
+        address asset = bytes32ToAddress(source.contractAddress);
+
+        if (asset == address(0)) {
+            contractCurrentBalance = address(this).balance - msg.value;
+        } else {
+            contractCurrentBalance = IERC20(bytes32ToAddress(source.contractAddress)).balanceOf(address(this));
+        }
+
+        _acquireFunding(asset, source.value, party, authorization);
         _fundExecutor(asset, source.value, party, payload);
 
         // Defensive sweep of any funded asset unexpectedly held by this contract or returned to this contract by executor.
-        _sweepFundedAsset(asset, party);
+        _sweepFundedAsset(asset, party, contractCurrentBalance);
 
         // Canonical execution event.
         emit DepositRouter(requestHash, sourceIndex, party, asset, source.value, source.payloadHash, msg.sender);
@@ -476,31 +490,26 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         emit Settle(settleData.nonce, settleData.solvers, settleData.contractAddresses, settleData.amounts);
     }
 
-    function _acquireFunding(ExternalSourcePair calldata source, address party, bytes calldata authorization)
-        internal
-        returns (address asset)
-    {
-        if (source.contractAddress == bytes32(0)) {
+    function _acquireFunding(address asset, uint256 amount, address party, bytes calldata authorization) internal {
+        if (asset == address(0)) {
             if (authorization.length != 0) revert InvalidPermitData();
-            if (msg.value != source.value) revert InvalidNativeValue(source.value, msg.value);
-            return address(0);
+            if (msg.value != amount) revert InvalidNativeValue(amount, msg.value);
+            return;
         }
 
-        if (uint256(source.contractAddress) >> 160 != 0) revert NonCanonicalAddress(source.contractAddress);
         if (msg.value != 0) revert InvalidNativeValue(0, msg.value);
 
-        asset = address(uint160(uint256(source.contractAddress)));
         IERC20 token = IERC20(asset);
         uint256 balanceBefore = token.balanceOf(address(this));
 
         if (authorization.length == 0) {
-            token.safeTransferFrom(party, address(this), source.value);
+            token.safeTransferFrom(party, address(this), amount);
         } else {
-            _acquireWithPermit(token, party, source.value, authorization);
+            _acquireWithPermit(token, party, amount, authorization);
         }
 
         uint256 received = token.balanceOf(address(this)) - balanceBefore;
-        if (received != source.value) revert NonExactTransfer(source.value, received);
+        if (received != amount) revert NonExactTransfer(amount, received);
     }
 
     /// @dev Acquires funding via an EIP-2612 permit on top of any existing allowance. A reverted
@@ -524,7 +533,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         token.safeTransferFrom(party, address(this), amount);
     }
 
-    /// @dev Funds the immutable executor with exactly the signed amount and invokes it. Both
+    /// @dev Funds the executor with exactly the signed amount and invokes it. Both
     /// funding hops require exact balance deltas.
     function _fundExecutor(address asset, uint256 amount, address party, bytes calldata payload) internal {
         if (asset == address(0)) {
@@ -543,15 +552,15 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
     /// @dev Defensive cleanup: transfers any balance of the funded asset held by this contract
     /// after execution back to the party. Not a normal path.
-    function _sweepFundedAsset(address asset, address party) internal {
+    function _sweepFundedAsset(address asset, address party, uint256 expectedBalance) internal {
         if (asset == address(0)) {
-            uint256 residual = address(this).balance;
+            uint256 residual = address(this).balance - expectedBalance;
             if (residual > 0) {
                 (bool sent,) = party.call{value: residual}("");
                 if (!sent) revert NativeTransferFailed(party, residual);
             }
         } else {
-            uint256 residual = IERC20(asset).balanceOf(address(this));
+            uint256 residual = IERC20(asset).balanceOf(address(this)) - expectedBalance;
             if (residual > 0) {
                 IERC20(asset).safeTransfer(party, residual);
             }

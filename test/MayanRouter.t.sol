@@ -67,7 +67,7 @@ contract MayanRouterTest is Test {
 
         Vault vaultImpl = new Vault();
         Vault e2eVault =
-            Vault(address(new ERC1967Proxy(address(vaultImpl), abi.encodeCall(Vault.initialize, (admin, verifier)))));
+            Vault(payable(address(new ERC1967Proxy(address(vaultImpl), abi.encodeCall(Vault.initialize, (admin, verifier))))));
 
         Executor executor = new Executor(address(e2eVault));
 
@@ -1278,7 +1278,7 @@ contract MayanPolygonDeploymentForkTest is Test {
     function test_E2E_PolygonDeployment_DepositRouterExecutesMayanForwarderPayload() public {
         vm.createSelectFork("polygon");
 
-        Vault deployedVault = Vault(VAULT_PROXY);
+        Vault deployedVault = Vault(payable(VAULT_PROXY));
         Executor deployedExecutor = Executor(payable(EXECUTOR));
         address mayanForwarder = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
         address polygonUsdc = 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359;
@@ -1383,7 +1383,7 @@ contract MayanPolygonDeploymentForkTest is Test {
     function test_E2E_PolygonDeployment_DepositRouterExecutesNativePolMayanForwarderPayload() public {
         vm.createSelectFork("polygon");
 
-        Vault deployedVault = Vault(VAULT_PROXY);
+        Vault deployedVault = Vault(payable(VAULT_PROXY));
         Executor deployedExecutor = Executor(payable(EXECUTOR));
         address mayanForwarder = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
         address polygonUsdc = 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359;

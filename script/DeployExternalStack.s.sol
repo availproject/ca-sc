@@ -37,7 +37,7 @@ contract DeployExternalStack is Script {
         Vault vaultImplementation = new Vault();
         ERC1967Proxy vaultProxy =
             new ERC1967Proxy(address(vaultImplementation), abi.encodeCall(Vault.initialize, (deployer, mpc)));
-        Vault vault = Vault(address(vaultProxy));
+        Vault vault = Vault(payable(address(vaultProxy)));
 
         Executor executor = new Executor(address(vault));
 
@@ -54,7 +54,7 @@ contract DeployExternalStack is Script {
     }
 
     function _verify(DeploymentAddresses memory addresses, address admin, address mpc) internal view {
-        Vault vault = Vault(addresses.vaultProxy);
+        Vault vault = Vault(payable(addresses.vaultProxy));
         Executor executor = Executor(payable(addresses.executor));
 
         require(addresses.vaultImplementation.code.length > 0, "DeployExternalStack: Vault impl missing");
