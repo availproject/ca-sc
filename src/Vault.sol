@@ -384,11 +384,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
 
         _acquireFunding(asset, source.value, party, authorization);
         _fundExecutor(asset, source.value, party, payload);
-
-        // Defensive sweep of any funded asset unexpectedly held by this contract or returned to this contract by executor.
         _sweepFundedAsset(asset, party, contractCurrentBalance);
 
-        // Canonical execution event.
         emit DepositRouter(requestHash, sourceIndex, party, asset, source.value, source.payloadHash, msg.sender);
     }
 
@@ -533,8 +530,10 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         token.safeTransferFrom(party, address(this), amount);
     }
 
-    /// @dev Funds the executor with exactly the signed amount and invokes it. Both
-    /// funding hops require exact balance deltas.
+    /// @dev Funds the executor with exactly the signed amount and invokes it. ERC-20 funding is
+    /// granted as a bounded allowance rather than pushed, so the executor observes its own
+    /// pre-funding balance and enforces the exact-transfer check itself. The allowance is cleared
+    /// afterwards so nothing outlives the call.
     function _fundExecutor(address asset, uint256 amount, address party, bytes calldata payload) internal {
         if (asset == address(0)) {
             IExternalIntentExecutor(executor).execute{value: amount}(address(0), amount, party, payload);
@@ -542,12 +541,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         }
 
         IERC20 token = IERC20(asset);
-        uint256 balanceBefore = token.balanceOf(executor);
-        token.safeTransfer(executor, amount);
-        uint256 received = token.balanceOf(executor) - balanceBefore;
-        if (received != amount) revert NonExactTransfer(amount, received);
+        token.forceApprove(executor, amount);
 
         IExternalIntentExecutor(executor).execute(asset, amount, party, payload);
+
+        token.forceApprove(executor, 0);
     }
 
     /// @dev Defensive cleanup: transfers any balance of the funded asset held by this contract

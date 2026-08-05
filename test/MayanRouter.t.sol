@@ -69,7 +69,11 @@ contract MayanRouterTest is Test {
         Vault e2eVault =
             Vault(payable(address(new ERC1967Proxy(address(vaultImpl), abi.encodeCall(Vault.initialize, (admin, verifier))))));
 
-        Executor executor = new Executor(address(e2eVault));
+        Executor executor = new Executor(address(e2eVault), address(this));
+
+        // Routing allowlist: only the Mayan forwarder, and only its ERC-20 entry point.
+        executor.setTarget(MAYAN_FORWARDER, true);
+        executor.setSelector(MAYAN_FORWARDER, IMayanForwarder.forwardERC20.selector, true);
 
         vm.prank(admin);
         e2eVault.setExecutor(address(executor));
