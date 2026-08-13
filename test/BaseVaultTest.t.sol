@@ -74,7 +74,7 @@ abstract contract BaseVaultTest is Test {
         // Deploy proxy with initialization data
         bytes memory initData = abi.encodeWithSelector(vaultImpl.initialize.selector, admin, verifier);
         proxy = new ERC1967Proxy(address(vaultImpl), initData);
-        vault = Vault(address(proxy));
+        vault = Vault(payable(address(proxy)));
 
         // Deploy mock tokens
         token = new MockERC20("Mock Token", "MOCK");
