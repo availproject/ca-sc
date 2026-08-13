@@ -66,8 +66,9 @@ contract MayanRouterTest is Test {
         uint256 expiry = block.timestamp + 1 hours;
 
         Vault vaultImpl = new Vault();
-        Vault e2eVault =
-            Vault(payable(address(new ERC1967Proxy(address(vaultImpl), abi.encodeCall(Vault.initialize, (admin, verifier))))));
+        Vault e2eVault = Vault(
+            payable(address(new ERC1967Proxy(address(vaultImpl), abi.encodeCall(Vault.initialize, (admin, verifier)))))
+        );
 
         Executor executor = new Executor(address(e2eVault), address(this));
 
@@ -108,10 +109,7 @@ contract MayanRouterTest is Test {
         );
         bytes memory payload = abi.encode(
             RoutingPayload({
-                protocolTag: "mayan-swift-v2",
-                target: MAYAN_FORWARDER,
-                callData: mayanCallData,
-                arbitaryData: bytes("")
+                protocolTag: "mayan-swift-v2", target: MAYAN_FORWARDER, callData: mayanCallData, arbitaryData: bytes("")
             })
         );
 
@@ -1268,8 +1266,7 @@ contract MayanRouterTest is Test {
 contract MayanForwarderNativeStub {
     function swapAndForwardEth(uint256, address, bytes calldata, address, uint256, address, bytes calldata)
         external
-        payable
-    {}
+        payable {}
 }
 
 contract MayanPolygonDeploymentForkTest is Test {

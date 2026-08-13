@@ -40,11 +40,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     bytes32 private constant MIDDLEWARE_ROLE = keccak256("MIDDLEWARE_ROLE");
     string private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
 
-    error ZeroAddress();
     error InvalidSourceIndex(uint256 sourceIndex);
-    error InvalidParty();
-    error DuplicateEvmParty();
-    error NonCanonicalAddress(bytes32 encoded);
     error InvalidSignature();
     error InvalidUniverse(Universe universe);
     error InvalidChain(uint256 expected, uint256 actual);
@@ -52,19 +48,15 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     error ZeroAmount();
     error UnsupportedFee(uint256 fee);
     error PayloadHashMismatch(bytes32 expected, bytes32 actual);
-    error NonceBoundToDifferentRequest(uint256 nonce, bytes32 expectedRequestHash, bytes32 actualRequestHash);
-    error SourceAlreadyConsumed(bytes32 requestHash, uint256 sourceIndex);
     error InvalidPermitData();
     error InsufficientAllowance(uint256 required, uint256 actual);
     error InvalidNativeValue(uint256 expected, uint256 actual);
     error NonExactTransfer(uint256 expected, uint256 actual);
-    error UnauthorizedCaller(address caller);
-    error ForbiddenTarget(address target);
-    error InvalidApproval(address token, uint256 amount);
-    error TargetCallFailed();
     error NativeTransferFailed(address recipient, uint256 amount);
     error AlreadyProcessed();
-    error InvalidSender();
+    error NonCanonicalAddress(bytes32 nonCanonicalAddress);
+    error SelfFeeTransfer(address party);
+    error FeeTransferFailed(uint256 expected, uint256 actual);
 
     // Storage gap to reserve slots for future use
     uint256[48] private _gap;
@@ -234,6 +226,10 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(!depositNonce[depositKey], "Vault: Deposit Key based nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
 
+        if (request.sources[chainIndex].fee != 0) {
+            require(msg.sender == from || hasRole(MIDDLEWARE_ROLE, msg.sender), "Vault: Invalid Sender");
+        }
+
         depositNonce[depositKey] = true;
         requestState[signedMessageHash] = RFFState.DEPOSITED;
 
@@ -356,6 +352,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         if (!success) revert InvalidSignature();
 
         ExternalSourcePair calldata source = request.sources[sourceIndex];
+        if (uint256(source.contractAddress) >> 160 != 0) revert NonCanonicalAddress(source.contractAddress);
+
         if (source.universe != Universe.ETHEREUM) revert InvalidUniverse(source.universe);
         if (source.chainID != block.chainid) revert InvalidChain(source.chainID, block.chainid);
         if (block.timestamp >= request.expiry) revert RequestExpired(request.expiry);
@@ -383,6 +381,22 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         }
 
         _acquireFunding(asset, source.value, party, authorization);
+
+        // Relayer compensation, paid party -> caller. It never enters this contract, so it does not
+        // disturb the funded-asset delta measured above. Native fees are unsupported because the
+        // native envelope is pinned to exactly source.value.
+        if (source.fee != 0) {
+            if (asset == address(0)) revert UnsupportedFee(source.fee);
+            if (msg.sender == party) revert SelfFeeTransfer(party);
+
+            IERC20 feeToken = IERC20(asset);
+            uint256 callerBalanceBefore = feeToken.balanceOf(msg.sender);
+            feeToken.safeTransferFrom(party, msg.sender, source.fee);
+            // fee on transfer tokens
+            uint256 feeReceived = feeToken.balanceOf(msg.sender) - callerBalanceBefore;
+            if (feeReceived != source.fee) revert FeeTransferFailed(source.fee, feeReceived);
+        }
+
         _fundExecutor(asset, source.value, party, payload);
         _sweepFundedAsset(asset, party, contractCurrentBalance);
 
@@ -413,6 +427,9 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
         require(success, "Vault: Invalid signature or from");
         require(uint256(request.destinationChainID) == block.chainid, "Vault: Chain ID mismatch");
         require(request.destinationUniverse == Universe.ETHEREUM, "Vault: Universe mismatch");
+        // Keyed on the raw nonce, so anyone can burn a broadcast intent's fill nonce for gas.
+        // Accepted: the griefer gains nothing, and a deposit stranded this way is refundable
+        // via settle(). Cost is liveness only - the intent must be reissued under a fresh nonce.
         require(!fillNonce[request.nonce], "Vault: Nonce already used");
         require(request.expiry > block.timestamp, "Vault: Request expired");
         address recipient = bytes32ToAddress(request.recipientAddress);

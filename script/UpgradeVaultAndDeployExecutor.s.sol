@@ -5,6 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 
 import {Executor} from "../src/Executor.sol";
 import {Vault} from "../src/Vault.sol";
+import {IMayanForwarder} from "../src/interfaces/IMayanForwarder.sol";
 
 interface ICreateXUpgradeExecutor {
     function deployCreate2(bytes32 salt, bytes memory initCode) external payable returns (address);
@@ -28,8 +29,11 @@ interface IERC1822ProxiableUpgradeExecutor {
 /// @dev The Executor is deliberately not installed automatically because `setExecutor` may need
 /// to be submitted by a different DEFAULT_ADMIN_ROLE account (for example, a Safe). The script
 /// prints both calldata and a ready-to-run `cast send` command for that final transaction.
+/// AWS KMS broadcasts the deterministic deployments. `ADMIN_PRIVATE_KEY` broadcasts the Vault
+/// upgrade and, when `CONFIGURE_EXECUTOR=true`, configures the Mayan target and selectors.
 contract UpgradeVaultAndDeployExecutor is Script {
     address public constant DEFAULT_PROXY_ADDRESS = 0x86B60E813f9b739516dDbDc443526be5Ef8336aa;
+    address public constant MAYAN_FORWARDER = 0x337685fdaB40D39bd02028545a4FfA7D287cC3E2;
     bytes32 public constant DEFAULT_ADMIN_ROLE = bytes32(0);
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 public constant ERC1967_IMPLEMENTATION_SLOT =
@@ -39,56 +43,78 @@ contract UpgradeVaultAndDeployExecutor is Script {
         ICreateXUpgradeExecutor(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
     function run() external returns (address newImplementation, address newExecutor) {
-        uint256 privateKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(privateKey);
+        address deployer = msg.sender;
+        address admin = vm.envAddress("ADMIN");
+        uint256 adminPrivateKey = vm.envUint("ADMIN_PRIVATE_KEY");
         address proxyAddress = vm.envOr("PROXY_ADDRESS", DEFAULT_PROXY_ADDRESS);
-        address executorOwner = vm.envOr("EXECUTOR_OWNER", deployer);
         bytes32 salt = vm.envBytes32("UPGRADE_SALT");
+        bytes32 executorSalt = keccak256(abi.encodePacked(salt, "executor"));
+        bool configureExecutor = vm.envBool("CONFIGURE_EXECUTOR");
 
+        require(admin != address(0), "UpgradeExecutor: zero admin");
+        require(vm.addr(adminPrivateKey) == admin, "UpgradeExecutor: admin key mismatch");
         require(proxyAddress.code.length > 0, "UpgradeExecutor: proxy has no code");
-        require(executorOwner != address(0), "UpgradeExecutor: zero executor owner");
 
         address currentImplementation = _getImplementation(proxyAddress);
         require(currentImplementation.code.length > 0, "UpgradeExecutor: implementation has no code");
 
         IVaultUpgradeExecutor vault = IVaultUpgradeExecutor(proxyAddress);
-        bool hasUpgraderRole = vault.hasRole(UPGRADER_ROLE, deployer);
-        bool hasAdminRole = vault.hasRole(DEFAULT_ADMIN_ROLE, deployer);
-        require(hasUpgraderRole || hasAdminRole, "UpgradeExecutor: signer cannot upgrade");
+        bool hasUpgraderRole = vault.hasRole(UPGRADER_ROLE, admin);
+        bool hasAdminRole = vault.hasRole(DEFAULT_ADMIN_ROLE, admin);
+        require(hasUpgraderRole || hasAdminRole, "UpgradeExecutor: admin cannot upgrade");
 
         bytes memory initCode = type(Vault).creationCode;
         newImplementation = CREATEX.computeCreate2Address(keccak256(abi.encode(salt)), keccak256(initCode));
         require(newImplementation.code.length == 0, "UpgradeExecutor: implementation already deployed");
 
+        bytes memory executorInitCode = abi.encodePacked(type(Executor).creationCode, abi.encode(proxyAddress, admin));
+        newExecutor = CREATEX.computeCreate2Address(keccak256(abi.encode(executorSalt)), keccak256(executorInitCode));
+        require(newExecutor.code.length == 0, "UpgradeExecutor: executor already deployed");
+
         console.log("Deployer:", deployer);
+        console.log("Executor admin:", admin);
         console.log("Vault proxy:", proxyAddress);
         console.log("Current implementation:", currentImplementation);
         console.log("Expected implementation:", newImplementation);
-        console.log("Executor owner:", executorOwner);
+        console.log("Expected Executor:", newExecutor);
+        console.log("Executor salt:", vm.toString(executorSalt));
 
-        vm.startBroadcast(privateKey);
-
-        if (!hasUpgraderRole) {
-            vault.grantRole(UPGRADER_ROLE, deployer);
-        }
+        vm.startBroadcast();
 
         address deployedImplementation = CREATEX.deployCreate2(salt, initCode);
         require(deployedImplementation == newImplementation, "UpgradeExecutor: implementation mismatch");
+
+        address deployedExecutor = CREATEX.deployCreate2(executorSalt, executorInitCode);
+        require(deployedExecutor == newExecutor, "UpgradeExecutor: executor mismatch");
+
+        vm.stopBroadcast();
+
+        Executor executorContract = Executor(payable(newExecutor));
         require(
             IERC1822ProxiableUpgradeExecutor(newImplementation).proxiableUUID() == ERC1967_IMPLEMENTATION_SLOT,
             "UpgradeExecutor: invalid UUPS implementation"
         );
 
+        vm.startBroadcast(adminPrivateKey);
+
+        if (!hasUpgraderRole) {
+            vault.grantRole(UPGRADER_ROLE, admin);
+        }
+
         vault.upgradeToAndCall(newImplementation, "");
 
-        Executor executorContract = new Executor(proxyAddress, executorOwner);
-        newExecutor = address(executorContract);
+        if (configureExecutor) {
+            _configureExecutor(executorContract);
+        }
 
         vm.stopBroadcast();
 
         require(_getImplementation(proxyAddress) == newImplementation, "UpgradeExecutor: upgrade failed");
         require(executorContract.vault() == proxyAddress, "UpgradeExecutor: executor vault mismatch");
-        require(executorContract.owner() == executorOwner, "UpgradeExecutor: executor owner mismatch");
+        require(executorContract.owner() == admin, "UpgradeExecutor: executor owner mismatch");
+        if (configureExecutor) {
+            _verifyExecutorConfiguration(executorContract);
+        }
 
         bytes memory setExecutorCalldata = abi.encodeCall(IVaultUpgradeExecutor.setExecutor, (newExecutor));
 
@@ -116,5 +142,28 @@ contract UpgradeVaultAndDeployExecutor is Script {
     function _getImplementation(address proxyAddress) internal view returns (address) {
         bytes32 implementation = vm.load(proxyAddress, ERC1967_IMPLEMENTATION_SLOT);
         return address(uint160(uint256(implementation)));
+    }
+
+    function _configureExecutor(Executor executorContract) internal {
+        executorContract.setTarget(MAYAN_FORWARDER, true);
+        executorContract.setSelector(MAYAN_FORWARDER, IMayanForwarder.forwardERC20.selector, true);
+        executorContract.setSelector(MAYAN_FORWARDER, IMayanForwarder.swapAndForwardERC20.selector, true);
+        executorContract.setSelector(MAYAN_FORWARDER, IMayanForwarder.swapAndForwardEth.selector, true);
+    }
+
+    function _verifyExecutorConfiguration(Executor executorContract) internal view {
+        require(executorContract.allowedTarget(MAYAN_FORWARDER), "UpgradeExecutor: target not allowed");
+        require(
+            executorContract.allowedSelector(MAYAN_FORWARDER, IMayanForwarder.forwardERC20.selector),
+            "UpgradeExecutor: forwardERC20 not allowed"
+        );
+        require(
+            executorContract.allowedSelector(MAYAN_FORWARDER, IMayanForwarder.swapAndForwardERC20.selector),
+            "UpgradeExecutor: swapAndForwardERC20 not allowed"
+        );
+        require(
+            executorContract.allowedSelector(MAYAN_FORWARDER, IMayanForwarder.swapAndForwardEth.selector),
+            "UpgradeExecutor: swapAndForwardEth not allowed"
+        );
     }
 }

@@ -210,9 +210,7 @@ contract ExecutorTest is Test {
 
         bytes memory payload = _payload("tag", address(other), hex"12345678");
         vm.deal(gateway, 1 ether);
-        vm.expectRevert(
-            abi.encodeWithSelector(Executor.ForbiddenSelector.selector, address(other), bytes4(0x12345678))
-        );
+        vm.expectRevert(abi.encodeWithSelector(Executor.ForbiddenSelector.selector, address(other), bytes4(0x12345678)));
         vm.prank(gateway);
         executor.execute{value: 1 ether}(address(0), 1 ether, party, payload);
     }
