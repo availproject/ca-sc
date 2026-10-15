@@ -16,6 +16,8 @@ import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/acce
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
+import {IArbSys} from "./interfaces/IArbSys.sol";
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // Vault Contract
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
@@ -73,6 +75,12 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     // @dev Prevents replay attacks on settlement transactions
     mapping(uint256 => bool) public settleNonce;
 
+    // @notice Hash chain over every Deposit, Fulfilment and Settle event, so an indexer can prove it read them all
+    bytes32 public eventDigest;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    bool private immutable NITRO = address(100).code.length > 0;
+
     // @notice Role identifier for contract upgrade authorization
     bytes32 private constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
@@ -83,7 +91,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     string private constant SIGNATURE_PREFIX = "Sign this intent to proceed \n";
 
     // Storage gap to reserve slots for future use
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // Structs
@@ -292,6 +300,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             }
         }
 
+        _fold(Deposit.selector, request_hash, abi.encode(from));
         emit Deposit(request_hash, from);
     }
 
@@ -354,6 +363,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             (bool sent,) = payable(msg.sender).call{value: nativeBalance}("");
             require(sent, "Vault: Transfer failed");
         }
+        _fold(Fulfilment.selector, request_hash, abi.encode(from, msg.sender));
         emit Fulfilment(request_hash, from, msg.sender);
     }
 
@@ -402,6 +412,27 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 token.safeTransfer(settleData.solvers[i], settleData.amounts[i]);
             }
         }
+        _fold(
+            Settle.selector,
+            bytes32(settleData.nonce),
+            abi.encode(settleData.solvers, settleData.contractAddresses, settleData.amounts)
+        );
         emit Settle(settleData.nonce, settleData.solvers, settleData.contractAddresses, settleData.amounts);
+    }
+
+    // @notice The event digest with the block and timestamp it was read at
+    // @dev An indexer calls this by block number and rejects an answer for any other block
+    function checkpoint() external view returns (bytes32 digest, uint256 number, uint256 timestamp) {
+        return (eventDigest, _blockNumber(), block.timestamp);
+    }
+
+    // @dev `data` must be the data of the log the caller emits next
+    function _fold(bytes32 topic0, bytes32 topic1, bytes memory data) private {
+        eventDigest = keccak256(abi.encode(eventDigest, _blockNumber(), topic0, topic1, keccak256(data)));
+    }
+
+    // @dev The number an RPC log carries; on Nitro `block.number` is the L1 block number
+    function _blockNumber() private view returns (uint256) {
+        return NITRO ? IArbSys(address(100)).arbBlockNumber() : block.number;
     }
 }
