@@ -66,7 +66,7 @@ contract DeployVault is Script {
 
         vm.startBroadcast(adminPrivateKey);
 
-        Vault vault = Vault(proxy);
+        Vault vault = Vault(payable(proxy));
 
         // Grant DEFAULT_ADMIN_ROLE to finalAdmin
         vault.grantRole(vault.DEFAULT_ADMIN_ROLE(), finalAdmin);
