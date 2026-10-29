@@ -2,9 +2,12 @@
 pragma solidity ^0.8.29;
 
 import {Vm} from "forge-std/Vm.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {BaseVaultTest} from "../../BaseVaultTest.t.sol";
 import {SignatureHelper} from "../../helpers/SignatureHelper.sol";
+import {MockArbSys} from "../../mocks/MockArbSys.sol";
 import {MockRouter} from "../../mocks/MockRouter.sol";
+import {ArbitrumVault} from "../../../src/ArbitrumVault.sol";
 import {Vault} from "../../../src/Vault.sol";
 import {Request, SettleData} from "../../../src/types.sol";
 
@@ -128,6 +131,32 @@ contract VaultEventDigestTest is BaseVaultTest {
         assertEq(timestamp, 1_700_000_000);
     }
 
+    function test_ArbitrumVault_FoldsTheL2BlockNumber() public {
+        vm.etch(address(100), address(new MockArbSys()).code);
+        Vault nitroVault = _deployVault(new ArbitrumVault());
+        vm.prank(admin);
+        nitroVault.grantRole(SETTLEMENT_VERIFIER_ROLE, vm.addr(VERIFIER_PRIVATE_KEY));
+        vault = nitroVault;
+
+        vm.roll(55);
+        vm.recordLogs();
+        _deposit(_ethRequest(1));
+        uint256 l2Number = MockArbSys(address(100)).L2_BLOCK_NUMBER();
+        bytes32 expected = _foldLogs(bytes32(0), vm.getRecordedLogs(), l2Number);
+
+        (bytes32 digest, uint256 number,) = vault.checkpoint();
+        assertEq(number, l2Number);
+        assertEq(digest, expected);
+    }
+
+    function test_Vault_ReportsBlockNumberEvenWithArbSys() public {
+        vm.etch(address(100), address(new MockArbSys()).code);
+        vm.roll(55);
+
+        (, uint256 number,) = vault.checkpoint();
+        assertEq(number, 55);
+    }
+
     function _foldLogs(bytes32 digest, Vm.Log[] memory logs, uint256 blockNumber) internal view returns (bytes32) {
         for (uint256 i = 0; i < logs.length; ++i) {
             Vm.Log memory log = logs[i];
@@ -148,6 +177,11 @@ contract VaultEventDigestTest is BaseVaultTest {
         returns (bytes32)
     {
         return keccak256(abi.encode(digest, blockNumber, topic0, topic1, keccak256(data)));
+    }
+
+    function _deployVault(Vault impl) internal returns (Vault) {
+        bytes memory initData = abi.encodeWithSelector(impl.initialize.selector, admin, verifier);
+        return Vault(payable(address(new ERC1967Proxy(address(impl), initData))));
     }
 
     function _requestHash(Request memory request) internal view returns (bytes32) {

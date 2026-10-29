@@ -600,11 +600,16 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     /// @return number The block number
     /// @return timestamp The block timestamp
     function checkpoint() external view returns (bytes32 digest, uint256 number, uint256 timestamp) {
-        return (eventDigest, block.number, block.timestamp);
+        return (eventDigest, _blockNumber(), block.timestamp);
     }
 
     /// @dev `data` must be the data of the log the caller emits next
     function _fold(bytes32 topic0, bytes32 topic1, bytes memory data) private {
-        eventDigest = keccak256(abi.encode(eventDigest, block.number, topic0, topic1, keccak256(data)));
+        eventDigest = keccak256(abi.encode(eventDigest, _blockNumber(), topic0, topic1, keccak256(data)));
+    }
+
+    /// @dev The number an RPC log carries
+    function _blockNumber() internal view virtual returns (uint256) {
+        return block.number;
     }
 }
