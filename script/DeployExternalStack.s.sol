@@ -6,6 +6,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 
 import {Executor} from "../src/Executor.sol";
 import {Vault} from "../src/Vault.sol";
+import {newVault} from "./VaultForChain.sol";
 
 /// @title DeployExternalStack
 /// @author Rachit Anand Srivastava (@privacy_prophet)
@@ -35,7 +36,7 @@ contract DeployExternalStack is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        Vault vaultImplementation = new Vault();
+        Vault vaultImplementation = newVault();
         ERC1967Proxy vaultProxy =
             new ERC1967Proxy(address(vaultImplementation), abi.encodeCall(Vault.initialize, (deployer, mpc)));
         Vault vault = Vault(payable(address(vaultProxy)));
