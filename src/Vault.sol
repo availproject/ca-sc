@@ -61,6 +61,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     // Storage gap to reserve slots for future use
     uint256[48] private _gap;
 
+    /// @notice Hash chain over every Deposit, Fulfilment and Settle event, so an indexer can prove it read them all
+    /// @dev Declared after `_gap` rather than taken from it: OpenZeppelin's layout check accepts a
+    ///      shrunk gap only when the deployed contract names it `__gap`
+    bytes32 public eventDigest;
+
     event Deposit(bytes32 indexed requestHash, address from);
     event Fulfilment(bytes32 indexed requestHash, address from, address solver);
     event Settle(uint256 indexed nonce, address[] solver, address[] token, uint256[] amount);
@@ -257,6 +262,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             }
         }
 
+        _fold(Deposit.selector, request_hash, abi.encode(from));
         emit Deposit(request_hash, from);
     }
 
@@ -461,6 +467,7 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
             (bool sent,) = payable(msg.sender).call{value: nativeBalance}("");
             require(sent, "Vault: Transfer failed");
         }
+        _fold(Fulfilment.selector, request_hash, abi.encode(from, msg.sender));
         emit Fulfilment(request_hash, from, msg.sender);
     }
 
@@ -501,6 +508,11 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 token.safeTransfer(settleData.solvers[i], settleData.amounts[i]);
             }
         }
+        _fold(
+            Settle.selector,
+            bytes32(settleData.nonce),
+            abi.encode(settleData.solvers, settleData.contractAddresses, settleData.amounts)
+        );
         emit Settle(settleData.nonce, settleData.solvers, settleData.contractAddresses, settleData.amounts);
     }
 
@@ -580,5 +592,24 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
                 IERC20(asset).safeTransfer(party, residual);
             }
         }
+    }
+
+    /// @notice The event digest with the block and timestamp it was read at
+    /// @dev An indexer calls this by block number and rejects an answer for any other block
+    /// @return digest The event digest after the block's events
+    /// @return number The block number
+    /// @return timestamp The block timestamp
+    function checkpoint() external view returns (bytes32 digest, uint256 number, uint256 timestamp) {
+        return (eventDigest, _blockNumber(), block.timestamp);
+    }
+
+    /// @dev `data` must be the data of the log the caller emits next
+    function _fold(bytes32 topic0, bytes32 topic1, bytes memory data) private {
+        eventDigest = keccak256(abi.encode(eventDigest, _blockNumber(), topic0, topic1, keccak256(data)));
+    }
+
+    /// @dev The number an RPC log carries
+    function _blockNumber() internal view virtual returns (uint256) {
+        return block.number;
     }
 }

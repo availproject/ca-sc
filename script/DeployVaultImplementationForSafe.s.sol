@@ -4,7 +4,7 @@ pragma solidity ^0.8.29;
 import {Script, console} from "forge-std/Script.sol";
 import {Upgrades, Options} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {Vault} from "../src/Vault.sol";
+import {vaultContractName, vaultCreationCode} from "./VaultForChain.sol";
 import {MayanRouter} from "../src/routes/mayan.sol";
 import {Universe} from "../src/types.sol";
 
@@ -33,7 +33,6 @@ contract DeployVaultImplementationForSafe is Script {
     bytes32 public constant ERC1967_IMPLEMENTATION_SLOT =
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
     ICreateXSafeUpgrade public constant CREATEX = ICreateXSafeUpgrade(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
-    string public constant VAULT_CONTRACT = "Vault.sol:Vault";
     string public constant DEFAULT_REFERENCE_CONTRACT = "VaultOld.sol:VaultOld";
 
     uint8 public constant WRAPPED_NATIVE_DECIMALS = 18;
@@ -128,7 +127,7 @@ contract DeployVaultImplementationForSafe is Script {
         require(currentImpl != address(0), "SafeUpgradeVault: proxy implementation not set");
         require(currentImpl.code.length > 0, "SafeUpgradeVault: implementation has no code");
 
-        bytes memory vaultInitCode = type(Vault).creationCode;
+        bytes memory vaultInitCode = vaultCreationCode();
         bytes32 vaultInitCodeHash = keccak256(vaultInitCode);
         address expectedImpl = CREATEX.computeCreate2Address(_createXComputeSalt(salt), vaultInitCodeHash);
         console.log("Expected New Implementation:", expectedImpl);
@@ -188,7 +187,7 @@ contract DeployVaultImplementationForSafe is Script {
         view
         returns (address newImpl, bytes memory safeCalldata)
     {
-        newImpl = CREATEX.computeCreate2Address(_createXComputeSalt(salt), keccak256(type(Vault).creationCode));
+        newImpl = CREATEX.computeCreate2Address(_createXComputeSalt(salt), keccak256(vaultCreationCode()));
         safeCalldata = abi.encodeCall(IVaultSafeUpgrade.upgradeToAndCall, (newImpl, bytes("")));
 
         console.log("Proxy:", proxyAddress);
@@ -539,14 +538,14 @@ contract DeployVaultImplementationForSafe is Script {
             opts.referenceBuildInfoDir = referenceBuildInfoDir;
         } catch {}
 
-        console.log("Checking OpenZeppelin upgrade safety for:", VAULT_CONTRACT);
+        console.log("Checking OpenZeppelin upgrade safety for:", vaultContractName());
         if (bytes(opts.referenceContract).length > 0) {
             console.log("Reference Contract:", opts.referenceContract);
         }
         if (bytes(opts.referenceBuildInfoDir).length > 0) {
             console.log("Reference Build Info Dir:", opts.referenceBuildInfoDir);
         }
-        Upgrades.validateUpgrade(VAULT_CONTRACT, opts);
+        Upgrades.validateUpgrade(vaultContractName(), opts);
         console.log("OpenZeppelin upgrade safety check passed");
     }
 }
