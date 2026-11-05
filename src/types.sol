@@ -5,7 +5,8 @@ enum Universe {
     ETHEREUM,
     FUEL,
     SOLANA,
-    TRON
+    TRON,
+    NIGHTSHADE
 }
 
 enum RFFState {
