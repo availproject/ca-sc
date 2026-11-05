@@ -192,6 +192,38 @@ contract VaultCoreTest is BaseVaultTest {
         assertEq(token.balanceOf(address(vault)), depositAmount, "Vault should have deposited tokens");
     }
 
+    /// @notice A request whose destination is Nightshade deposits like any other, and its
+    /// destination universe is ABI-encoded as 4, the value Nexus signs.
+    function test_Deposit_NightshadeDestination_Success() public {
+        uint256 depositAmount = 1000 * 10 ** 18;
+        address requester = _getAddress(USER_PRIVATE_KEY);
+
+        Request memory request = _createRequestForUser(
+            bytes32(uint256(uint160(address(token)))),
+            depositAmount,
+            bytes32(uint256(uint160(address(token)))),
+            depositAmount,
+            USER_PRIVATE_KEY,
+            solver,
+            3,
+            _futureTimestamp(1 hours)
+        );
+        request.destinationUniverse = Universe.NIGHTSHADE;
+        request.recipientAddress = keccak256("nightshade-recipient-key");
+        assertEq(uint8(request.destinationUniverse), 4, "NIGHTSHADE must encode as 4");
+
+        bytes memory signature = sigHelper.signRequest(request, USER_PRIVATE_KEY);
+        vm.prank(requester);
+        token.approve(address(vault), depositAmount);
+
+        vm.expectEmit(true, true, false, false);
+        emit Vault.Deposit(sigHelper.hashRequest(request), requester);
+        vm.prank(solver);
+        vault.deposit(request, signature, 0);
+
+        assertEq(token.balanceOf(address(vault)), depositAmount, "Vault should hold the deposit");
+    }
+
     // deposit() Tests - Revert Cases
 
     /// @notice Test deposit reverts with invalid signature
