@@ -154,6 +154,7 @@ contract UpgradeVault is Script {
         try vm.envString("REFERENCE_BUILD_INFO_DIR") returns (string memory referenceBuildInfoDir) {
             opts.referenceBuildInfoDir = referenceBuildInfoDir;
         } catch {}
+        opts.unsafeSkipStorageCheck = vm.envOr("UNSAFE_SKIP_STORAGE_CHECK", false);
 
         console.log("Checking OpenZeppelin upgrade safety for:", VAULT_CONTRACT);
         if (bytes(opts.referenceContract).length > 0) {
@@ -161,6 +162,9 @@ contract UpgradeVault is Script {
         }
         if (bytes(opts.referenceBuildInfoDir).length > 0) {
             console.log("Reference Build Info Dir:", opts.referenceBuildInfoDir);
+        }
+        if (opts.unsafeSkipStorageCheck) {
+            console.log("Storage layout check SKIPPED: the layout must be verified by hand");
         }
         Upgrades.validateUpgrade(VAULT_CONTRACT, opts);
         console.log("OpenZeppelin upgrade safety check passed");

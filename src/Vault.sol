@@ -58,7 +58,8 @@ contract Vault is Initializable, UUPSUpgradeable, AccessControlUpgradeable, Reen
     error SelfFeeTransfer(address party);
     error FeeTransferFailed(uint256 expected, uint256 actual);
 
-    // Storage gap to reserve slots for future use
+    // Storage gap to reserve slots for future use. OpenZeppelin's upgrade check recognises only
+    // `__gap`, so an upgrade that shrinks `_gap` must run with UNSAFE_SKIP_STORAGE_CHECK=true.
     uint256[48] private _gap;
 
     event Deposit(bytes32 indexed requestHash, address from);
