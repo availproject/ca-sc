@@ -3,7 +3,7 @@ pragma solidity ^0.8.29;
 
 import {Script, console} from "forge-std/Script.sol";
 import {Upgrades, Options} from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import {Vault} from "../src/Vault.sol";
+import {vaultContractName, vaultCreationCode} from "./VaultForChain.sol";
 
 interface ICreateX {
     function deployCreate2(bytes32 salt, bytes memory initCode) external payable returns (address);
@@ -27,8 +27,6 @@ contract UpgradeVault is Script {
     bytes32 public constant ERC1967_IMPLEMENTATION_SLOT =
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
     ICreateX public constant CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
-    string public constant VAULT_CONTRACT = "Vault.sol:Vault";
-    string public constant DEFAULT_REFERENCE_CONTRACT = "VaultOld.sol:VaultOld";
 
     // function run(address proxyAddress, bytes32 salt) external {
     //     _upgrade(proxyAddress, salt);
@@ -51,7 +49,7 @@ contract UpgradeVault is Script {
     }
 
     function _upgrade(address proxyAddress, bytes32 salt) internal {
-        // _validateUpgradeSafety();
+        _validateUpgradeSafety();
 
         address deployer;
         try vm.envUint("PRIVATE_KEY") returns (uint256 deployerPrivateKey) {
@@ -72,7 +70,7 @@ contract UpgradeVault is Script {
         require(currentImpl != address(0), "UpgradeVault: proxy implementation not set");
         require(currentImpl.code.length > 0, "UpgradeVault: implementation has no code");
 
-        bytes memory vaultInitCode = type(Vault).creationCode;
+        bytes memory vaultInitCode = vaultCreationCode();
         bytes32 vaultInitCodeHash = keccak256(vaultInitCode);
         address expectedImpl = CREATEX.computeCreate2Address(keccak256(abi.encode(salt)), vaultInitCodeHash);
         console.log("Expected New Implementation:", expectedImpl);
@@ -135,7 +133,7 @@ contract UpgradeVault is Script {
         console.log("Proxy:", proxyAddress);
         console.log("Salt:", vm.toString(salt));
 
-        newImpl = CREATEX.computeCreate2Address(keccak256(abi.encode(salt)), keccak256(type(Vault).creationCode));
+        newImpl = CREATEX.computeCreate2Address(keccak256(abi.encode(salt)), keccak256(vaultCreationCode()));
         console.log("Expected New Implementation:", newImpl);
 
         address currentImpl = getImplementation(proxyAddress);
@@ -149,22 +147,25 @@ contract UpgradeVault is Script {
 
     function _validateUpgradeSafety() internal {
         Options memory opts;
-        opts.referenceContract = DEFAULT_REFERENCE_CONTRACT;
         try vm.envString("REFERENCE_CONTRACT") returns (string memory referenceContract) {
             opts.referenceContract = referenceContract;
         } catch {}
         try vm.envString("REFERENCE_BUILD_INFO_DIR") returns (string memory referenceBuildInfoDir) {
             opts.referenceBuildInfoDir = referenceBuildInfoDir;
         } catch {}
+        opts.unsafeSkipStorageCheck = vm.envOr("UNSAFE_SKIP_STORAGE_CHECK", false);
 
-        console.log("Checking OpenZeppelin upgrade safety for:", VAULT_CONTRACT);
+        console.log("Checking OpenZeppelin upgrade safety for:", vaultContractName());
         if (bytes(opts.referenceContract).length > 0) {
             console.log("Reference Contract:", opts.referenceContract);
         }
         if (bytes(opts.referenceBuildInfoDir).length > 0) {
             console.log("Reference Build Info Dir:", opts.referenceBuildInfoDir);
         }
-        Upgrades.validateUpgrade(VAULT_CONTRACT, opts);
+        if (opts.unsafeSkipStorageCheck) {
+            console.log("Storage layout check SKIPPED: the layout must be verified by hand");
+        }
+        Upgrades.validateUpgrade(vaultContractName(), opts);
         console.log("OpenZeppelin upgrade safety check passed");
     }
 }

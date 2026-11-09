@@ -3,6 +3,7 @@ pragma solidity ^0.8.29;
 
 import {Script, console} from "forge-std/Script.sol";
 import {Vault} from "../src/Vault.sol";
+import {vaultCreationCode} from "./VaultForChain.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 interface ICreateX {
@@ -29,7 +30,7 @@ contract DeployVault is Script {
         console.log("Salt (impl):", vm.toString(salt));
         console.log("Salt (proxy):", vm.toString(proxySalt));
 
-        bytes memory vaultInitCode = type(Vault).creationCode;
+        bytes memory vaultInitCode = vaultCreationCode();
         bytes32 vaultInitCodeHash = keccak256(vaultInitCode);
         address expectedImpl = CREATEX.computeCreate2Address(keccak256(abi.encode(salt)), vaultInitCodeHash);
         console.log("Expected implementation:", expectedImpl);
@@ -97,7 +98,7 @@ contract DeployVault is Script {
         bytes32 salt = _getSalt();
         bytes32 proxySalt = keccak256(abi.encodePacked(salt, "proxy"));
 
-        impl = CREATEX.computeCreate2Address(salt, keccak256(type(Vault).creationCode));
+        impl = CREATEX.computeCreate2Address(salt, keccak256(vaultCreationCode()));
 
         bytes memory initData = abi.encodeWithSelector(Vault.initialize.selector, admin, mpc);
         bytes memory proxyInitCode = abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(impl, initData));
