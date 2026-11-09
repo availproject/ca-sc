@@ -28,7 +28,6 @@ contract UpgradeVault is Script {
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
     ICreateX public constant CREATEX = ICreateX(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
     string public constant VAULT_CONTRACT = "Vault.sol:Vault";
-    string public constant DEFAULT_REFERENCE_CONTRACT = "VaultOld.sol:VaultOld";
 
     // function run(address proxyAddress, bytes32 salt) external {
     //     _upgrade(proxyAddress, salt);
@@ -51,7 +50,7 @@ contract UpgradeVault is Script {
     }
 
     function _upgrade(address proxyAddress, bytes32 salt) internal {
-        // _validateUpgradeSafety();
+        _validateUpgradeSafety();
 
         address deployer;
         try vm.envUint("PRIVATE_KEY") returns (uint256 deployerPrivateKey) {
@@ -149,7 +148,6 @@ contract UpgradeVault is Script {
 
     function _validateUpgradeSafety() internal {
         Options memory opts;
-        opts.referenceContract = DEFAULT_REFERENCE_CONTRACT;
         try vm.envString("REFERENCE_CONTRACT") returns (string memory referenceContract) {
             opts.referenceContract = referenceContract;
         } catch {}

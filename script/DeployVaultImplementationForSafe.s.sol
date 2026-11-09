@@ -34,7 +34,6 @@ contract DeployVaultImplementationForSafe is Script {
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
     ICreateXSafeUpgrade public constant CREATEX = ICreateXSafeUpgrade(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
     string public constant VAULT_CONTRACT = "Vault.sol:Vault";
-    string public constant DEFAULT_REFERENCE_CONTRACT = "VaultOld.sol:VaultOld";
 
     uint8 public constant WRAPPED_NATIVE_DECIMALS = 18;
     uint8 public constant USDC_DECIMALS = 6;
@@ -531,7 +530,6 @@ contract DeployVaultImplementationForSafe is Script {
 
     function _validateUpgradeSafety() internal {
         Options memory opts;
-        opts.referenceContract = DEFAULT_REFERENCE_CONTRACT;
         try vm.envString("REFERENCE_CONTRACT") returns (string memory referenceContract) {
             opts.referenceContract = referenceContract;
         } catch {}
