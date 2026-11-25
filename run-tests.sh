@@ -61,6 +61,12 @@ run_test_suite "Fuzz Tests" "VaultFuzzTest" "-vvv" || FAILED=$((FAILED + 1))
 # 4. Integration Tests (7 tests)
 run_test_suite "Integration Tests" "VaultIntegrationTest" "-vvv" || FAILED=$((FAILED + 1))
 
+# 5. Unit Tests - Event Digest
+run_test_suite "Unit Tests - Event Digest" "VaultEventDigestTest" "-vvv" || FAILED=$((FAILED + 1))
+
+# 6. Script Tests - Vault For Chain
+run_test_suite "Script Tests - Vault For Chain" "VaultForChainTest" "-vvv" || FAILED=$((FAILED + 1))
+
 # Summary
 echo "" | tee -a "$LOG_FILE"
 log "${BLUE}══════════════════════════════════════════════════════════════${NC}"

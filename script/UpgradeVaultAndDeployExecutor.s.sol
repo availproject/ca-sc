@@ -5,6 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 
 import {Executor} from "../src/Executor.sol";
 import {Vault} from "../src/Vault.sol";
+import {vaultCreationCode} from "./VaultForChain.sol";
 import {IMayanForwarder} from "../src/interfaces/IMayanForwarder.sol";
 
 interface ICreateXUpgradeExecutor {
@@ -63,7 +64,7 @@ contract UpgradeVaultAndDeployExecutor is Script {
         bool hasAdminRole = vault.hasRole(DEFAULT_ADMIN_ROLE, admin);
         require(hasUpgraderRole || hasAdminRole, "UpgradeExecutor: admin cannot upgrade");
 
-        bytes memory initCode = type(Vault).creationCode;
+        bytes memory initCode = vaultCreationCode();
         newImplementation = CREATEX.computeCreate2Address(keccak256(abi.encode(salt)), keccak256(initCode));
         require(newImplementation.code.length == 0, "UpgradeExecutor: implementation already deployed");
 

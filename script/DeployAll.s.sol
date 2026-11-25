@@ -4,6 +4,7 @@ pragma solidity ^0.8.29;
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
 import {Vault} from "../src/Vault.sol";
+import {vaultCreationCode} from "./VaultForChain.sol";
 import {MayanRouter} from "../src/routes/mayan.sol";
 import {Universe} from "../src/types.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -46,7 +47,7 @@ contract DeployAll is Script {
         bytes32 vaultSalt = keccak256(abi.encodePacked("nexus-mayan-vault-", baseVersion));
         bytes32 proxySalt = keccak256(abi.encodePacked(vaultSalt, "proxy"));
 
-        bytes memory vaultInitCode = type(Vault).creationCode;
+        bytes memory vaultInitCode = vaultCreationCode();
         bytes32 vaultInitCodeHash = keccak256(vaultInitCode);
         address expectedImpl = CREATEX.computeCreate2Address(keccak256(abi.encode(vaultSalt)), vaultInitCodeHash);
         console.log("Expected implementation:", expectedImpl);
